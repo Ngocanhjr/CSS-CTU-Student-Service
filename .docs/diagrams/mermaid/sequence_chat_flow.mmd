@@ -1,0 +1,33 @@
+%% CTU-Service Chat Flow Sequence Diagram
+%% Student question to answer with citations
+
+sequenceDiagram
+    participant Student
+    participant Flutter
+    participant Backend
+    participant RAG
+    participant Qdrant
+    participant PostgreSQL
+    participant LLM
+    
+    Student->>Flutter: Enter question
+    Flutter->>Backend: POST /rag/answer
+    Backend->>RAG: Process query
+    RAG->>RAG: Normalize query
+    RAG->>RAG: Apply metadata filters
+    RAG->>Qdrant: Vector search
+    Qdrant-->>RAG: Top-k chunks
+    RAG->>PostgreSQL: Get parent contexts
+    PostgreSQL-->>RAG: Parent chunks
+    RAG->>RAG: Build prompt
+    RAG->>LLM: Generate answer
+    LLM-->>RAG: Answer text
+    RAG->>RAG: Extract citations
+    RAG->>PostgreSQL: Get citation details
+    PostgreSQL-->>RAG: Document metadata
+    RAG-->>Backend: Answer + citations
+    Backend-->>Flutter: Response JSON
+    Flutter-->>Student: Display answer + citations
+
+%% Reference: .docs/spec/ctu-service/02_REQUIREMENTS.md (FR-1)
+%% Reference: .docs/spec/ctu-service/06_API_SPEC.md

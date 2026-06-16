@@ -29,3 +29,13 @@ coverage/
 # Database runtime data
 postgres_data/
 qdrant_data/
+qdrant_snapshots/
+db/
+
+skills-lock.json
+.agents/
+AGENTS_README.md
+AGENTS.md
+
+.codegraph/
+.kiro/

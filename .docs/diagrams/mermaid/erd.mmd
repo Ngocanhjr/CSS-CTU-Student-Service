@@ -1,0 +1,82 @@
+%% CTU-Service Entity-Relationship Diagram
+%% 8 core tables with complete relationships
+
+erDiagram
+    departments ||--o{ documents : manages
+    document_types ||--o{ documents : categorizes
+    documents ||--o{ document_versions : has
+    document_versions ||--o{ document_chunks : contains
+    document_versions ||--o{ document_assets : links
+    assets ||--o{ document_assets : linked_to
+    document_versions ||--o{ ingestion_jobs : tracked_by
+    document_chunks ||--o| document_chunks : parent_of
+    document_versions ||--o| document_versions : replaces
+    
+    departments {
+        int id PK
+        string code
+        string name
+        bool is_active
+    }
+    
+    document_types {
+        int id PK
+        string code
+        string name
+        bool is_active
+    }
+    
+    documents {
+        int id PK
+        string document_key
+        string title
+        int department_id FK
+        int document_type_id FK
+        string confidentiality
+    }
+    
+    document_versions {
+        int id PK
+        int document_id FK
+        string version_key
+        date effective_date
+        date expiry_date
+        bool is_latest
+        string validity_status
+        string review_status
+        string rag_status
+        int replaces_version_id FK
+    }
+    
+    document_chunks {
+        int id PK
+        int document_version_id FK
+        int parent_id FK
+        string content
+        int page_start
+        int page_end
+        string qdrant_point_id
+    }
+    
+    assets {
+        int id PK
+        string asset_key
+        string title
+        string file_path
+    }
+    
+    document_assets {
+        int document_version_id FK
+        int asset_id FK
+        string relation_type
+        bool required
+    }
+    
+    ingestion_jobs {
+        int id PK
+        int document_version_id FK
+        string status
+        string current_stage
+    }
+
+%% Reference: .docs/spec/ctu-service/05_DATABASE_SPEC.md

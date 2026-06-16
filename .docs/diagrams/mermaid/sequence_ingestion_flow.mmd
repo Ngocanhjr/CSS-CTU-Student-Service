@@ -1,0 +1,49 @@
+%% CTU-Service Ingestion Flow Sequence Diagram
+%% Admin upload through approval to published
+
+sequenceDiagram
+    participant Admin
+    participant Flutter
+    participant Backend
+    participant OCR as OCR Service
+    participant Chunking
+    participant Embedding
+    participant Qdrant
+    participant PostgreSQL
+    
+    Admin->>Flutter: Upload document
+    Flutter->>Backend: POST /documents (file)
+    Backend->>PostgreSQL: Create document record
+    Backend->>PostgreSQL: Create ingestion job
+    Backend-->>Flutter: Job ID
+    Flutter-->>Admin: Show upload success
+    
+    Backend->>OCR: Run ocr-pvl
+    OCR-->>Backend: Markdown output
+    Backend->>PostgreSQL: Update ocr_status=done
+    
+    Admin->>Flutter: Review & complete metadata
+    Flutter->>Backend: PUT /document-versions/{id}
+    Backend->>Backend: Validate metadata
+    Backend->>PostgreSQL: Update metadata
+    Backend-->>Flutter: Validation success
+    
+    Admin->>Flutter: Approve document
+    Flutter->>Backend: POST /document-versions/{id}/approve
+    Backend->>PostgreSQL: Set review_status=approved
+    
+    Admin->>Flutter: Publish to RAG
+    Flutter->>Backend: POST /document-versions/{id}/publish
+    Backend->>Chunking: Chunk document
+    Chunking-->>Backend: Parent/child chunks
+    Backend->>PostgreSQL: Store chunks
+    Backend->>Embedding: Embed child chunks
+    Embedding-->>Backend: Vectors
+    Backend->>Qdrant: Upsert points
+    Qdrant-->>Backend: Success
+    Backend->>PostgreSQL: Set rag_status=published
+    Backend-->>Flutter: Publish success
+    Flutter-->>Admin: Document active
+
+%% Reference: .docs/spec/ctu-service/02_REQUIREMENTS.md (FR-2)
+%% Reference: .docs/spec/ctu-service/06_API_SPEC.md

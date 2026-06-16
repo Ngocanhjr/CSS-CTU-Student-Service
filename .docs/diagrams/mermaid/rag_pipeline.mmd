@@ -1,0 +1,19 @@
+%% CTU-Service RAG Pipeline Flowchart
+%% Complete RAG query flow with tech stack details
+
+flowchart TD
+    Start([User Query]) --> Validate[Input Validation]
+    Validate --> Normalize[Query Normalization]
+    Normalize --> Filter[Metadata Filter]
+    Filter --> Dense[Dense Retrieval<br/>Qdrant]
+    Filter --> Sparse[Sparse Retrieval<br/>PostgreSQL FTS]
+    Dense --> Fusion[RRF Fusion]
+    Sparse --> Fusion
+    Fusion --> Rerank[Reranking]
+    Rerank --> Expand[Parent Context Expansion]
+    Expand --> Prompt[Build Prompt]
+    Prompt --> LLM[LLM Generation]
+    LLM --> Citation[Citation Validation]
+    Citation --> Response([Answer + Citations])
+
+%% Reference: .docs/spec/ctu-service/07_RAG_SPEC.md

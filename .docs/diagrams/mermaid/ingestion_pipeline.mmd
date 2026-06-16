@@ -1,0 +1,20 @@
+%% CTU-Service Ingestion Pipeline Flowchart
+%% Complete ingestion workflow from upload to published
+
+flowchart TD
+    Start([Upload Document]) --> Job[Create Ingestion Job]
+    Job --> OCR[OCR with ocr-pvl]
+    OCR --> Clean[Markdown Cleaning]
+    Clean --> Meta[Complete Metadata]
+    Meta --> Validate{Validate<br/>Metadata}
+    Validate -->|Invalid| Fix[Fix Errors]
+    Fix --> Meta
+    Validate -->|Valid| Review{Human<br/>Review}
+    Review -->|Reject| End1([Rejected])
+    Review -->|Approve| Chunk[LangChain Chunking]
+    Chunk --> Embed[BGE-M3 Embedding]
+    Embed --> Index[Qdrant Indexing]
+    Index --> Publish[Set rag_status=published]
+    Publish --> End2([Active in RAG])
+
+%% Reference: .docs/spec/ctu-service/08_OCR_INGESTION_SPEC.md
