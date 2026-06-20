@@ -182,10 +182,10 @@ Select file → Upload → Show OCR status → Preview Markdown
 _[CTU-friendly clean blue theme, Material Design 3]_
 
 ### Status Badges
-- `ocr_status`: _[Color coding: pending=grey, processing=blue, done=green, failed=red]_
-- `review_status`: _[not_reviewed=grey, reviewing=blue, approved=green, rejected=red]_
-- `rag_status`: _[not_indexed=grey, indexed=yellow, published=green]_
-- `validity_status`: _[valid=green, expired=orange, replaced=orange]_
+- `ocr_status`: _[not_started=grey, processing=blue, need_review=orange, done=green, failed=red]_
+- `review_status`: _[not_reviewed=grey, reviewing=blue, need_fix=orange, approved=green, rejected=red]_
+- `rag_status`: _[not_indexed=grey, chunked=blue, embedded=blue, indexed=yellow, published=green, deactivated=grey, failed=red]_
+- `validity_status`: _[unchecked=grey, unknown=grey, valid=green, expired=orange, replaced=orange]_
 
 ### Loading States
 _[Spinner, skeleton loaders, progress bars]_

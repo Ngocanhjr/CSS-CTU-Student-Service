@@ -4,7 +4,7 @@ This folder contains the chatbot implementation workspace for CTU Student Servic
 
 ## Current decisions
 
-Updated: `2026-06-08`
+Updated: `2026-06-18`
 
 | Area | Decision |
 |---|---|
@@ -20,6 +20,13 @@ Updated: `2026-06-08`
 | Metadata DB | PostgreSQL |
 | HNSW / advanced vector optimization | Future upgrade only, after the basic RAG workflow runs successfully; do not apply it in the current MVP pipeline |
 | Runnable-code target | End-to-end vertical slice from `2026-06-08` to `2026-06-19` |
+
+## Indexing and publish policy
+
+- Documents with `validity_status = "expired"` may still be ingested, chunked, embedded, and indexed for admin/internal search.
+- Expired documents should use `review_status = "approved"` and `rag_status = "indexed"` when their content is validated but no longer current.
+- Student-facing RAG must only use documents with `review_status = "approved"`, `validity_status = "valid"`, and `rag_status = "published"`.
+- Do not publish expired documents to the student chatbot.
 
 ## Implementation target
 

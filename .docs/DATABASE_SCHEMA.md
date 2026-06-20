@@ -41,7 +41,7 @@ document_versions
 | Table               | Purpose                                               |
 | ------------------- | ----------------------------------------------------- |
 | `departments`       | CTU unit/office managing a document                   |
-| `document_types`    | Type catalog: regulation, procedure, form, faq        |
+| `document_types`    | Type catalog: noi_quy, quy_trinh, bieu_mau, hoi_dap  |
 | `documents`         | Stable logical document across versions               |
 | `document_versions` | Version, effective date, validity, review, RAG status |
 | `document_version_relationships` | Replacement/amendment/supplement links between versions |
@@ -86,7 +86,6 @@ department_id
 document_type_id
 domain
 audience
-confidentiality
 created_at
 updated_at
 ```
@@ -124,6 +123,10 @@ extra_metadata
 created_at
 updated_at
 ```
+
+`effective_date` and `expiry_date` are nullable because documents may enter the system before date review is complete. `checksum` is required for stored document versions.
+
+Do not add `priority` or `chunking_strategy` columns to `document_versions` in the MVP. Ranking priority is retrieval logic, and chunking strategy is fixed in the ingestion service rather than stored per document.
 
 `version_role` uses:
 
@@ -245,6 +248,8 @@ version_role: base | replacement | amendment | supplement
 rag_status: not_indexed | chunked | embedded | indexed | published | deactivated | failed
 collection_status: collected | link_collected | downloaded | missing | failed
 ```
+
+`ocr_status` intentionally has no `not_required` value. Sources that do not need OCR still move to `done` once parser/text extraction validation is complete.
 
 ## Version governance rules
 

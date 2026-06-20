@@ -207,7 +207,7 @@ Flutter may hide or disable UI controls based on user role, but Backend must enf
 Flutter must never be the only place that checks:
 
 - admin/reviewer role;
-- document confidentiality;
+- document publish/visibility permission;
 - publish permission;
 - download permission;
 - latest/valid status.

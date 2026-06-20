@@ -154,15 +154,15 @@
 **Status Enums (5 enums):**
 - ✅ ocr_status (5 values explained)
 - ✅ review_status (5 values explained)
-- ✅ validity_status (4 values explained)
-- ✅ rag_status (8 values explained)
+- ✅ validity_status (5 values explained)
+- ✅ rag_status (7 values explained)
 - ✅ collection_status (5 values explained)
 
 **Indexes & Constraints:**
 - ✅ Composite indexes for published docs lookup
 - ✅ Full-text search index on chunks
 - ✅ Unique constraint: one is_latest per document
-- ✅ Check constraint: effective_date < expiry_date
+- ✅ Check constraint: effective_date <= expiry_date
 
 **Document Governance Rules:**
 - ✅ Publish eligibility SQL condition

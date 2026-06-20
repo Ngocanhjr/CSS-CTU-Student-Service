@@ -4,7 +4,7 @@ Flutter frontend for the student chat UI, citation viewer, procedure screens, an
 
 ## Frontend decision
 
-Updated: `2026-06-08`
+Updated: `2026-06-18`
 
 Use Flutter only. Do not introduce React, Next.js, Tailwind, or plain HTML for the app UI unless the project owner changes the decision.
 
@@ -20,6 +20,12 @@ Admin screens should display the current backend pipeline decisions:
 | Vector store | Qdrant |
 | Metadata store | PostgreSQL |
 | HNSW optimization | Future upgrade only; not part of the current MVP pipeline |
+
+## Status display policy
+
+- Admin/internal search may show expired documents when `review_status = approved` and `rag_status = indexed`.
+- Student chat results must only show valid published public documents.
+- Expired or replaced documents shown in admin/internal views must display a clear warning that they are not current guidance.
 
 ## MVP target from 2026-06-08 to 2026-06-19
 

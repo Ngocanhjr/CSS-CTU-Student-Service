@@ -1,7 +1,7 @@
 # 07. Đặc Tả RAG Pipeline
 
 **Version:** 1.0  
-**Last Updated:** 2026-06-10  
+**Last Updated:** 2026-06-16  
 **Status:** Final
 
 ---
@@ -100,36 +100,52 @@ More content...
 **Required Fields:**
 ```yaml
 ---
+document_id: "quy-che-dao-tao-2024"
+version_id: "quy-che-dao-tao-2024-v1"
 title: "Quy Chế Đào Tạo Đại Học Chính Quy 2024"
-document_key: "quy-che-dao-tao-2024"
-document_type: "regulation"
+document_type: "noi_quy"
 department: "pdt"
-version: "1.0"
-effective_date: "2024-01-01"
-confidentiality: "public"
-language: "vi"
 ---
 ```
 
 **Optional Fields:**
 ```yaml
-code: "QĐ 123/2024/ĐHCT"
-issued_date: "2023-12-15"
-expiry_date: null  # null = vô thời hạn
 domain: "dao_tao"
 audience: ["sinh_vien", "giang_vien"]
+code: "QĐ 123/2024/ĐHCT"
+version_label: "1.0"
+issued_date: "2023-12-15"
+effective_date: "2024-01-01"
+expiry_date: null  # null = vô thời hạn
+is_latest: true
+version_role: "base"
+validity_status: "unchecked"
+collection_status: "collected"
+ocr_status: "done"
+review_status: "not_reviewed"
+rag_status: "not_indexed"
+confidentiality: "public"
+language: "vi"
 citation_type: "page"  # page | section | paragraph
-replaces: "quy-che-dao-tao-2023-v1.0"
+replaces: []
+replaced_by: []
+amends: []
+amended_by: []
+supplements: []
+supplemented_by: []
 source_url: "https://..."
 ```
 
 **Field Explanations:**
-- `document_key`: Unique stable identifier
-- `document_type`: regulation | procedure | form | faq | guideline
+- `document_id`: Stable document identifier
+- `version_id`: Stable version identifier
+- `document_type`: noi_quy | quy_trinh | bieu_mau | hoi_dap | unknown
 - `department`: pdt | hoc_vu | ctsv | thu_vien | ...
-- `version`: Semantic version (1.0, 1.1, 2.0)
-- `effective_date`: YYYY-MM-DD (required)
+- `version_label`: Human-readable version (1.0, 1.1, 2.0)
+- `effective_date`: YYYY-MM-DD; required before publishing/search
 - `confidentiality`: public | internal | restricted
+- `ocr_status`: no `not_required`; use `done` after OCR/parser validation completes
+- Do not add `priority` or `chunking_strategy` metadata fields.
 
 ---
 
@@ -138,6 +154,8 @@ source_url: "https://..."
 ### Parent-Child Chunking (LangChain)
 
 **Framework:** LangChain `MarkdownHeaderTextSplitter`
+
+Chunking is fixed service behavior for the MVP, not a `chunking_strategy` field in YAML/Pydantic metadata.
 
 **Rules:**
 - **Parent chunks:** Full sections (800-1500 tokens)
@@ -290,6 +308,20 @@ Qdrant payload chỉ chứa metadata cần thiết cho filtering và tracing:
 
 ```json
 {
+  "chunk_id": "uuid",
+  "parent_chunk_id": "uuid|null",
+  "chunk_type": "child",
+  "document_id": "quy-che-dao-tao-2024",
+  "version_id": "quy-che-dao-tao-2024-v1",
+  "review_status": "approved",
+  "validity_status": "valid",
+  "rag_status": "published",
+  "confidentiality": "public",
+  "is_latest": true,
+  "page_start": 3,
+  "page_end": 4
+}
+```
 
 ---
 
@@ -326,6 +358,8 @@ AND confidentiality = "public"
 AND effective_date <= today
 AND (expiry_date IS NULL OR expiry_date >= today)
 ```
+
+`published` status is only valid after `ocr_status = "done"` and successful indexing. There is no `ocr_status = "not_required"` state.
 
 ### Ranking Preference
 _[Prefer is_latest=true khi conflict, allow older valid docs]_
@@ -454,20 +488,6 @@ _[Synonyms, related terms]_
 **Status:** Skeleton — Cần điền chi tiết implementation  
 **Priority:** P0 (Critical for MVP)
 
-  "chunk_id": "uuid",
-  "document_version_id": 123,
-  "review_status": "approved",
-  "validity_status": "valid",
-  "rag_status": "published",
-  "confidentiality": "public",
-  "is_latest": true,
-  "page_start": 3,
-  "page_end": 4
-}
-```
-
-**Rich data (title, department, etc.) được join từ PostgreSQL khi cần.**
-
 ---
 
 ## Retrieval Pipeline
@@ -487,6 +507,8 @@ AND confidentiality = "public"
 AND effective_date <= today
 AND (expiry_date IS NULL OR expiry_date >= today)
 ```
+
+`published` status is only valid after `ocr_status = "done"` and successful indexing. There is no `ocr_status = "not_required"` state.
 
 **Ranking Preference:** Prefer `is_latest=true`, but allow older valid docs.
 

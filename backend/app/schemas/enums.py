@@ -97,6 +97,7 @@ DocumentType = Literal [
     "quy_trinh",
     "bieu_mau",
     "hoi_dap",
+    "unknown"
 ]
 
 """
@@ -159,12 +160,6 @@ FileType = Literal[
     "youtube",
 ]
 
-Confidentiality = Literal[
-    "public", 
-    "internal", 
-    "restricted"
-]
-
 CitationType = Literal[
     "page", 
     "section", 
@@ -184,6 +179,15 @@ EmbeddingStatus = Literal[
 QdrantStatus = Literal[
     "not_indexed",
     "indexed",
-    "deactivated",
+    "deactivated",  
     "failed",
 ]    
+
+Domain = Literal[
+    "hoc_vu",
+    "dao_tao",
+    "nghien_cuu_khoa_hoc",
+    "hop_tac_quoc_te",
+    "hoc_bong",
+    "sinh_vien",
+]

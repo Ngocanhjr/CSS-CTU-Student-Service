@@ -1,7 +1,7 @@
 # 08. Đặc Tả OCR và Ingestion Pipeline
 
 **Version:** 1.0  
-**Last Updated:** 2026-06-10  
+**Last Updated:** 2026-06-16  
 **Status:** Final
 
 ---
@@ -70,11 +70,11 @@
 
 **Required fields check:**
 ```python
-REQUIRED = ["title", "document_type", "department", 
-            "effective_date", "confidentiality", "version"]
+REQUIRED = ["document_id", "version_id", "document_type"]
+PUBLISH_REQUIRED = ["effective_date"]
 ```
 
-**Date validation:** effective_date < expiry_date (if set)
+**Date validation:** effective_date <= expiry_date (if both are set)
 
 **Enum validation:** document_type, confidentiality, etc.
 
@@ -129,11 +129,17 @@ effective_date: ""
 code: ""
 issued_date: ""
 expiry_date: ""
-version: ""
+version_label: ""
 is_latest: false
-replaces: ""
-replaced_by: ""
+replaces: []
+replaced_by: []
+amends: []
+amended_by: []
+supplements: []
+supplemented_by: []
 ```
+
+Do not add `priority` or `chunking_strategy` to YAML metadata.
 
 ### Status Fields
 ```yaml
@@ -143,6 +149,8 @@ review_status: "not_reviewed"
 rag_status: "not_indexed"
 validity_status: "unchecked"
 ```
+
+`ocr_status` has no `"not_required"` value. Markdown/text/parser-only sources use `"done"` once parser validation is complete.
 
 ---
 

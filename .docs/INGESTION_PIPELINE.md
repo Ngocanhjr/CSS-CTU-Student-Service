@@ -113,7 +113,6 @@ file_type: "pdf"
 accessed_date:
 
 language: "vi"
-confidentiality: "public"
 citation_type: "page"
 ocr_engine: "ocr-pvl"
 parser: "paddleocr+vietocr+llamaparse"
@@ -124,6 +123,14 @@ checksum:
 ---
 ```
 
+Schema decisions for the MVP:
+
+- Do not add `priority` to YAML metadata.
+- Do not add `chunking_strategy` to YAML metadata. The MVP always uses the documented LangChain heading-aware parent-child chunking service.
+- Do not add `confidentiality` to YAML metadata or DB schema in the current implementation.
+- `effective_date` and `expiry_date` may be empty while metadata is incomplete; `checksum` is required.
+- Do not use `ocr_status: "not_required"`. If the source is already Markdown/text or only needs parser extraction, mark `ocr_status: "done"` after parser validation is complete.
+
 ## Indexing and publish rule
 
 **Indexing eligibility** — A document version may be chunked/embedded/indexed when:
@@ -132,7 +139,6 @@ checksum:
 ocr_status = "done"
 AND review_status = "approved"
 AND validity_status = "valid"
-AND confidentiality = "public"
 AND effective_date <= today
 AND (expiry_date IS NULL OR expiry_date >= today)
 ```

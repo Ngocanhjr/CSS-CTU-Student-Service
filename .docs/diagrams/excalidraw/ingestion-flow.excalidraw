@@ -841,12 +841,12 @@
       "strokeStyle": "solid",
       "roughness": 2,
       "opacity": 100,
-      "text": "---\ntitle: \"...\"\ndocument_type: \"procedure | form | faq\"\ndepartment: \"...\"\neffective_date: \"YYYY-MM-DD\"\nocr_status: \"done\"\nreview_status: \"approved\"\nvalidity_status: \"valid\"\nrag_status: \"not_indexed\"\n---",
+      "text": "---\ndocument_id: \"...\"\nversion_id: \"...\"\ntitle: \"...\"\ndocument_type: \"quy_trinh\"\ndepartment: \"...\"\neffective_date: \"YYYY-MM-DD\"\nocr_status: \"done\"\nreview_status: \"approved\"\nvalidity_status: \"valid\"\nrag_status: \"not_indexed\"\n---",
       "fontSize": 14,
       "fontFamily": 3,
       "textAlign": "left",
       "verticalAlign": "top",
-      "originalText": "---\ntitle: \"...\"\ndocument_type: \"procedure | form | faq\"\ndepartment: \"...\"\neffective_date: \"YYYY-MM-DD\"\nocr_status: \"done\"\nreview_status: \"approved\"\nvalidity_status: \"valid\"\nrag_status: \"not_indexed\"\n---"
+      "originalText": "---\ndocument_id: \"...\"\nversion_id: \"...\"\ntitle: \"...\"\ndocument_type: \"quy_trinh\"\ndepartment: \"...\"\neffective_date: \"YYYY-MM-DD\"\nocr_status: \"done\"\nreview_status: \"approved\"\nvalidity_status: \"valid\"\nrag_status: \"not_indexed\"\n---"
     },
     {
       "id": "evidence_publish_label",

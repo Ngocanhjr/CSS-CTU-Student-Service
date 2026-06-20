@@ -1,9 +1,0 @@
-Collecting pydantic
-  Using cached pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
-Collecting annotated-types>=0.6.0 (from pydantic)
-  Using cached annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
-Collecting pydantic-core==2.46.4 (from pydantic)
-  Using cached pydantic_core-2.46.4.tar.gz (471 kB)
-  Installing build dependencies: started
-  Installing build dependencies: still running...
-  Installing build dependencies: finished with status 'error'

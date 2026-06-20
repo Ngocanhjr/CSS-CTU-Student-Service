@@ -4,7 +4,7 @@ FastAPI backend for metadata governance, ingestion orchestration, retrieval, and
 
 ## Required stack
 
-Updated: `2026-06-08`
+Updated: `2026-06-18`
 
 | Concern | Decision |
 |---|---|
@@ -17,6 +17,26 @@ Updated: `2026-06-08`
 | Vector store | Qdrant |
 | Metadata store | PostgreSQL |
 | HNSW / advanced vector optimization | Future upgrade only; not part of the current MVP implementation |
+
+## Indexing and retrieval policy
+
+Expired documents are still useful for audit and admin/internal historical search. The backend may ingest, chunk, embed, and index them with:
+
+```text
+validity_status = expired
+review_status = approved
+rag_status = indexed
+```
+
+Student-facing `/rag/answer` must keep the stricter hard filter:
+
+```text
+validity_status = valid
+review_status = approved
+rag_status = published
+```
+
+Do not publish expired documents for student answers.
 
 ## Module ownership
 

@@ -1,7 +1,7 @@
 conti# 05. Đặc Tả Database
 
 **Version:** 1.0  
-**Last Updated:** 2026-06-10  
+**Last Updated:** 2026-06-16  
 **Status:** Final
 
 ---
@@ -184,6 +184,8 @@ INSERT INTO document_types (code, name, description) VALUES
 - `checksum`, `metadata_hash`, `extra_metadata`
 - `created_at`, `updated_at`
 
+No `priority` or `chunking_strategy` field is stored on `document_versions` for the MVP. Retrieval ranking owns priority, and chunking is a fixed service-level behavior.
+
 **Relationships:**
 - `document_id` → `documents.id`
 - Version replacement/amendment/supplement links are stored in `document_version_relationships`.
@@ -265,6 +267,8 @@ INSERT INTO document_types (code, name, description) VALUES
 
 ### Production RAG Hard Filter
 _[Mô tả 6 conditions: approved, valid, published, public, effective_date, expiry_date]_
+
+Publish eligibility also requires `ocr_status = 'done'`; there is no `ocr_status = 'not_required'` value.
 
 ### Version Management Rules
 _[is_latest usage, replaced documents, expired documents]_
@@ -384,7 +388,7 @@ CREATE TABLE document_versions (
 - `is_latest` — Version mới nhất của document (chỉ 1 version có TRUE)
 - `version_role` — Enum: "base", "replacement", "amendment", "supplement"
 - `validity_status` — Enum: "unchecked", "unknown", "valid", "expired", "replaced"
-- `collection_status` — Enum: "collected", "downloaded", "missing", "failed"
+- `collection_status` — Enum: "link_collected", "collected", "downloaded", "missing", "failed"
 - `ocr_status` — Enum: "not_started", "processing", "need_review", "done", "failed"
 - `review_status` — Enum: "not_reviewed", "reviewing", "need_fix", "approved", "rejected"
 - `rag_status` — Enum: "not_indexed", "chunked", "embedded", "indexed", "published", "deactivated", "failed"
@@ -649,8 +653,10 @@ CREATE INDEX idx_jobs_created_at ON ingestion_jobs(created_at DESC);
 | `not_started` | Chưa bắt đầu OCR |
 | `processing` | Đang chạy OCR |
 | `need_review` | OCR xong, cần human review |
-| `done` | OCR completed và reviewed |
+| `done` | OCR/parser extraction completed and validated |
 | `failed` | OCR failed |
+
+`ocr_status` intentionally has no `not_required` value. Native Markdown/text inputs should still become `done` after parser validation.
 
 ### review_status
 
@@ -725,10 +731,10 @@ CREATE UNIQUE INDEX idx_one_latest_per_doc
 ON document_versions(document_id) 
 WHERE is_latest = TRUE;
 
--- effective_date must be before expiry_date
+-- effective_date must be before or equal to expiry_date
 ALTER TABLE document_versions 
 ADD CONSTRAINT chk_dates_order 
-CHECK (expiry_date IS NULL OR effective_date < expiry_date);
+CHECK (expiry_date IS NULL OR effective_date <= expiry_date);
 
 -- chunk_level must be 'parent' or 'child'
 ALTER TABLE document_chunks 

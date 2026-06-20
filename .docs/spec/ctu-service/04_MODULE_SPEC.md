@@ -1,7 +1,7 @@
 # 04. Đặc Tả Module
 
 **Version:** 1.0  
-**Last Updated:** 2026-06-10  
+**Last Updated:** 2026-06-16  
 **Status:** Final
 
 ---
@@ -274,7 +274,7 @@ def require_role(required_role: str):
 **Trách nhiệm:**
 - Validate required YAML frontmatter fields
 - Check field formats (dates, enums)
-- Apply business rules (effective_date < expiry_date)
+- Apply business rules (effective_date <= expiry_date when both dates are present)
 - Return validation errors với field-specific messages
 
 **Inputs:**
@@ -287,19 +287,32 @@ def require_role(required_role: str):
 **Validation Rules:**
 ```python
 REQUIRED_FIELDS = [
-    "title", "document_type", "department", 
-    "effective_date", "confidentiality", "version"
+    "document_id",
+    "version_id",
+    "document_type",
+]
+
+PUBLISH_REQUIRED_FIELDS = [
+    "effective_date",
 ]
 
 ENUM_FIELDS = {
-    "document_type": ["regulation", "procedure", "form", "faq"],
+    "document_type": ["noi_quy", "quy_trinh", "bieu_mau", "hoi_dap", "unknown"],
     "confidentiality": ["public", "internal", "restricted"],
-    "review_status": ["pending", "approved", "rejected"],
-    "validity_status": ["draft", "valid", "superseded", "archived"],
-    "rag_status": ["not_indexed", "indexing", "published", "unpublished"]
+    "collection_status": ["link_collected", "collected", "downloaded", "missing", "failed"],
+    "ocr_status": ["not_started", "processing", "done", "failed", "need_review"],
+    "review_status": ["not_reviewed", "reviewing", "need_fix", "approved", "rejected"],
+    "validity_status": ["unchecked", "valid", "expired", "replaced", "unknown"],
+    "version_role": ["base", "replacement", "amendment", "supplement"],
+    "rag_status": ["not_indexed", "chunked", "embedded", "indexed", "published", "deactivated", "failed"],
+    "file_type": ["pdf", "doc", "docx", "image", "xlsx", "pptx", "txt", "md", "html", "csv", "url", "youtube"],
+    "citation_type": ["page", "section", "paragraph"],
+    "chunk_type": ["parent", "child"],
 }
 
 DATE_FIELDS = ["effective_date", "expiry_date", "issued_date"]
+
+EXCLUDED_METADATA_FIELDS = ["priority", "chunking_strategy"]
 ```
 
 **Failure Cases:**
@@ -307,6 +320,11 @@ DATE_FIELDS = ["effective_date", "expiry_date", "issued_date"]
 - Invalid enum value → Return valid options
 - Invalid date format → Suggest correct format (YYYY-MM-DD)
 - Business rule violation → Return specific error
+
+**Current decisions:**
+- `ocr_status` has no `"not_required"` value; use `"done"` after OCR/parser validation completes.
+- Do not add a `Priority` enum or `priority` metadata field.
+- Do not add a `ChunkingStrategy` enum or `chunking_strategy` metadata field.
 
 ---
 

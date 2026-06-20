@@ -18,6 +18,8 @@ Use **Structure/Heading-aware Parent-Child Chunking**.
 
 Implementation framework: **LangChain**.
 
+This is a service-level decision, not a YAML/Pydantic metadata field. Do not add `chunking_strategy` to `DocumentMetadata` or Qdrant payload for the MVP.
+
 Use LangChain document objects, text splitters, and retrieval chain primitives where they fit, but keep project-specific rules for CTU headings, page markers, tables, and citations in local service code. LangChain is the framework for orchestration; PostgreSQL remains the metadata source of truth and Qdrant remains the vector store.
 
 Parent chunk:
@@ -64,7 +66,6 @@ Preserve tables, lists, `ocr-pvl` page markers, headings, article/clause structu
   "amends": [],
   "supplements": [],
   "rag_status": "published",
-  "confidentiality": "public",
   "source_file": "",
   "checksum": "",
   "qdrant_point_id": ""
@@ -159,15 +160,16 @@ LangChain may orchestrate query normalization, retriever composition, reranker c
 review_status = approved
 validity_status = valid
 rag_status = published
-confidentiality = public
 effective_date <= today
 expiry_date IS NULL OR expiry_date >= today
 ```
 
+`rag_status = published` is only reachable after `ocr_status = done`, review approval, validity check, and successful indexing. There is no `ocr_status = not_required` shortcut in the schema.
+
 **Ranking and version preference:**
 
 - Prefer `is_latest = true` when multiple versions of the same document exist and may conflict.
-- Allow older documents if they remain valid, published, public, and serve as supplementary, amended, referenced, or required context for newer procedures.
+- Allow older documents if they remain valid, published, and serve as supplementary, amended, referenced, or required context for newer procedures.
 - Exclude older documents only when they are explicitly expired, replaced (via `validity_status`), unpublished, invalid, or not approved.
 - If a retrieved version is `version_role = supplement` or `version_role = amendment`, query PostgreSQL relationships and add the valid base version it supplements/amends.
 - If a retrieved version is a valid base version with `supplemented_by` or `amended_by` relationships, add the valid related supplement/amendment versions.
