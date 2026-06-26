@@ -97,7 +97,9 @@ DocumentType = Literal [
     "quy_trinh",
     "bieu_mau",
     "hoi_dap",
-    "unknown"
+    "ke_hoach",
+    "thong_bao",
+    "unknown",
 ]
 
 """
@@ -145,6 +147,12 @@ VersionRole = Literal [
     "supplement"
 ]
 
+DocumentRelationshipType = Literal[
+    "replaces",
+    "amends",
+    "supplements",
+]
+
 FileType = Literal[
     "pdf",
     "doc",
@@ -185,6 +193,7 @@ QdrantStatus = Literal[
 
 Domain = Literal[
     "hoc_vu",
+    "hoc_phi",
     "dao_tao",
     "nghien_cuu_khoa_hoc",
     "hop_tac_quoc_te",

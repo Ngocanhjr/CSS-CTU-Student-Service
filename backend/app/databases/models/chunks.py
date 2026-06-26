@@ -24,15 +24,16 @@ class DocumentChunk(Base):
     document_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("css.document_chunks.id", ondelete="CASCADE"))
 
+    chunk_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    chunk_level: Mapped[str] = mapped_column(String(20), default="child", nullable=False)
+    chunk_type: Mapped[str] = mapped_column(String(20), nullable=False)
     heading_path: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
     section_title: Mapped[str] = mapped_column(String(500), default="", nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    page_start: Mapped[int] = mapped_column(Integer)
-    page_end: Mapped[int] = mapped_column(Integer)
-    token_count: Mapped[int] = mapped_column(Integer)
+    page_start: Mapped[int] = mapped_column(Integer, nullable=False)
+    page_end: Mapped[int] = mapped_column(Integer, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
     qdrant_point_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     index_status: Mapped[str] = mapped_column(String(50), default="not_indexed", nullable=False, index=True)
@@ -44,6 +45,7 @@ class DocumentChunk(Base):
 
     __table_args__ = (
         UniqueConstraint("document_version_id", "chunk_index", name="uq_document_chunk_index"),
-        CheckConstraint("chunk_level IN ('parent', 'child')", name="chk_document_chunks_level"),
-        CheckConstraint("page_start IS NULL OR page_end IS NULL OR page_start <= page_end", name="chk_document_chunks_page_range"),
+        UniqueConstraint("document_version_id", "chunk_key", name="uq_document_chunk_key"), 
+        CheckConstraint("chunk_type IN ('parent', 'child')", name="chk_document_chunks_type"),
+       CheckConstraint("page_start <= page_end", name="chk_document_chunks_page_range"),
     )

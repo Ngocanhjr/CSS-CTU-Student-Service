@@ -34,8 +34,6 @@ class Department(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=False)
     
     documents: Mapped[list["Document"]] = relationship(back_populates="department")
     
@@ -46,9 +44,6 @@ class DocumentType(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=False)
     
     documents: Mapped[list["Document"]] = relationship(back_populates="document_type")
     
@@ -62,9 +57,6 @@ class Document(Base):
     document_type_id: Mapped[int] = mapped_column(ForeignKey("css.document_types.id"))
     domain: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     audience: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=False)
     
     department: Mapped["Department"] = relationship(back_populates="documents")
     document_type: Mapped["DocumentType"] = relationship(back_populates="documents")
@@ -131,16 +123,12 @@ class DocumentVersionStatus(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=False)
     document_version: Mapped["DocumentVersion"] = relationship(back_populates="status")
-class DocumentVersionRelationship(Base):
-    __tablename__ = "document_version_relationships"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    source_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True)
-    target_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True)
+class DocumentRelationship(Base):
+    __tablename__ = "document_relationships"
+    source_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True, primary_key=True)
+    target_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True, primary_key=True)
     relation_type: Mapped[str] = mapped_column(String(50), nullable=False)
    
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-
     source_version: Mapped["DocumentVersion"] = relationship(foreign_keys=[source_version_id])
     target_version: Mapped["DocumentVersion"] = relationship(foreign_keys=[target_version_id])
 

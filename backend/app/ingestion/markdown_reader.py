@@ -10,10 +10,10 @@ from app.schemas.documents import DocumentMetadata
 
 @dataclass(frozen=True)
 class MarkdownDocument:
-    path: Path
-    metadata: DocumentMetadata
-    body: str
-    raw_frontmatter: dict
+    path: Path # đường dẫn file gốc
+    metadata: DocumentMetadata #metadata
+    body: str #nội dung file
+    raw_frontmatter: dict #giữ lại yaml gốc
 
 def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     normalized = text.replace("\r\n", "\n")

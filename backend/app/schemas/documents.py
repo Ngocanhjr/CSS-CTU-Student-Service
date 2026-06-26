@@ -5,6 +5,7 @@ schema cho document metadata
 from __future__ import annotations
 
 from datetime import datetime, date
+import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -31,7 +32,12 @@ class DocumentBaseMetadata(StrictSchema):
     def clean_string_list(cls, value: list[str]) -> list[str]:
         return [item.strip() for item in value if item and item.strip()]
 
-    
+    @field_validator("department")
+    @classmethod
+    def validate_department_code(cls, value: str) -> str:
+        value = value.strip()
+        if value and not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_/-]*", value):
+            raise ValueError("Department code must be uppercase letters, numbers, or underscores")
 class DocumentVersionStatus(StrictSchema):
     validity_status: ValidityStatus = "unchecked"
     collection_status: CollectionStatus = "collected"

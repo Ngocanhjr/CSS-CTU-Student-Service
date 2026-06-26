@@ -11,4 +11,8 @@ qdrant-client>=1.9
 sentence-transformers>=3.0
 numpy>=1.26
 
-#langchain-text-splitters>=0.2
+langchain-text-splitters>=0.2
+
+langchain-nvidia-ai-endpoints
+
+#langchain-qdrant

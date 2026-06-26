@@ -12,7 +12,7 @@ Updated: `2026-06-18`
 | OCR tool | `ocr-pvl` |
 | OCR engines inside `ocr-pvl` | PaddleOCR, VietOCR, and LlamaParse for table-heavy OCR cases |
 | RAG framework | LangChain |
-| Chunking | LangChain heading-aware / parent-child chunking |
+| Chunking | `langchain-text-splitters` structural parent-child chunking |
 | Embedding model | `BAAI/bge-m3` |
 | Vector store | Qdrant |
 | Metadata store | PostgreSQL |
@@ -42,7 +42,7 @@ Do not publish expired documents for student answers.
 
 | Module | Responsibility |
 |---|---|
-| `app/ingestion` | Upload flow, `ocr-pvl` OCR integration, Markdown normalization, metadata validation, LangChain chunking, indexing job orchestration |
+| `app/ingestion` | Upload flow, `ocr-pvl` OCR integration, Markdown normalization, metadata validation, `langchain-text-splitters` structural chunking, indexing job orchestration |
 | `app/ocr` | OCR adapter layer for `ocr-pvl`; use PaddleOCR / VietOCR for normal pages and LlamaParse for pages with complex tables |
 | `app/embedding` | BGE-M3 model loading, batch embedding, vector normalization, embedding version tracking |
 | `app/vectorstore` | Qdrant collection creation, upsert, search, deactivate/delete |
@@ -59,7 +59,7 @@ ocr-pvl OCR
   - LlamaParse for table-heavy or difficult table pages
 → reviewed Markdown
 → metadata validation
-→ LangChain parent-child chunks
+→ `langchain-text-splitters` structural parent-child chunks
 → BGE-M3 vectors
 → Qdrant points
 → PostgreSQL document/chunk metadata

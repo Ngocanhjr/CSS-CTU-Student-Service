@@ -1,3 +1,6 @@
+"""
+Dành cho lưu trữ các link mà tài liệu cần dùng: ví dụ link youtube, link form
+"""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -32,9 +35,6 @@ class Asset(Base):
     checksum: Mapped[str | None] = mapped_column(String(128))
 
     validity_status: Mapped[str] = mapped_column(String(50), default="unchecked", nullable=False)
-    is_latest: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    review_status: Mapped[str] = mapped_column(String(50), default="not_reviewed", nullable=False)
-    rag_status: Mapped[str] = mapped_column(String(50), default="not_indexed", nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -46,7 +46,6 @@ class DocumentAsset(Base):
     document_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), primary_key=True)
     asset_id: Mapped[int] = mapped_column(ForeignKey("css.assets.id", ondelete="CASCADE"), primary_key=True)
     relation_type: Mapped[str] = mapped_column(String(50), default="reference", nullable=False)
-    required: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     required_when: Mapped[str | None] = mapped_column(Text)
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
    
