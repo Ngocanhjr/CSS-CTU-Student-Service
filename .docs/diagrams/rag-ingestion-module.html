@@ -10,7 +10,7 @@
 
   <meta name="generator" content="archify 2.6.0">
 
-  <title>CTU Student Service — Ingestion Pipeline Diagram</title>
+  <title>CTU Student Service - RAG Ingestion Module Diagram</title>
 
   <script>
 
@@ -990,11 +990,11 @@
 
         <div class="pulse-dot"></div>
 
-        <h1>CTU Student Service — Ingestion Pipeline</h1>
+        <h1>CTU Student Service - RAG Ingestion Module</h1>
 
       </div>
 
-      <p class="subtitle">Canonical Markdown → Validate → Chunk → Embed → Qdrant → Published</p>
+      <p class="subtitle">Canonical Markdown + YAML -&gt; validation -&gt; parent/child chunks -&gt; BGE-M3 -&gt; Qdrant index -&gt; published retrieval</p>
 
     </div>
 
@@ -1004,7 +1004,7 @@
 
     <div class="diagram-container">
 
-      <svg viewBox="0 0 1080 720" role="img" aria-label="CTU Student Service — Ingestion Pipeline — Canonical Markdown → Validate → Chunk → Embed → Qdrant → Published (data-flow diagram)">
+      <svg viewBox="0 0 1580 900" role="img" aria-label="CTU Student Service - RAG Ingestion Module — Canonical Markdown + YAML -&gt; validation -&gt; parent/child chunks -&gt; BGE-M3 -&gt; Qdrant index -&gt; published retrieval (architecture diagram)">
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -1027,131 +1027,200 @@
         <!-- Background Grid -->
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        <!-- Data Stages -->
-        <rect x="16" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="100" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">01 / Input</text>
+        <!-- Boundaries (behind everything) -->
+        <rect x="30" y="156" width="218" height="468" rx="12" class="c-region" stroke-width="1"/>
+        <text x="38" y="174" class="t-cloud" font-size="9" font-weight="600">01 Input</text>
 
-        <rect x="231" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="315" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">02 / Validate</text>
+        <rect x="268" y="206" width="228" height="348" rx="8" class="c-security-group" stroke-width="1"/>
+        <text x="276" y="224" class="t-security" font-size="9" font-weight="600">02 Validate</text>
 
-        <rect x="446" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="530" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">03 / Chunk</text>
+        <rect x="512" y="156" width="228" height="468" rx="12" class="c-region" stroke-width="1"/>
+        <text x="520" y="174" class="t-cloud" font-size="9" font-weight="600">03 Chunk</text>
 
-        <rect x="661" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="745" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">04 / Embed &amp; Index</text>
+        <rect x="766" y="276" width="228" height="278" rx="12" class="c-region" stroke-width="1"/>
+        <text x="774" y="294" class="t-cloud" font-size="9" font-weight="600">04 Embed</text>
 
-        <rect x="876" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="960" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">05 / Publish</text>
+        <rect x="1014" y="226" width="228" height="388" rx="12" class="c-region" stroke-width="1"/>
+        <text x="1022" y="244" class="t-cloud" font-size="9" font-weight="600">05 Index</text>
 
-        <!-- Flow paths -->
-        <path d="M 100 186 L 100 186 L 100 356 L 100 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 156 385 L 259 385" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path d="M 156 385 L 207.5 385 L 207.5 157 L 259 157" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 371 157 L 474 157" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 315 186 L 315 186 L 315 356 L 315 356" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path d="M 586 157 L 530 157 L 530 385 L 474 385" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 586 157 L 689 157" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 801 157 L 745 157 L 745 385 L 689 385" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 801 385 L 801 300 L 960 300 L 960 356" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path d="M 586 385 L 586 470 L 960 470 L 960 414" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <rect x="1258" y="226" width="248" height="388" rx="8" class="c-security-group" stroke-width="1"/>
+        <text x="1266" y="244" class="t-security" font-size="9" font-weight="600">06 Publish</text>
 
-        <!-- Nodes -->
-        <rect x="44" y="128" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="44" y="128" width="112" height="58" rx="6" class="c-external" stroke-width="1.5"/>
-        <text x="100" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Canonical Markdown</text>
-        <text x="100" y="165" class="t-muted" font-size="7" text-anchor="middle">Dataset / YAML meta</text>
-        <text x="100" y="175" class="t-external" font-size="7" text-anchor="middle">OCR reviewed</text>
+        <!-- Connection paths (before components for correct z-order) -->
+        <path d="M 139 244 L 139 332 L 139 332 L 139 420" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path d="M 139 364 L 139 420" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 224 452 L 250 452 Q 258 452 258 444 L 258 270 Q 258 262 266 262 L 292 262" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 224 572 L 250 572 Q 258 572 258 564 L 258 270 Q 258 262 266 262 L 292 262" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 382 294 L 382 350" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path d="M 382 414 L 382 470" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 472 382 L 496 382 Q 504 382 504 374 L 504 220 Q 504 212 512 212 L 536 212" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 626 244 L 626 300" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path d="M 626 364 L 626 420" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path d="M 626 484 L 626 540" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 716 452 L 745 452 Q 753 452 753 444 L 753 340 Q 753 332 761 332 L 790 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 716 572 L 745 572 Q 753 572 753 564 L 753 510 Q 753 502 761 502 L 790 502" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path d="M 970 332 L 996 332 Q 1004 332 1004 324 L 1004 290 Q 1004 282 1012 282 L 1038 282" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 716 572 L 869 572 Q 877 572 877 564 L 877 430 Q 877 422 885 422 L 1038 422" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 1128 314 L 1128 530" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path d="M 1128 390 L 1128 314" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 1218 562 L 1242 562 Q 1250 562 1250 554 L 1250 290 Q 1250 282 1258 282 L 1282 282" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 1382 454 L 1382 530" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path d="M 1382 314 L 1382 530" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 472 502 L 498.60402941211385 652.122737396928 Q 500 660 508 660 L 1232 660 Q 1240 660 1243.1513543886333 652.6468397598555 L 1282 562" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
 
-        <rect x="44" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="44" y="356" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="100" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Ingestion API</text>
-        <text x="100" y="393" class="t-muted" font-size="7" text-anchor="middle">POST /api/v1/ingest</text>
-        <text x="100" y="403" class="t-backend" font-size="7" text-anchor="middle">create job</text>
+        <!-- Components -->
+        <rect x="54" y="180" width="170" height="64" rx="6" class="c-mask"/>
+        <rect x="54" y="180" width="170" height="64" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="139" y="210" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Admin / Editor</text>
+        <text x="139" y="226" class="t-muted" font-size="9" text-anchor="middle">upload + review</text>
+        <text x="139" y="236" class="t-external" font-size="7" text-anchor="middle">human sign-off</text>
 
-        <rect x="259" y="128" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="259" y="128" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="315" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Metadata Validator</text>
-        <text x="315" y="165" class="t-muted" font-size="7" text-anchor="middle">YAML + publish check</text>
-        <text x="315" y="175" class="t-backend" font-size="7" text-anchor="middle">ocr=done·review=approved</text>
+        <rect x="54" y="300" width="170" height="64" rx="6" class="c-mask"/>
+        <rect x="54" y="300" width="170" height="64" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="139" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">LlamaParse</text>
+        <text x="139" y="346" class="t-muted" font-size="9" text-anchor="middle">external OCR/parser</text>
+        <text x="139" y="356" class="t-external" font-size="7" text-anchor="middle">outside backend</text>
 
-        <rect x="259" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="259" y="356" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
-        <text x="315" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">ingestion_jobs</text>
-        <text x="315" y="393" class="t-muted" font-size="7" text-anchor="middle">PostgreSQL</text>
-        <text x="315" y="403" class="t-database" font-size="7" text-anchor="middle">current_step tracker</text>
+        <rect x="54" y="420" width="170" height="64" rx="6" class="c-mask"/>
+        <rect x="54" y="420" width="170" height="64" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="139" y="450" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Canonical MD</text>
+        <text x="139" y="466" class="t-muted" font-size="9" text-anchor="middle">headings + page markers</text>
+        <text x="139" y="476" class="t-external" font-size="7" text-anchor="middle">&lt;!-- page: N --&gt;</text>
 
-        <rect x="474" y="128" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="474" y="128" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="530" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">MD Chunker</text>
-        <text x="530" y="165" class="t-muted" font-size="7" text-anchor="middle">langchain heading-aware</text>
-        <text x="530" y="175" class="t-backend" font-size="7" text-anchor="middle">parent + child</text>
+        <rect x="54" y="540" width="170" height="64" rx="6" class="c-mask"/>
+        <rect x="54" y="540" width="170" height="64" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="139" y="570" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Metadata YAML</text>
+        <text x="139" y="586" class="t-muted" font-size="9" text-anchor="middle">document/version fields</text>
+        <text x="139" y="596" class="t-external" font-size="7" text-anchor="middle">frontmatter</text>
 
-        <rect x="474" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="474" y="356" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
-        <text x="530" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">document_chunks</text>
-        <text x="530" y="393" class="t-muted" font-size="7" text-anchor="middle">PostgreSQL css schema</text>
-        <text x="530" y="403" class="t-database" font-size="7" text-anchor="middle">chunk_key · parent_chunk_id</text>
+        <rect x="292" y="230" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="292" y="230" width="180" height="64" rx="6" class="c-security" stroke-width="1.5"/>
+        <text x="382" y="260" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Metadata Validator</text>
+        <text x="382" y="276" class="t-muted" font-size="9" text-anchor="middle">required keys + enums</text>
+        <text x="382" y="286" class="t-security" font-size="7" text-anchor="middle">block if invalid</text>
 
-        <rect x="689" y="128" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="689" y="128" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="745" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">BGE-M3 Embedder</text>
-        <text x="745" y="165" class="t-muted" font-size="7" text-anchor="middle">1024d · normalized</text>
-        <text x="745" y="175" class="t-backend" font-size="7" text-anchor="middle">child chunks only</text>
+        <rect x="292" y="350" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="292" y="350" width="180" height="64" rx="6" class="c-security" stroke-width="1.5"/>
+        <text x="382" y="380" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Governance Gate</text>
+        <text x="382" y="396" class="t-muted" font-size="9" text-anchor="middle">ocr done + approved</text>
+        <text x="382" y="406" class="t-security" font-size="7" text-anchor="middle">eligible to index</text>
 
-        <rect x="689" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="689" y="356" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
-        <text x="745" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Qdrant Upsert</text>
-        <text x="745" y="393" class="t-muted" font-size="7" text-anchor="middle">cosine · payload</text>
-        <text x="745" y="403" class="t-database" font-size="7" text-anchor="middle">qdrant_point_id</text>
+        <rect x="292" y="470" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="292" y="470" width="180" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="382" y="500" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ingestion_jobs</text>
+        <text x="382" y="516" class="t-muted" font-size="9" text-anchor="middle">PostgreSQL</text>
+        <text x="382" y="526" class="t-database" font-size="7" text-anchor="middle">status/current_step/error</text>
 
-        <rect x="904" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="904" y="356" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="960" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Status Updater</text>
-        <text x="960" y="393" class="t-muted" font-size="7" text-anchor="middle">rag_status = published</text>
-        <text x="960" y="403" class="t-backend" font-size="7" text-anchor="middle">index_status = indexed</text>
+        <rect x="536" y="180" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="536" y="180" width="180" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="626" y="210" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Normalize Markdown</text>
+        <text x="626" y="226" class="t-muted" font-size="9" text-anchor="middle">preserve tables/lists</text>
+        <text x="626" y="236" class="t-backend" font-size="7" text-anchor="middle">heading hierarchy</text>
 
-        <!-- Flow labels -->
-        <rect x="52.349999999999994" y="250" width="95.30000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="100" y="261" class="t-backend" font-size="8" text-anchor="middle">upload + meta</text>
-        <text x="100" y="272" class="t-dim" font-size="7" text-anchor="middle">canonical content</text>
-        <rect x="167.2" y="364" width="80.60000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="207.5" y="375" class="t-muted" font-size="8" text-anchor="middle">create job row</text>
-        <text x="207.5" y="386" class="t-dim" font-size="7" text-anchor="middle">job tracking</text>
-        <rect x="162.3" y="250" width="90.4" height="27" rx="4" class="c-mask"/>
-        <text x="207.5" y="261" class="t-backend" font-size="8" text-anchor="middle">validate request</text>
-        <text x="207.5" y="272" class="t-dim" font-size="7" text-anchor="middle">YAML payload</text>
-        <rect x="374.85" y="136" width="95.30000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="422.5" y="147" class="t-backend" font-size="8" text-anchor="middle">approved Markdown</text>
-        <text x="422.5" y="158" class="t-dim" font-size="7" text-anchor="middle">clean text</text>
-        <rect x="272.25" y="250" width="85.5" height="27" rx="4" class="c-mask"/>
-        <text x="315" y="261" class="t-messagebus" font-size="8" text-anchor="middle">step = chunking</text>
-        <text x="315" y="272" class="t-dim" font-size="7" text-anchor="middle">status update</text>
-        <rect x="472.55" y="250" width="114.9" height="27" rx="4" class="c-mask"/>
-        <text x="530" y="261" class="t-backend" font-size="8" text-anchor="middle">parent + child chunks</text>
-        <text x="530" y="272" class="t-dim" font-size="7" text-anchor="middle">structured chunks</text>
-        <rect x="587.4" y="136" width="100.2" height="27" rx="4" class="c-mask"/>
-        <text x="637.5" y="147" class="t-backend" font-size="8" text-anchor="middle">child chunks</text>
-        <text x="637.5" y="158" class="t-dim" font-size="7" text-anchor="middle">text for embedding</text>
-        <rect x="697.35" y="250" width="95.30000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="745" y="261" class="t-backend" font-size="8" text-anchor="middle">vectors + payload</text>
-        <text x="745" y="272" class="t-dim" font-size="7" text-anchor="middle">1024d vectors</text>
-        <rect x="869.7" y="281" width="80.60000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="910" y="292" class="t-muted" font-size="8" text-anchor="middle">upsert done</text>
-        <text x="910" y="303" class="t-dim" font-size="7" text-anchor="middle">success signal</text>
-        <rect x="874.6" y="475" width="70.80000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="910" y="486" class="t-messagebus" font-size="8" text-anchor="middle">chunk IDs</text>
-        <text x="910" y="497" class="t-dim" font-size="7" text-anchor="middle">postgres ids</text>
+        <rect x="536" y="300" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="536" y="300" width="180" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="626" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Parent Chunks</text>
+        <text x="626" y="346" class="t-muted" font-size="9" text-anchor="middle">major MD sections</text>
+        <text x="626" y="356" class="t-backend" font-size="7" text-anchor="middle">chunk_type=parent</text>
+
+        <rect x="536" y="420" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="536" y="420" width="180" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="626" y="450" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Child Chunks</text>
+        <text x="626" y="466" class="t-muted" font-size="9" text-anchor="middle">langchain splitters</text>
+        <text x="626" y="476" class="t-backend" font-size="7" text-anchor="middle">embedded + searched</text>
+
+        <rect x="536" y="540" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="536" y="540" width="180" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="626" y="570" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">document_chunks</text>
+        <text x="626" y="586" class="t-muted" font-size="9" text-anchor="middle">PostgreSQL source rows</text>
+        <text x="626" y="596" class="t-database" font-size="7" text-anchor="middle">parent_chunk_id</text>
+
+        <rect x="790" y="300" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="790" y="300" width="180" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="880" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">BGE-M3 Embedding</text>
+        <text x="880" y="346" class="t-muted" font-size="9" text-anchor="middle">BAAI/bge-m3</text>
+        <text x="880" y="356" class="t-backend" font-size="7" text-anchor="middle">1024d normalized</text>
+
+        <rect x="790" y="470" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="790" y="470" width="180" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="880" y="500" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Index Status</text>
+        <text x="880" y="516" class="t-muted" font-size="9" text-anchor="middle">document_chunks</text>
+        <text x="880" y="526" class="t-database" font-size="7" text-anchor="middle">indexed/failed/etc.</text>
+
+        <rect x="1038" y="250" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="1038" y="250" width="180" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="1128" y="280" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Qdrant Upsert</text>
+        <text x="1128" y="296" class="t-muted" font-size="9" text-anchor="middle">vector index layer</text>
+        <text x="1128" y="306" class="t-database" font-size="7" text-anchor="middle">cosine vectors</text>
+
+        <rect x="1038" y="390" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="1038" y="390" width="180" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="1128" y="420" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Payload Metadata</text>
+        <text x="1128" y="436" class="t-muted" font-size="9" text-anchor="middle">filterable fields</text>
+        <text x="1128" y="446" class="t-database" font-size="7" text-anchor="middle">version/status/pages</text>
+
+        <rect x="1038" y="530" width="180" height="64" rx="6" class="c-mask"/>
+        <rect x="1038" y="530" width="180" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="1128" y="560" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">qdrant_point_id</text>
+        <text x="1128" y="576" class="t-muted" font-size="9" text-anchor="middle">stored on chunks</text>
+        <text x="1128" y="586" class="t-database" font-size="7" text-anchor="middle">index pointer</text>
+
+        <rect x="1282" y="250" width="200" height="64" rx="6" class="c-mask"/>
+        <rect x="1282" y="250" width="200" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="1382" y="280" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">document_versions</text>
+        <text x="1382" y="296" class="t-muted" font-size="9" text-anchor="middle">PostgreSQL source of truth</text>
+        <text x="1382" y="306" class="t-database" font-size="7" text-anchor="middle">version + statuses</text>
+
+        <rect x="1282" y="390" width="200" height="64" rx="6" class="c-mask"/>
+        <rect x="1282" y="390" width="200" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="1382" y="420" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">document_recipients</text>
+        <text x="1382" y="436" class="t-muted" font-size="9" text-anchor="middle">department + effective_date</text>
+        <text x="1382" y="446" class="t-database" font-size="7" text-anchor="middle">scope metadata</text>
+
+        <rect x="1282" y="530" width="200" height="64" rx="6" class="c-mask"/>
+        <rect x="1282" y="530" width="200" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="1382" y="560" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Publish for RAG</text>
+        <text x="1382" y="576" class="t-muted" font-size="9" text-anchor="middle">rag_status=published</text>
+        <text x="1382" y="586" class="t-backend" font-size="7" text-anchor="middle">retrieval unlocked</text>
+
+        <!-- Connection labels -->
+
+
+
+
+
+
+        <rect x="472.6" y="277" width="62.8" height="14" rx="3" class="c-mask"/>
+        <text x="504" y="287" class="t-backend" font-size="8" text-anchor="middle">approved MD</text>
+
+
+
+        <rect x="724" y="346" width="58" height="14" rx="3" class="c-mask"/>
+        <text x="753" y="356" class="t-backend" font-size="8" text-anchor="middle">child text</text>
+
+        <rect x="970.2" y="263" width="67.6" height="14" rx="3" class="c-mask"/>
+        <text x="1004" y="273" class="t-backend" font-size="8" text-anchor="middle">1024d vector</text>
+
+
+        <rect x="1149.8" y="370" width="48.4" height="14" rx="3" class="c-mask"/>
+        <text x="1174" y="380" class="t-messagebus" font-size="8" text-anchor="middle">metadata</text>
+        <rect x="1225.8" y="436" width="48.4" height="14" rx="3" class="c-mask"/>
+        <text x="1250" y="446" class="t-backend" font-size="8" text-anchor="middle">index ok</text>
+
+
+        <rect x="799.4" y="640" width="77.2" height="14" rx="3" class="c-mask"/>
+        <text x="838" y="650" class="t-messagebus" font-size="8" text-anchor="middle">finish or fail</text>
 
         <!-- Legend -->
-        <text x="214" y="664" class="t-primary" font-size="10" font-weight="600">Legend</text>
-        <path d="M 214 684 L 248 684" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <text x="257" y="687" class="t-muted" font-size="8">primary data</text>
-        <path d="M 340 684 L 374 684" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <text x="383" y="687" class="t-muted" font-size="8">policy / PII</text>
-        <path d="M 480 684 L 514 684" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <text x="523" y="687" class="t-muted" font-size="8">async batch</text>
-        <rect x="625" y="676" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
-        <text x="646" y="684" class="t-muted" font-size="8">data store</text>
+        <text x="40" y="871" class="t-primary" font-size="9" font-weight="600">Legend</text>
+        <rect x="40" y="876" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+        <text x="60" y="884" class="t-muted" font-size="8">External</text>
+        <rect x="138" y="876" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
+        <text x="158" y="884" class="t-muted" font-size="8">Security</text>
+        <rect x="236" y="876" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+        <text x="256" y="884" class="t-muted" font-size="8">Database</text>
+        <rect x="334" y="876" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+        <text x="354" y="884" class="t-muted" font-size="8">Backend</text>
       </svg>
 
     </div>
@@ -1163,36 +1232,35 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>Input Gate</h3>
+          <h3>PostgreSQL source of truth</h3>
         </div>
         <ul>
-          <li>&bull; OCR và human review xảy ra bên ngoài backend</li>
-          <li>&bull; Backend chỉ nhận Canonical Markdown đã được approve</li>
-          <li>&bull; Điều kiện publish: ocr_status=done &amp; review_status=approved</li>
+          <li>&bull; documents, document_versions, document_chunks, ingestion_jobs</li>
+          <li>&bull; Qdrant stores retrieval index data only</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>Chunking</h3>
+          <h3>Chunking contract</h3>
         </div>
         <ul>
-          <li>&bull; Heading-aware parent chunks theo section lớn</li>
-          <li>&bull; Child chunks 300–600 tokens kế thừa metadata</li>
-          <li>&bull; Chunk key format: version_key::p::0001 / ::c::0001</li>
+          <li>&bull; parent chunks are major Markdown sections</li>
+          <li>&bull; child chunks are embedded and searched</li>
+          <li>&bull; stable keys use version_key::p/c::index</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-dot orange"></div>
-          <h3>Indexing</h3>
+          <div class="card-dot amber"></div>
+          <h3>Spec boundaries</h3>
         </div>
         <ul>
-          <li>&bull; Chỉ child chunks được embed với BGE-M3</li>
-          <li>&bull; Qdrant payload chứa chunk_key, parent_chunk_key, postgres_chunk_id</li>
-          <li>&bull; Sau khi upsert thành công: rag_status = published</li>
+          <li>&bull; LlamaParse/OCR runs outside backend</li>
+          <li>&bull; document validity status is not in document_versions</li>
+          <li>&bull; Qdrant failure keeps job failed for retry</li>
         </ul>
       </div>
     </div>
@@ -1203,7 +1271,7 @@
 
     <p class="footer">
 
-      Data-flow diagram &bull; Built with Archify<span class="no-print"> &bull; Press <kbd>T</kbd> for theme and <kbd>E</kbd> for export</span>
+      Architecture diagram &bull; Built with Archify<span class="no-print"> &bull; Press <kbd>T</kbd> for theme and <kbd>E</kbd> for export</span>
 
     </p>
 

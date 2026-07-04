@@ -1,80 +1,93 @@
 {
   "schema_version": 1,
-  "diagram_type": "dataflow",
+  "diagram_type": "architecture",
   "meta": {
-    "title": "CTU Student Service — RAG Ingestion Module",
-    "subtitle": "Canonical Markdown → Validate → Chunk → Embed & Index → Publish",
-    "output": "chatbot/.docs/diagrams/rag-ingestion-module.html",
-    "viewBox": [1240, 760]
+    "title": "CTU Student Service - RAG Ingestion Module",
+    "subtitle": "Canonical Markdown + YAML -> validation -> parent/child chunks -> BGE-M3 -> Qdrant index -> published retrieval",
+    "output": ".docs/diagrams/rag-ingestion-module.html",
+    "viewBox": [1580, 900]
   },
-  "stages": [
-    { "label": "01 Input" },
-    { "label": "02 Validate" },
-    { "label": "03 Chunk" },
-    { "label": "04 Embed & Index" },
-    { "label": "05 Publish" }
+  "components": [
+    { "id": "admin", "type": "external", "label": "Admin / Editor", "sublabel": "upload + review", "tag": "human sign-off", "pos": [54, 180], "size": [170, 64] },
+    { "id": "llamaparse", "type": "external", "label": "LlamaParse", "sublabel": "external OCR/parser", "tag": "outside backend", "pos": [54, 300], "size": [170, 64] },
+    { "id": "canonical_md", "type": "external", "label": "Canonical MD", "sublabel": "headings + page markers", "tag": "<!-- page: N -->", "pos": [54, 420], "size": [170, 64] },
+    { "id": "metadata_yaml", "type": "external", "label": "Metadata YAML", "sublabel": "document/version fields", "tag": "frontmatter", "pos": [54, 540], "size": [170, 64] },
+
+    { "id": "metadata_validator", "type": "security", "label": "Metadata Validator", "sublabel": "required keys + enums", "tag": "block if invalid", "pos": [292, 230], "size": [180, 64] },
+    { "id": "governance_gate", "type": "security", "label": "Governance Gate", "sublabel": "ocr done + approved", "tag": "eligible to index", "pos": [292, 350], "size": [180, 64] },
+    { "id": "ingestion_job", "type": "database", "label": "ingestion_jobs", "sublabel": "PostgreSQL", "tag": "status/current_step/error", "pos": [292, 470], "size": [180, 64] },
+
+    { "id": "normalize_md", "type": "backend", "label": "Normalize Markdown", "sublabel": "preserve tables/lists", "tag": "heading hierarchy", "pos": [536, 180], "size": [180, 64] },
+    { "id": "parent_chunks", "type": "backend", "label": "Parent Chunks", "sublabel": "major MD sections", "tag": "chunk_type=parent", "pos": [536, 300], "size": [180, 64] },
+    { "id": "child_chunks", "type": "backend", "label": "Child Chunks", "sublabel": "langchain splitters", "tag": "embedded + searched", "pos": [536, 420], "size": [180, 64] },
+    { "id": "document_chunks", "type": "database", "label": "document_chunks", "sublabel": "PostgreSQL source rows", "tag": "parent_chunk_id", "pos": [536, 540], "size": [180, 64] },
+
+    { "id": "embedding_model", "type": "backend", "label": "BGE-M3 Embedding", "sublabel": "BAAI/bge-m3", "tag": "1024d normalized", "pos": [790, 300], "size": [180, 64] },
+    { "id": "index_status", "type": "database", "label": "Index Status", "sublabel": "document_chunks", "tag": "indexed/failed/etc.", "pos": [790, 470], "size": [180, 64] },
+
+    { "id": "qdrant_upsert", "type": "database", "label": "Qdrant Upsert", "sublabel": "vector index layer", "tag": "cosine vectors", "pos": [1038, 250], "size": [180, 64] },
+    { "id": "qdrant_payload", "type": "database", "label": "Payload Metadata", "sublabel": "filterable fields", "tag": "version/status/pages", "pos": [1038, 390], "size": [180, 64] },
+    { "id": "qdrant_point", "type": "database", "label": "qdrant_point_id", "sublabel": "stored on chunks", "tag": "index pointer", "pos": [1038, 530], "size": [180, 64] },
+
+    { "id": "document_versions", "type": "database", "label": "document_versions", "sublabel": "PostgreSQL source of truth", "tag": "version + statuses", "pos": [1282, 250], "size": [200, 64] },
+    { "id": "recipients", "type": "database", "label": "document_recipients", "sublabel": "department + effective_date", "tag": "scope metadata", "pos": [1282, 390], "size": [200, 64] },
+    { "id": "published", "type": "backend", "label": "Publish for RAG", "sublabel": "rag_status=published", "tag": "retrieval unlocked", "pos": [1282, 530], "size": [200, 64] }
   ],
-  "nodes": [
-    { "id": "llamaparse", "type": "external",  "label": "LlamaParse",    "sublabel": "OCR · external",           "stage": 0, "row": 0, "tag": "outside backend", "width": 112 },
-    { "id": "md_file",    "type": "external",  "label": "Canonical MD",  "sublabel": "YAML · page markers",      "stage": 0, "row": 2, "tag": "<!-- page: N -->", "width": 112 },
-    { "id": "admin",      "type": "external",  "label": "Admin/Editor",  "sublabel": "human review",             "stage": 0, "row": 4, "tag": "review approved",  "width": 112 },
-
-    { "id": "meta_val",   "type": "backend",   "label": "Meta Validator","sublabel": "app/ingestion",            "stage": 1, "row": 1, "tag": "ocr=done·review=approved", "width": 130 },
-    { "id": "job_row",    "type": "database",  "label": "ingestion_jobs","sublabel": "PostgreSQL · css schema",  "stage": 1, "row": 3, "tag": "current_step",     "width": 130 },
-
-    { "id": "md_reader",  "type": "backend",   "label": "MD Reader",     "sublabel": "split frontmatter+body",   "stage": 2, "row": 0, "tag": "MarkdownDocument" },
-    { "id": "head_norm",  "type": "backend",   "label": "Head Normalizer","sublabel": "Roman·Num→Markdown ##",   "stage": 2, "row": 2, "tag": "structural",      "width": 130 },
-    { "id": "chunker",    "type": "backend",   "label": "Chunker",       "sublabel": "langchain-text-splitters", "stage": 2, "row": 4, "tag": "parent + child" },
-
-    { "id": "pg_chunks",  "type": "database",  "label": "doc_chunks",    "sublabel": "PostgreSQL css schema",    "stage": 3, "row": 0, "tag": "chunk_key · parent_chunk_id" },
-    { "id": "embedder",   "type": "backend",   "label": "BGE-M3",        "sublabel": "BAAI/bge-m3 · 1024d",     "stage": 3, "row": 2, "tag": "child chunks only" },
-    { "id": "qdrant_up",  "type": "database",  "label": "Qdrant Upsert", "sublabel": "cosine · uuid5 point_id", "stage": 3, "row": 4, "tag": "vector + payload",  "width": 130 },
-
-    { "id": "pg_ver",     "type": "database",  "label": "doc_versions",  "sublabel": "rag_status · index_status","stage": 4, "row": 1, "tag": "source of truth",  "width": 130 },
-    { "id": "done",       "type": "backend",   "label": "Published",     "sublabel": "rag_status = published",  "stage": 4, "row": 3, "tag": "retrieval unlocked" }
+  "boundaries": [
+    { "kind": "region", "label": "01 Input", "wraps": ["admin", "llamaparse", "canonical_md", "metadata_yaml"], "pad": 24 },
+    { "kind": "security-group", "label": "02 Validate", "wraps": ["metadata_validator", "governance_gate", "ingestion_job"], "pad": 24 },
+    { "kind": "region", "label": "03 Chunk", "wraps": ["normalize_md", "parent_chunks", "child_chunks", "document_chunks"], "pad": 24 },
+    { "kind": "region", "label": "04 Embed", "wraps": ["embedding_model", "index_status"], "pad": 24 },
+    { "kind": "region", "label": "05 Index", "wraps": ["qdrant_upsert", "qdrant_payload", "qdrant_point"], "pad": 24 },
+    { "kind": "security-group", "label": "06 Publish", "wraps": ["document_versions", "recipients", "published"], "pad": 24 }
   ],
-  "flows": [
-    { "from": "llamaparse","to": "md_file",  "label": "canonical MD",      "classification": "OCR output",            "variant": "dashed",  "fromSide": "bottom", "toSide": "top" },
-    { "from": "admin",     "to": "md_file",  "label": "review approved",   "classification": "human sign-off",        "variant": "security","fromSide": "top",    "toSide": "bottom" },
-    { "from": "md_file",   "to": "meta_val", "label": "MD + YAML meta",    "classification": "version_key · doc_key", "variant": "emphasis","fromSide": "right",  "toSide": "left" },
-    { "from": "meta_val",  "to": "job_row",  "label": "create job row",    "classification": "job tracking",          "variant": "default", "fromSide": "bottom", "toSide": "top" },
-    { "from": "meta_val",  "to": "md_reader","label": "validated doc",     "classification": "MarkdownDocument",      "variant": "emphasis","fromSide": "right",  "toSide": "left" },
-    { "from": "md_reader", "to": "head_norm","label": "body text",         "classification": "raw markdown",          "variant": "default", "fromSide": "bottom", "toSide": "top" },
-    { "from": "head_norm", "to": "chunker",  "label": "norm headings",     "classification": "structured markdown",   "variant": "emphasis","fromSide": "bottom", "toSide": "top" },
-    { "from": "chunker",   "to": "pg_chunks","label": "chunks + metadata", "classification": "chunk_key · heading_path · pages", "variant": "emphasis","fromSide": "right","toSide": "left" },
-    { "from": "chunker",   "to": "embedder", "label": "child texts",       "classification": "child only",            "variant": "emphasis","fromSide": "right",  "toSide": "left" },
-    { "from": "pg_chunks", "to": "qdrant_up","label": "postgres_chunk_id", "classification": "stable FK for payload", "variant": "default", "fromSide": "bottom", "toSide": "top" },
-    { "from": "embedder",  "to": "qdrant_up","label": "vectors 1024d",     "classification": "normalized float32",    "variant": "emphasis","fromSide": "bottom", "toSide": "top" },
-    { "from": "qdrant_up", "to": "pg_ver",   "label": "qdrant_point_id",   "classification": "uuid5 stable ID",       "variant": "default", "fromSide": "right",  "toSide": "left" },
-    { "from": "pg_ver",    "to": "done",     "label": "status update",     "classification": "rag_status=published",  "variant": "emphasis","fromSide": "bottom", "toSide": "top" },
-    { "from": "job_row",   "to": "done",     "label": "job step log",      "classification": "current_step tracker",  "variant": "dashed",  "fromSide": "right",  "toSide": "left" }
+  "connections": [
+    { "from": "admin", "to": "canonical_md", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "orthogonal-v" },
+    { "from": "llamaparse", "to": "canonical_md", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "canonical_md", "to": "metadata_validator", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "orthogonal-h" },
+    { "from": "metadata_yaml", "to": "metadata_validator", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "orthogonal-h" },
+    { "from": "metadata_validator", "to": "governance_gate", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "governance_gate", "to": "ingestion_job", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "governance_gate", "to": "normalize_md", "label": "approved MD", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "orthogonal-h" },
+    { "from": "normalize_md", "to": "parent_chunks", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "parent_chunks", "to": "child_chunks", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "child_chunks", "to": "document_chunks", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "child_chunks", "to": "embedding_model", "label": "child text", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "labelDy": -26 },
+    { "from": "document_chunks", "to": "index_status", "fromSide": "right", "toSide": "left", "route": "orthogonal-h" },
+    { "from": "embedding_model", "to": "qdrant_upsert", "label": "1024d vector", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "labelDy": -24 },
+    { "from": "document_chunks", "to": "qdrant_payload", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "orthogonal-h" },
+    { "from": "qdrant_upsert", "to": "qdrant_point", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "qdrant_payload", "to": "qdrant_upsert", "label": "metadata", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "route": "straight", "labelDx": 46 },
+    { "from": "qdrant_point", "to": "document_versions", "label": "index ok", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "labelDy": 34 },
+    { "from": "recipients", "to": "published", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "document_versions", "to": "published", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "ingestion_job", "to": "published", "label": "finish or fail", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[500, 660], [1240, 660]], "labelAt": [838, 650] }
   ],
   "cards": [
     {
-      "dot": "rose",
-      "title": "Input Gate",
+      "dot": "emerald",
+      "title": "PostgreSQL source of truth",
       "items": [
-        "LlamaParse chạy bên ngoài backend — không có module OCR trong backend",
-        "Backend nhận canonical MD đã OCR + review approved",
-        "Điều kiện: ocr_status=done AND review_status=approved mới được index"
+        "documents, document_versions, document_chunks, ingestion_jobs",
+        "Qdrant stores retrieval index data only"
       ]
     },
     {
       "dot": "cyan",
-      "title": "Chunking Strategy",
+      "title": "Chunking contract",
       "items": [
-        "Parent: major Markdown sections (heading-aware, page-aware)",
-        "Child: 300–600 tokens, kế thừa heading_path + page_start/end",
-        "Stable keys: version_key::p::0001 · version_key::c::0001"
+        "parent chunks are major Markdown sections",
+        "child chunks are embedded and searched",
+        "stable keys use version_key::p/c::index"
       ]
     },
     {
-      "dot": "emerald",
-      "title": "Qdrant Payload",
+      "dot": "amber",
+      "title": "Spec boundaries",
       "items": [
-        "chunk_key · parent_chunk_key · postgres_chunk_id · chunk_type",
-        "document_key · version_key · review_status · rag_status · is_latest",
-        "page_start · page_end · audience_student (retrieval filter)"
+        "LlamaParse/OCR runs outside backend",
+        "document validity status is not in document_versions",
+        "Qdrant failure keeps job failed for retry"
       ]
     }
   ]

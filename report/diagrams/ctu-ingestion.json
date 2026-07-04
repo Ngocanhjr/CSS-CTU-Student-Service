@@ -27,7 +27,7 @@
     { "id": "embedder",  "type": "backend",     "label": "BGE-M3 Embedder",     "sublabel": "1024d · normalized",  "stage": 3, "row": 0, "tag": "child chunks only" },
     { "id": "qdrant",    "type": "database",    "label": "Qdrant Upsert",       "sublabel": "cosine · payload",    "stage": 3, "row": 2, "tag": "qdrant_point_id" },
 
-    { "id": "status",    "type": "backend",     "label": "Status Updater",      "sublabel": "rag_status = published","stage": 4, "row": 1, "tag": "index_status = indexed" }
+    { "id": "status",    "type": "backend",     "label": "Status Updater",      "sublabel": "rag_status = published","stage": 4, "row": 2, "tag": "index_status = indexed" }
   ],
   "flows": [
     { "from": "md_file",    "to": "ingest_api", "label": "upload + meta",   "classification": "canonical content", "variant": "emphasis",  "fromSide": "bottom", "toSide": "top" },
@@ -38,8 +38,8 @@
     { "from": "chunker",    "to": "pg_chunks",  "label": "parent + child chunks","classification": "structured chunks","variant": "emphasis","fromSide": "right", "toSide": "left" },
     { "from": "chunker",    "to": "embedder",   "label": "child chunks",    "classification": "text for embedding","variant": "emphasis",  "fromSide": "right",  "toSide": "left" },
     { "from": "embedder",   "to": "qdrant",     "label": "vectors + payload","classification": "1024d vectors",   "variant": "emphasis",  "fromSide": "right",  "toSide": "left" },
-    { "from": "qdrant",     "to": "status",     "label": "upsert done",     "classification": "success signal",   "variant": "default",   "fromSide": "right",  "toSide": "left" },
-    { "from": "pg_chunks",  "to": "status",     "label": "chunk IDs",       "classification": "postgres ids",     "variant": "dashed",    "fromSide": "right",  "toSide": "left" }
+    { "from": "qdrant",     "to": "status",     "label": "upsert done",     "classification": "success signal",   "variant": "default",   "route": "top-channel",    "fromSide": "right",  "toSide": "top",    "channelY": 300, "labelAt": [910, 292] },
+    { "from": "pg_chunks",  "to": "status",     "label": "chunk IDs",       "classification": "postgres ids",     "variant": "dashed",    "route": "bottom-channel", "fromSide": "right",  "toSide": "bottom", "channelY": 470, "labelAt": [910, 486] }
   ],
   "cards": [
     { "dot": "emerald", "title": "Input Gate", "items": ["OCR và human review xảy ra bên ngoài backend", "Backend chỉ nhận Canonical Markdown đã được approve", "Điều kiện publish: ocr_status=done & review_status=approved"] },

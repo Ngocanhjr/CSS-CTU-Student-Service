@@ -10,7 +10,7 @@
 
   <meta name="generator" content="archify 2.6.0">
 
-  <title>CTU Student Service — Ingestion Pipeline Diagram</title>
+  <title>CTU Student Service - RAG LLM Answer Generation Module Diagram</title>
 
   <script>
 
@@ -990,11 +990,11 @@
 
         <div class="pulse-dot"></div>
 
-        <h1>CTU Student Service — Ingestion Pipeline</h1>
+        <h1>CTU Student Service - RAG LLM Answer Generation Module</h1>
 
       </div>
 
-      <p class="subtitle">Canonical Markdown → Validate → Chunk → Embed → Qdrant → Published</p>
+      <p class="subtitle">Retrieved context -&gt; prompt builder -&gt; LLM provider -&gt; grounded answer -&gt; citation validation -&gt; API response</p>
 
     </div>
 
@@ -1004,7 +1004,7 @@
 
     <div class="diagram-container">
 
-      <svg viewBox="0 0 1080 720" role="img" aria-label="CTU Student Service — Ingestion Pipeline — Canonical Markdown → Validate → Chunk → Embed → Qdrant → Published (data-flow diagram)">
+      <svg viewBox="0 0 1880 900" role="img" aria-label="CTU Student Service - RAG LLM Answer Generation Module — Retrieved context -&gt; prompt builder -&gt; LLM provider -&gt; grounded answer -&gt; citation validation -&gt; API response (architecture diagram)">
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -1027,131 +1027,163 @@
         <!-- Background Grid -->
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        <!-- Data Stages -->
-        <rect x="16" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="100" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">01 / Input</text>
+        <!-- Boundaries (behind everything) -->
+        <rect x="34" y="276" width="238" height="278" rx="12" class="c-region" stroke-width="1"/>
+        <text x="42" y="294" class="t-cloud" font-size="9" font-weight="600">01 Retrieval Input</text>
 
-        <rect x="231" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="315" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">02 / Validate</text>
+        <rect x="300" y="276" width="248" height="278" rx="8" class="c-security-group" stroke-width="1"/>
+        <text x="308" y="294" class="t-security" font-size="9" font-weight="600">02 Prompt + Citation Policy</text>
 
-        <rect x="446" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="530" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">03 / Chunk</text>
+        <rect x="578" y="276" width="492" height="108" rx="12" class="c-region" stroke-width="1"/>
+        <text x="586" y="294" class="t-cloud" font-size="9" font-weight="600">03 Generate</text>
 
-        <rect x="661" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="745" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">04 / Embed &amp; Index</text>
+        <rect x="1086" y="276" width="518" height="278" rx="8" class="c-security-group" stroke-width="1"/>
+        <text x="1094" y="294" class="t-security" font-size="9" font-weight="600">04 Ground + Cite</text>
 
-        <rect x="876" y="46" width="168" height="600" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="960" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">05 / Publish</text>
+        <rect x="832" y="476" width="512" height="178" rx="12" class="c-region" stroke-width="1"/>
+        <text x="840" y="494" class="t-cloud" font-size="9" font-weight="600">05 Trace + Assets</text>
 
-        <!-- Flow paths -->
-        <path d="M 100 186 L 100 186 L 100 356 L 100 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 156 385 L 259 385" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path d="M 156 385 L 207.5 385 L 207.5 157 L 259 157" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 371 157 L 474 157" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 315 186 L 315 186 L 315 356 L 315 356" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path d="M 586 157 L 530 157 L 530 385 L 474 385" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 586 157 L 689 157" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 801 157 L 745 157 L 745 385 L 689 385" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path d="M 801 385 L 801 300 L 960 300 L 960 356" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path d="M 586 385 L 586 470 L 960 470 L 960 414" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <rect x="1594" y="276" width="238" height="278" rx="12" class="c-region" stroke-width="1"/>
+        <text x="1602" y="294" class="t-cloud" font-size="9" font-weight="600">06 Response</text>
 
-        <!-- Nodes -->
-        <rect x="44" y="128" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="44" y="128" width="112" height="58" rx="6" class="c-external" stroke-width="1.5"/>
-        <text x="100" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Canonical Markdown</text>
-        <text x="100" y="165" class="t-muted" font-size="7" text-anchor="middle">Dataset / YAML meta</text>
-        <text x="100" y="175" class="t-external" font-size="7" text-anchor="middle">OCR reviewed</text>
+        <!-- Connection paths (before components for correct z-order) -->
+        <path d="M 248 332 L 324 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 248 502 L 324 502" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path d="M 424 470 L 424 364" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path d="M 524 332 L 602 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 792 332 L 856 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 1046 332 L 1110 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 248 502 L 1072 502 Q 1080 502 1080 494 L 1080 340 Q 1080 332 1088 332 L 1110 332" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 1320 332 L 1390 332" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path d="M 1485 364 L 1485 470" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 1580 502 L 1594 502 Q 1602 502 1602 494 L 1602 340 Q 1602 332 1610 332 L 1618 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 1320 532 L 1582 532 Q 1590 532 1590 524 L 1590 362 Q 1590 354 1596.2905467105793 349.05742758454477 L 1618 332" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 1713 364 L 1713 470" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 153 364 L 257.16196657294427 638.5203231174793 Q 260 646 267.97707867375135 645.3948423075085 L 832.0229213262487 602.6051576924915 Q 840 602 848 602 L 856 602" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 424 364 L 536.9566408614487 638.6014889907633 Q 540 646 547.9153193142696 644.8390865005738 L 832.0846806857304 603.1609134994262 Q 840 602 848 602 L 856 602" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 951 364 L 951 570" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 1046 602 L 1592 602 Q 1600 602 1600 594 L 1600 340 Q 1600 332 1608 332 L 1618 332" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
 
-        <rect x="44" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="44" y="356" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="100" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Ingestion API</text>
-        <text x="100" y="393" class="t-muted" font-size="7" text-anchor="middle">POST /api/v1/ingest</text>
-        <text x="100" y="403" class="t-backend" font-size="7" text-anchor="middle">create job</text>
+        <!-- Components -->
+        <rect x="58" y="300" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="58" y="300" width="190" height="64" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="153" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Context Pack</text>
+        <text x="153" y="346" class="t-muted" font-size="9" text-anchor="middle">ranked chunks + trace</text>
+        <text x="153" y="356" class="t-external" font-size="7" text-anchor="middle">from retrieval</text>
 
-        <rect x="259" y="128" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="259" y="128" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="315" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Metadata Validator</text>
-        <text x="315" y="165" class="t-muted" font-size="7" text-anchor="middle">YAML + publish check</text>
-        <text x="315" y="175" class="t-backend" font-size="7" text-anchor="middle">ocr=done·review=approved</text>
+        <rect x="58" y="470" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="58" y="470" width="190" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="153" y="500" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Source Metadata</text>
+        <text x="153" y="516" class="t-muted" font-size="9" text-anchor="middle">document/version/chunk</text>
+        <text x="153" y="526" class="t-database" font-size="7" text-anchor="middle">page + section</text>
 
-        <rect x="259" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="259" y="356" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
-        <text x="315" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">ingestion_jobs</text>
-        <text x="315" y="393" class="t-muted" font-size="7" text-anchor="middle">PostgreSQL</text>
-        <text x="315" y="403" class="t-database" font-size="7" text-anchor="middle">current_step tracker</text>
+        <rect x="324" y="300" width="200" height="64" rx="6" class="c-mask"/>
+        <rect x="324" y="300" width="200" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="424" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Prompt Builder</text>
+        <text x="424" y="346" class="t-muted" font-size="9" text-anchor="middle">system + question + context</text>
+        <text x="424" y="356" class="t-backend" font-size="7" text-anchor="middle">grounded only</text>
 
-        <rect x="474" y="128" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="474" y="128" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="530" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">MD Chunker</text>
-        <text x="530" y="165" class="t-muted" font-size="7" text-anchor="middle">langchain heading-aware</text>
-        <text x="530" y="175" class="t-backend" font-size="7" text-anchor="middle">parent + child</text>
+        <rect x="324" y="470" width="200" height="64" rx="6" class="c-mask"/>
+        <rect x="324" y="470" width="200" height="64" rx="6" class="c-security" stroke-width="1.5"/>
+        <text x="424" y="500" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Citation Rules</text>
+        <text x="424" y="516" class="t-muted" font-size="9" text-anchor="middle">claim needs evidence</text>
+        <text x="424" y="526" class="t-security" font-size="7" text-anchor="middle">no source -&gt; refuse</text>
 
-        <rect x="474" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="474" y="356" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
-        <text x="530" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">document_chunks</text>
-        <text x="530" y="393" class="t-muted" font-size="7" text-anchor="middle">PostgreSQL css schema</text>
-        <text x="530" y="403" class="t-database" font-size="7" text-anchor="middle">chunk_key · parent_chunk_id</text>
+        <rect x="602" y="300" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="602" y="300" width="190" height="64" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="697" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">LLM Provider</text>
+        <text x="697" y="346" class="t-muted" font-size="9" text-anchor="middle">provider TBD from spec</text>
+        <text x="697" y="356" class="t-external" font-size="7" text-anchor="middle">not hard-coded</text>
 
-        <rect x="689" y="128" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="689" y="128" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="745" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">BGE-M3 Embedder</text>
-        <text x="745" y="165" class="t-muted" font-size="7" text-anchor="middle">1024d · normalized</text>
-        <text x="745" y="175" class="t-backend" font-size="7" text-anchor="middle">child chunks only</text>
+        <rect x="856" y="300" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="856" y="300" width="190" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="951" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Draft Answer</text>
+        <text x="951" y="346" class="t-muted" font-size="9" text-anchor="middle">uses retrieved context</text>
+        <text x="951" y="356" class="t-backend" font-size="7" text-anchor="middle">not model memory</text>
 
-        <rect x="689" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="689" y="356" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
-        <text x="745" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Qdrant Upsert</text>
-        <text x="745" y="393" class="t-muted" font-size="7" text-anchor="middle">cosine · payload</text>
-        <text x="745" y="403" class="t-database" font-size="7" text-anchor="middle">qdrant_point_id</text>
+        <rect x="856" y="570" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="856" y="570" width="190" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="951" y="600" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Trace Logging</text>
+        <text x="951" y="616" class="t-muted" font-size="9" text-anchor="middle">trace_id for debug</text>
+        <text x="951" y="626" class="t-database" font-size="7" text-anchor="middle">fields TBD</text>
 
-        <rect x="904" y="356" width="112" height="58" rx="6" class="c-mask"/>
-        <rect x="904" y="356" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="960" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Status Updater</text>
-        <text x="960" y="393" class="t-muted" font-size="7" text-anchor="middle">rag_status = published</text>
-        <text x="960" y="403" class="t-backend" font-size="7" text-anchor="middle">index_status = indexed</text>
+        <rect x="1110" y="300" width="210" height="64" rx="6" class="c-mask"/>
+        <rect x="1110" y="300" width="210" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="1215" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Citation Builder</text>
+        <text x="1215" y="346" class="t-muted" font-size="9" text-anchor="middle">map claims to chunks</text>
+        <text x="1215" y="356" class="t-backend" font-size="7" text-anchor="middle">document_key/version_key</text>
 
-        <!-- Flow labels -->
-        <rect x="52.349999999999994" y="250" width="95.30000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="100" y="261" class="t-backend" font-size="8" text-anchor="middle">upload + meta</text>
-        <text x="100" y="272" class="t-dim" font-size="7" text-anchor="middle">canonical content</text>
-        <rect x="167.2" y="364" width="80.60000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="207.5" y="375" class="t-muted" font-size="8" text-anchor="middle">create job row</text>
-        <text x="207.5" y="386" class="t-dim" font-size="7" text-anchor="middle">job tracking</text>
-        <rect x="162.3" y="250" width="90.4" height="27" rx="4" class="c-mask"/>
-        <text x="207.5" y="261" class="t-backend" font-size="8" text-anchor="middle">validate request</text>
-        <text x="207.5" y="272" class="t-dim" font-size="7" text-anchor="middle">YAML payload</text>
-        <rect x="374.85" y="136" width="95.30000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="422.5" y="147" class="t-backend" font-size="8" text-anchor="middle">approved Markdown</text>
-        <text x="422.5" y="158" class="t-dim" font-size="7" text-anchor="middle">clean text</text>
-        <rect x="272.25" y="250" width="85.5" height="27" rx="4" class="c-mask"/>
-        <text x="315" y="261" class="t-messagebus" font-size="8" text-anchor="middle">step = chunking</text>
-        <text x="315" y="272" class="t-dim" font-size="7" text-anchor="middle">status update</text>
-        <rect x="472.55" y="250" width="114.9" height="27" rx="4" class="c-mask"/>
-        <text x="530" y="261" class="t-backend" font-size="8" text-anchor="middle">parent + child chunks</text>
-        <text x="530" y="272" class="t-dim" font-size="7" text-anchor="middle">structured chunks</text>
-        <rect x="587.4" y="136" width="100.2" height="27" rx="4" class="c-mask"/>
-        <text x="637.5" y="147" class="t-backend" font-size="8" text-anchor="middle">child chunks</text>
-        <text x="637.5" y="158" class="t-dim" font-size="7" text-anchor="middle">text for embedding</text>
-        <rect x="697.35" y="250" width="95.30000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="745" y="261" class="t-backend" font-size="8" text-anchor="middle">vectors + payload</text>
-        <text x="745" y="272" class="t-dim" font-size="7" text-anchor="middle">1024d vectors</text>
-        <rect x="869.7" y="281" width="80.60000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="910" y="292" class="t-muted" font-size="8" text-anchor="middle">upsert done</text>
-        <text x="910" y="303" class="t-dim" font-size="7" text-anchor="middle">success signal</text>
-        <rect x="874.6" y="475" width="70.80000000000001" height="27" rx="4" class="c-mask"/>
-        <text x="910" y="486" class="t-messagebus" font-size="8" text-anchor="middle">chunk IDs</text>
-        <text x="910" y="497" class="t-dim" font-size="7" text-anchor="middle">postgres ids</text>
+        <rect x="1110" y="500" width="210" height="64" rx="6" class="c-mask"/>
+        <rect x="1110" y="500" width="210" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="1215" y="530" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Related Assets</text>
+        <text x="1215" y="546" class="t-muted" font-size="9" text-anchor="middle">document_assets + assets</text>
+        <text x="1215" y="556" class="t-database" font-size="7" text-anchor="middle">asset validity_status</text>
+
+        <rect x="1390" y="300" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="1390" y="300" width="190" height="64" rx="6" class="c-security" stroke-width="1.5"/>
+        <text x="1485" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Grounding Check</text>
+        <text x="1485" y="346" class="t-muted" font-size="9" text-anchor="middle">citation validation</text>
+        <text x="1485" y="356" class="t-security" font-size="7" text-anchor="middle">block weak claims</text>
+
+        <rect x="1390" y="470" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="1390" y="470" width="190" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="1485" y="500" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Post-process</text>
+        <text x="1485" y="516" class="t-muted" font-size="9" text-anchor="middle">format answer JSON</text>
+        <text x="1485" y="526" class="t-backend" font-size="7" text-anchor="middle">citations required</text>
+
+        <rect x="1618" y="300" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="1618" y="300" width="190" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="1713" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">API Response</text>
+        <text x="1713" y="346" class="t-muted" font-size="9" text-anchor="middle">answer/citations/assets</text>
+        <text x="1713" y="356" class="t-backend" font-size="7" text-anchor="middle">trace_id</text>
+
+        <rect x="1618" y="470" width="190" height="64" rx="6" class="c-mask"/>
+        <rect x="1618" y="470" width="190" height="64" rx="6" class="c-frontend" stroke-width="1.5"/>
+        <text x="1713" y="500" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Flutter UI</text>
+        <text x="1713" y="516" class="t-muted" font-size="9" text-anchor="middle">chat + citation drawer</text>
+        <text x="1713" y="526" class="t-frontend" font-size="7" text-anchor="middle">student-facing</text>
+
+        <!-- Connection labels -->
+        <rect x="247.4" y="312" width="77.2" height="14" rx="3" class="c-mask"/>
+        <text x="286" y="322" class="t-backend" font-size="8" text-anchor="middle">ranked context</text>
+        <rect x="257" y="482" width="58" height="14" rx="3" class="c-mask"/>
+        <text x="286" y="492" class="t-security" font-size="8" text-anchor="middle">source map</text>
+        <rect x="390.2" y="450" width="67.6" height="14" rx="3" class="c-mask"/>
+        <text x="424" y="460" class="t-security" font-size="8" text-anchor="middle">instructions</text>
+
+        <rect x="807" y="312" width="34" height="14" rx="3" class="c-mask"/>
+        <text x="824" y="322" class="t-backend" font-size="8" text-anchor="middle">draft</text>
+        <rect x="1058.6" y="312" width="38.8" height="14" rx="3" class="c-mask"/>
+        <text x="1078" y="322" class="t-backend" font-size="8" text-anchor="middle">claims</text>
+        <rect x="879.4" y="482" width="77.2" height="14" rx="3" class="c-mask"/>
+        <text x="918" y="492" class="t-messagebus" font-size="8" text-anchor="middle">doc/title/page</text>
+
+
+        <rect x="1556.6" y="412" width="62.8" height="14" rx="3" class="c-mask"/>
+        <text x="1588" y="422" class="t-backend" font-size="8" text-anchor="middle">answer JSON</text>
+        <rect x="1461.8" y="534" width="72.4" height="14" rx="3" class="c-mask"/>
+        <text x="1498" y="544" class="t-messagebus" font-size="8" text-anchor="middle">public assets</text>
+
+        <rect x="476.6" y="626" width="86.8" height="14" rx="3" class="c-mask"/>
+        <text x="520" y="636" class="t-messagebus" font-size="8" text-anchor="middle">retrieved chunks</text>
+        <rect x="640.2" y="626" width="67.6" height="14" rx="3" class="c-mask"/>
+        <text x="674" y="636" class="t-messagebus" font-size="8" text-anchor="middle">prompt trace</text>
+
+        <rect x="1445.8" y="612" width="48.4" height="14" rx="3" class="c-mask"/>
+        <text x="1470" y="622" class="t-messagebus" font-size="8" text-anchor="middle">trace_id</text>
 
         <!-- Legend -->
-        <text x="214" y="664" class="t-primary" font-size="10" font-weight="600">Legend</text>
-        <path d="M 214 684 L 248 684" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <text x="257" y="687" class="t-muted" font-size="8">primary data</text>
-        <path d="M 340 684 L 374 684" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <text x="383" y="687" class="t-muted" font-size="8">policy / PII</text>
-        <path d="M 480 684 L 514 684" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <text x="523" y="687" class="t-muted" font-size="8">async batch</text>
-        <rect x="625" y="676" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
-        <text x="646" y="684" class="t-muted" font-size="8">data store</text>
+        <text x="40" y="871" class="t-primary" font-size="9" font-weight="600">Legend</text>
+        <rect x="40" y="876" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+        <text x="60" y="884" class="t-muted" font-size="8">External</text>
+        <rect x="138" y="876" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+        <text x="158" y="884" class="t-muted" font-size="8">Database</text>
+        <rect x="236" y="876" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+        <text x="256" y="884" class="t-muted" font-size="8">Backend</text>
+        <rect x="329" y="876" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
+        <text x="349" y="884" class="t-muted" font-size="8">Security</text>
+        <rect x="427" y="876" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+        <text x="447" y="884" class="t-muted" font-size="8">Frontend</text>
       </svg>
 
     </div>
@@ -1162,37 +1194,36 @@
     <div class="cards">
       <div class="card">
         <div class="card-header">
-          <div class="card-dot emerald"></div>
-          <h3>Input Gate</h3>
+          <div class="card-dot rose"></div>
+          <h3>Grounding rule</h3>
         </div>
         <ul>
-          <li>&bull; OCR và human review xảy ra bên ngoài backend</li>
-          <li>&bull; Backend chỉ nhận Canonical Markdown đã được approve</li>
-          <li>&bull; Điều kiện publish: ocr_status=done &amp; review_status=approved</li>
+          <li>&bull; LLM answer is built from retrieved context</li>
+          <li>&bull; important procedural claims need citations</li>
+          <li>&bull; missing evidence returns insufficient-source answer</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>Chunking</h3>
+          <h3>Response contract</h3>
         </div>
         <ul>
-          <li>&bull; Heading-aware parent chunks theo section lớn</li>
-          <li>&bull; Child chunks 300–600 tokens kế thừa metadata</li>
-          <li>&bull; Chunk key format: version_key::p::0001 / ::c::0001</li>
+          <li>&bull; POST /api/v1/rag/answer returns answer, citations, related_assets, trace_id</li>
+          <li>&bull; citations map to retrieved chunks and source document/version</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-dot orange"></div>
-          <h3>Indexing</h3>
+          <div class="card-dot amber"></div>
+          <h3>Spec TBD</h3>
         </div>
         <ul>
-          <li>&bull; Chỉ child chunks được embed với BGE-M3</li>
-          <li>&bull; Qdrant payload chứa chunk_key, parent_chunk_key, postgres_chunk_id</li>
-          <li>&bull; Sau khi upsert thành công: rag_status = published</li>
+          <li>&bull; LLM provider is not selected</li>
+          <li>&bull; prompt version and token usage fields are not specified</li>
+          <li>&bull; production monitoring stack remains open</li>
         </ul>
       </div>
     </div>
@@ -1203,7 +1234,7 @@
 
     <p class="footer">
 
-      Data-flow diagram &bull; Built with Archify<span class="no-print"> &bull; Press <kbd>T</kbd> for theme and <kbd>E</kbd> for export</span>
+      Architecture diagram &bull; Built with Archify<span class="no-print"> &bull; Press <kbd>T</kbd> for theme and <kbd>E</kbd> for export</span>
 
     </p>
 
