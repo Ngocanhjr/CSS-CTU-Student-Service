@@ -24,12 +24,12 @@
 - Answer display area
 - Loading/streaming state
 - Citation list/chips
-- Related assets section
+- Related external links section
 - Feedback buttons
 
 **Behavior:**
 - _[Input validation]_
-- _[Call POST /rag/answer]_
+- _[Call RAG answer API defined in `06_API_SPEC.md`]_
 - _[Display answer + citations]_
 - _[Handle errors: no results, timeout]_
 
@@ -85,9 +85,9 @@
 - Total documents
 - Waiting OCR
 - Waiting review
-- Approved/published
+- approved/published
 - Failed jobs
-- Expired/replaced documents
+- Unpublished/deactivated documents
 
 ---
 
@@ -97,7 +97,7 @@
 **Filters:**
 - Department
 - Document type
-- Status (ocr_status, review_status, rag_status, validity_status)
+- Status (ocr_status, review_status, rag_status)
 - Date range
 
 **Actions:**
@@ -129,10 +129,19 @@ Select file → Upload → Show OCR status → Preview Markdown
 **Purpose:** _[Admin complete và validate metadata]_
 
 **Editable Fields:**
-- title, document_type, domain, department, audience
-- code, effective_date, expiry_date, is_latest
-- validity_status, review_status
-- citation_type
+- `title`, `document_type`, `domain`, `audience`
+- `code`, `issued_date`, `is_latest`
+- `review_status`
+
+**Recipient Departments (nhiều-nhiều qua `document_recipients`):**
+- Multi-select picker — chọn một hoặc nhiều phòng ban
+- Date picker — nhập một `effective_date` áp dụng chung cho tất cả phòng ban vừa chọn
+- Khi submit: tạo N rows trong `document_recipients(document_version_id, department_id, effective_date)`
+- Hiển thị danh sách phòng ban đã được gán kèm `effective_date` tương ứng
+
+> `department` không phải field đơn trên `documents`. Quan hệ được lưu ở bảng trung gian
+> `document_recipients`. Một version có thể gửi đến nhiều phòng ban trong cùng một lần
+> với cùng một `effective_date`.
 
 **Actions:**
 - Save draft
@@ -157,7 +166,7 @@ Select file → Upload → Show OCR status → Preview Markdown
 **Purpose:** _[Track ingestion job progress]_
 
 **UI Components:**
-- Job list với current stage badges
+- Job list với `current_step` badges
 - Click to view detail: stages, progress, errors
 - Retry button cho failed jobs
 
@@ -170,7 +179,7 @@ Select file → Upload → Show OCR status → Preview Markdown
 - Metadata
 - Status timeline
 - Chunks preview
-- Related assets
+- Related external links
 - Ingestion jobs
 - Version history (replaces/replaced_by)
 
@@ -185,7 +194,6 @@ _[CTU-friendly clean blue theme, Material Design 3]_
 - `ocr_status`: _[not_started=grey, processing=blue, need_review=orange, done=green, failed=red]_
 - `review_status`: _[not_reviewed=grey, reviewing=blue, need_fix=orange, approved=green, rejected=red]_
 - `rag_status`: _[not_indexed=grey, chunked=blue, embedded=blue, indexed=yellow, published=green, deactivated=grey, failed=red]_
-- `validity_status`: _[unchecked=grey, unknown=grey, valid=green, expired=orange, replaced=orange]_
 
 ### Loading States
 _[Spinner, skeleton loaders, progress bars]_
@@ -229,7 +237,7 @@ _[Match backend Pydantic schemas]_
 ### Error Handling
 ```dart
 try {
-  final response = await apiClient.post('/rag/answer', data: request);
+  final response = await apiClient.post('/api/v1/rag/answer', data: request);
   return AnswerResponse.fromJson(response.data);
 } on DioException catch (e) {
   if (e.response?.statusCode == 404) {
@@ -265,3 +273,5 @@ _[Responsive layout với breakpoints]_
 
 **Status:** Skeleton — Cần điền chi tiết UI mockups và component specs  
 **Priority:** P1
+
+

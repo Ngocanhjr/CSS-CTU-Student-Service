@@ -1,5 +1,9 @@
 import os
 
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
+
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
 
 #save embeddings to a file
@@ -8,8 +12,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from backend.app.ingestion.markdown_reader import MarkdownDocument
-from backend.app.schemas.chunks import Chunk
+from app.ingestion.markdown_reader import MarkdownDocument
+from app.schemas.chunks import Chunk
 
 #Neu khong co bien moi truong, mac dinh là baai
 EMBEDDING_MODEL_NAME = os.getenv("NVIDIA_EMBEDDING_MODEL", "baai/bge-m3")
@@ -68,7 +72,7 @@ def embed_query(query: str) -> list[float]:
     return embedding_model.embed_query(query)
 
 #method for save embedding file
-def text_hash(text:str) -> str:
+def hash_text(text:str) -> str:
     """
     Generate a SHA256 hash for the given text.
 
@@ -84,7 +88,7 @@ def load_vector_cache(path: Path = CACHE_DIR) -> dict[str, dict[str, Any]]:
     Args:
         path (Path): The path to the cache file.
     """
-    if not path.exists():
+    if not path.exists() or path.stat().st_size == 0:
         return {}
         
     return json.loads(path.read_text(encoding="utf-8"))
@@ -129,7 +133,7 @@ def embed_chunks_with_cache(
     document: MarkdownDocument,
     chunks: list[Chunk], 
     * ,
-    model_name: str 
+    model_name: str  = EMBEDDING_MODEL_NAME
     ) -> list[list[float]]:
     
     cache = load_vector_cache()
@@ -138,12 +142,12 @@ def embed_chunks_with_cache(
     
     for chunk in chunks:
         embedding_text = build_embedding_enriched_text(document, chunk)
-        text_hash_key = text_hash(embedding_text)
+        hash_text_key = hash_text(embedding_text)
         cached_vector = cache.get(chunk.chunk_key)
         if(
             cached_vector 
             and cached_vector.get("model") == model_name
-            and cached_vector.get("text_hash") == text_hash_key
+            and cached_vector.get("hash_text") == hash_text_key
         ): 
             vectors_by_key[chunk.chunk_key] = cached_vector["vector"]
         else:
@@ -159,7 +163,7 @@ def embed_chunks_with_cache(
             embedding_text = build_embedding_enriched_text(document, chunk)
             cache[chunk.chunk_key] = {
                 "model": model_name,
-                "text_hash": hash_text(embedding_text),
+                "hash_text": hash_text(embedding_text),
                 "vector": vector,
             }
             vectors_by_key[chunk.chunk_key] = vector

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "CTU Student Service — RAG Ingestion Module",
+    "subtitle": "Canonical Markdown → Validate → Chunk → Embed & Index → Publish",
+    "output": "chatbot/.docs/diagrams/rag-ingestion-module.html",
+    "viewBox": [1240, 760]
+  },
+  "stages": [
+    { "label": "01 Input" },
+    { "label": "02 Validate" },
+    { "label": "03 Chunk" },
+    { "label": "04 Embed & Index" },
+    { "label": "05 Publish" }
+  ],
+  "nodes": [
+    { "id": "llamaparse", "type": "external",  "label": "LlamaParse",    "sublabel": "OCR · external",           "stage": 0, "row": 0, "tag": "outside backend", "width": 112 },
+    { "id": "md_file",    "type": "external",  "label": "Canonical MD",  "sublabel": "YAML · page markers",      "stage": 0, "row": 2, "tag": "<!-- page: N -->", "width": 112 },
+    { "id": "admin",      "type": "external",  "label": "Admin/Editor",  "sublabel": "human review",             "stage": 0, "row": 4, "tag": "review approved",  "width": 112 },
+
+    { "id": "meta_val",   "type": "backend",   "label": "Meta Validator","sublabel": "app/ingestion",            "stage": 1, "row": 1, "tag": "ocr=done·review=approved", "width": 130 },
+    { "id": "job_row",    "type": "database",  "label": "ingestion_jobs","sublabel": "PostgreSQL · css schema",  "stage": 1, "row": 3, "tag": "current_step",     "width": 130 },
+
+    { "id": "md_reader",  "type": "backend",   "label": "MD Reader",     "sublabel": "split frontmatter+body",   "stage": 2, "row": 0, "tag": "MarkdownDocument" },
+    { "id": "head_norm",  "type": "backend",   "label": "Head Normalizer","sublabel": "Roman·Num→Markdown ##",   "stage": 2, "row": 2, "tag": "structural",      "width": 130 },
+    { "id": "chunker",    "type": "backend",   "label": "Chunker",       "sublabel": "langchain-text-splitters", "stage": 2, "row": 4, "tag": "parent + child" },
+
+    { "id": "pg_chunks",  "type": "database",  "label": "doc_chunks",    "sublabel": "PostgreSQL css schema",    "stage": 3, "row": 0, "tag": "chunk_key · parent_chunk_id" },
+    { "id": "embedder",   "type": "backend",   "label": "BGE-M3",        "sublabel": "BAAI/bge-m3 · 1024d",     "stage": 3, "row": 2, "tag": "child chunks only" },
+    { "id": "qdrant_up",  "type": "database",  "label": "Qdrant Upsert", "sublabel": "cosine · uuid5 point_id", "stage": 3, "row": 4, "tag": "vector + payload",  "width": 130 },
+
+    { "id": "pg_ver",     "type": "database",  "label": "doc_versions",  "sublabel": "rag_status · index_status","stage": 4, "row": 1, "tag": "source of truth",  "width": 130 },
+    { "id": "done",       "type": "backend",   "label": "Published",     "sublabel": "rag_status = published",  "stage": 4, "row": 3, "tag": "retrieval unlocked" }
+  ],
+  "flows": [
+    { "from": "llamaparse","to": "md_file",  "label": "canonical MD",      "classification": "OCR output",            "variant": "dashed",  "fromSide": "bottom", "toSide": "top" },
+    { "from": "admin",     "to": "md_file",  "label": "review approved",   "classification": "human sign-off",        "variant": "security","fromSide": "top",    "toSide": "bottom" },
+    { "from": "md_file",   "to": "meta_val", "label": "MD + YAML meta",    "classification": "version_key · doc_key", "variant": "emphasis","fromSide": "right",  "toSide": "left" },
+    { "from": "meta_val",  "to": "job_row",  "label": "create job row",    "classification": "job tracking",          "variant": "default", "fromSide": "bottom", "toSide": "top" },
+    { "from": "meta_val",  "to": "md_reader","label": "validated doc",     "classification": "MarkdownDocument",      "variant": "emphasis","fromSide": "right",  "toSide": "left" },
+    { "from": "md_reader", "to": "head_norm","label": "body text",         "classification": "raw markdown",          "variant": "default", "fromSide": "bottom", "toSide": "top" },
+    { "from": "head_norm", "to": "chunker",  "label": "norm headings",     "classification": "structured markdown",   "variant": "emphasis","fromSide": "bottom", "toSide": "top" },
+    { "from": "chunker",   "to": "pg_chunks","label": "chunks + metadata", "classification": "chunk_key · heading_path · pages", "variant": "emphasis","fromSide": "right","toSide": "left" },
+    { "from": "chunker",   "to": "embedder", "label": "child texts",       "classification": "child only",            "variant": "emphasis","fromSide": "right",  "toSide": "left" },
+    { "from": "pg_chunks", "to": "qdrant_up","label": "postgres_chunk_id", "classification": "stable FK for payload", "variant": "default", "fromSide": "bottom", "toSide": "top" },
+    { "from": "embedder",  "to": "qdrant_up","label": "vectors 1024d",     "classification": "normalized float32",    "variant": "emphasis","fromSide": "bottom", "toSide": "top" },
+    { "from": "qdrant_up", "to": "pg_ver",   "label": "qdrant_point_id",   "classification": "uuid5 stable ID",       "variant": "default", "fromSide": "right",  "toSide": "left" },
+    { "from": "pg_ver",    "to": "done",     "label": "status update",     "classification": "rag_status=published",  "variant": "emphasis","fromSide": "bottom", "toSide": "top" },
+    { "from": "job_row",   "to": "done",     "label": "job step log",      "classification": "current_step tracker",  "variant": "dashed",  "fromSide": "right",  "toSide": "left" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Input Gate",
+      "items": [
+        "LlamaParse chạy bên ngoài backend — không có module OCR trong backend",
+        "Backend nhận canonical MD đã OCR + review approved",
+        "Điều kiện: ocr_status=done AND review_status=approved mới được index"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Chunking Strategy",
+      "items": [
+        "Parent: major Markdown sections (heading-aware, page-aware)",
+        "Child: 300–600 tokens, kế thừa heading_path + page_start/end",
+        "Stable keys: version_key::p::0001 · version_key::c::0001"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Qdrant Payload",
+      "items": [
+        "chunk_key · parent_chunk_key · postgres_chunk_id · chunk_type",
+        "document_key · version_key · review_status · rag_status · is_latest",
+        "page_start · page_end · audience_student (retrieval filter)"
+      ]
+    }
+  ]
+}

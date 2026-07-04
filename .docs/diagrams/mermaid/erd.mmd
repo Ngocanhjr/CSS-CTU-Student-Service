@@ -1,82 +1,143 @@
-%% CTU-Service Entity-Relationship Diagram
-%% 8 core tables with complete relationships
+﻿%% CTU-Service Entity-Relationship Diagram
+%% Final Phase UI-test ERD
 
 erDiagram
     departments ||--o{ documents : manages
     document_types ||--o{ documents : categorizes
     documents ||--o{ document_versions : has
-    document_versions ||--o{ document_chunks : contains
-    document_versions ||--o{ document_assets : links
-    assets ||--o{ document_assets : linked_to
-    document_versions ||--o{ ingestion_jobs : tracked_by
+    documents ||--o{ document_recipients : distributed_to
+    departments ||--o{ document_recipients : receives
+    documents ||--o{ document_assets : has_external_links
+    document_versions ||--o{ document_assets : optional_version_links
+    document_versions ||--o{ version_status_history : status_changes
+    document_versions ||--o{ ingestion_jobs : processed_by
+    document_versions ||--o{ document_chunks : produces
+    ingestion_jobs ||--o{ document_chunks : creates
     document_chunks ||--o| document_chunks : parent_of
-    document_versions ||--o| document_versions : replaces
-    
+
     departments {
         int id PK
         string code
         string name
+        string description
         bool is_active
     }
-    
+
     document_types {
         int id PK
         string code
         string name
+        string description
         bool is_active
     }
-    
+
     documents {
         int id PK
         string document_key
         string title
         int department_id FK
         int document_type_id FK
+        int current_version_id FK
+        string summary
         string confidentiality
     }
-    
+
     document_versions {
         int id PK
         int document_id FK
         string version_key
+        string version_label
+        string title
+        string code
+        date issued_date
         date effective_date
         date expiry_date
+        string signer_name
+        string signer_title
         bool is_latest
         string validity_status
+        string collection_status
+        string ocr_status
         string review_status
         string rag_status
-        int replaces_version_id FK
+        string file_url
+        string file_name
+        string mime_type
+        int file_size
+        string checksum
     }
-    
+
+    version_status_history {
+        int id PK
+        int document_version_id FK
+        string status_group
+        string from_status
+        string to_status
+        string changed_by
+        datetime changed_at
+        string note
+    }
+
     document_chunks {
         int id PK
         int document_version_id FK
+        int ingestion_job_id FK
+        string chunk_key
         int parent_id FK
+        int chunk_index
+        string chunk_level
+        string heading_path
+        string section_title
         string content
         int page_start
         int page_end
         string qdrant_point_id
+        string embedding_status
+        string index_status
     }
-    
-    assets {
-        int id PK
-        string asset_key
-        string title
-        string file_path
-    }
-    
-    document_assets {
-        int document_version_id FK
-        int asset_id FK
-        string relation_type
-        bool required
-    }
-    
+
     ingestion_jobs {
         int id PK
         int document_version_id FK
-        string status
         string current_stage
+        string tool_name
+        int total_chunks
+        int processed_chunks
+        string error_message
+        datetime started_at
+        datetime finished_at
+    }
+
+    document_recipients {
+        int id PK
+        int document_id FK
+        int document_version_id FK
+        int department_id FK
+        string recipient_type
+        bool is_required
+    }
+
+    document_assets {
+        int id PK
+        int document_id FK
+        int document_version_id FK
+        string asset_type
+        string title
+        string url
+        string description
+        int display_order
+        bool is_active
+    }
+
+    assets {
+        int id PK
+        string asset_key
+        string asset_type
+        string title
+        string url
+        string description
+        bool is_active
     }
 
 %% Reference: .docs/spec/ctu-service/05_DATABASE_SPEC.md
+%% Rule: main files are stored on document_versions; document_assets stores external links only.

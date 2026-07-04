@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "CTU Student Service — RAG Answer Flow",
+    "subtitle": "Query → Hybrid Retrieval → RRF Fusion → Parent Expand → LLM → Grounded Answer",
+    "output": "report/diagrams/ctu-retrieval.html",
+    "viewBox": [920, 880]
+  },
+  "participants": [
+    { "id": "flutter",   "type": "frontend",  "label": "Flutter",    "sublabel": "chat UI" },
+    { "id": "api",       "type": "backend",   "label": "FastAPI",    "sublabel": "/rag/answer" },
+    { "id": "retrieval", "type": "backend",   "label": "Retrieval",  "sublabel": "BM25 + dense" },
+    { "id": "qdrant",    "type": "database",  "label": "Qdrant",     "sublabel": "dense search" },
+    { "id": "postgres",  "type": "database",  "label": "PostgreSQL", "sublabel": "FTS + chunks" },
+    { "id": "llm",       "type": "cloud",     "label": "LLM",        "sublabel": "grounded gen" }
+  ],
+  "segments": [
+    { "from": 160, "to": 268,  "label": "01 / QUERY INTAKE" },
+    { "from": 268, "to": 448,  "label": "02 / HYBRID RETRIEVAL" },
+    { "from": 448, "to": 594,  "label": "03 / FUSION + EXPAND" },
+    { "from": 594, "to": 700,  "label": "04 / GENERATE" },
+    { "from": 700, "to": 750,  "label": "05 / RESPONSE" }
+  ],
+  "messages": [
+    { "from": "flutter",   "to": "api",       "y": 180, "label": "POST /rag/answer",       "variant": "emphasis" },
+    { "from": "api",       "to": "retrieval", "y": 216, "label": "normalize + filter",      "variant": "emphasis" },
+    { "from": "api",       "to": "retrieval", "y": 252, "label": "intent + meta filter",    "variant": "default" },
+
+    { "from": "retrieval", "to": "postgres",  "y": 288, "label": "BM25 / FTS search",       "variant": "emphasis" },
+    { "from": "retrieval", "to": "qdrant",    "y": 324, "label": "dense vector search",     "variant": "emphasis" },
+    { "from": "postgres",  "to": "retrieval", "y": 360, "label": "sparse hits",             "variant": "return" },
+    { "from": "qdrant",    "to": "retrieval", "y": 396, "label": "dense hits + scores",     "variant": "return" },
+    { "from": "retrieval", "to": "api",       "y": 432, "label": "RRF fused rank list",     "variant": "return" },
+
+    { "from": "api",       "to": "postgres",  "y": 468, "label": "parent context expand",   "variant": "emphasis" },
+    { "from": "postgres",  "to": "api",       "y": 504, "label": "parent + assets",         "variant": "return" },
+    { "from": "api",       "to": "retrieval", "y": 540, "label": "compress context",        "variant": "default" },
+    { "from": "retrieval", "to": "api",       "y": 576, "label": "context assembled",       "variant": "return" },
+
+    { "from": "api",       "to": "llm",       "y": 612, "label": "grounded prompt",         "variant": "emphasis" },
+    { "from": "llm",       "to": "api",       "y": 648, "label": "answer + citations",      "variant": "return" },
+    { "from": "api",       "to": "flutter",   "y": 684, "label": "answer + trace_id",       "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "api",       "from": 180, "to": 694, "type": "backend" },
+    { "participant": "retrieval", "from": 216, "to": 582, "type": "backend" },
+    { "participant": "postgres",  "from": 288, "to": 370, "type": "database" },
+    { "participant": "qdrant",    "from": 324, "to": 406, "type": "database" },
+    { "participant": "postgres",  "from": 468, "to": 514, "type": "database" },
+    { "participant": "llm",       "from": 612, "to": 658, "type": "cloud" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Hybrid Retrieval", "items": ["BM25/FTS trong PostgreSQL chạy song song với dense search Qdrant", "Chỉ retrieve chunks: review_status=approved & rag_status=published", "RRF fusion kết hợp sparse và dense rankings"] },
+    { "dot": "cyan",    "title": "Parent Context Expansion", "items": ["Child chunk winners từ RRF được expand lên parent section đầy đủ", "PostgreSQL trả về parent text và related assets (forms, links)", "is_latest=true được ưu tiên khi nhiều version cùng tồn tại"] },
+    { "dot": "rose",    "title": "Grounded Answer + Citation", "items": ["LLM chỉ generate từ retrieved context, không dùng model memory", "Mỗi claim phải có citation từ document_key / version_key", "Response: answer · citations · related assets · trace_id"] }
+  ]
+}

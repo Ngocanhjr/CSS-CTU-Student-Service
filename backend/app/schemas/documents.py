@@ -34,10 +34,11 @@ class DocumentBaseMetadata(StrictSchema):
 
     @field_validator("department")
     @classmethod
-    def validate_department_code(cls, value: str) -> str:
+    def     validate_department_code(cls, value: str) -> str:
         value = value.strip()
         if value and not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_/-]*", value):
             raise ValueError("Department code must be uppercase letters, numbers, or underscores")
+        return value
 class DocumentVersionStatus(StrictSchema):
     validity_status: ValidityStatus = "unchecked"
     collection_status: CollectionStatus = "collected"

@@ -2,7 +2,7 @@
 document_key: ctu-ctsv-noi-quy-ktx-nam-2016
 version_key: ctu-ctsv-noi-quy-ktx-nam-2016-68d4960122d2
 title: "NỘI  QUY Về công tác nội trú tại Ký túc xá Trường Đại học Cần Thơ"
-document_type: "noi_quy"
+document_type: noi_quy
 domain: "ktx"
 department: "ssc"
 audience:
@@ -13,7 +13,6 @@ effective_date:
 expiry_date:
 version_label: ""
 is_latest: true
-validity_status: unchecked
 version_role: base
 replaces: []
 replaced_by: []
@@ -21,7 +20,7 @@ amends: []
 amended_by: []
 supplements: []
 supplemented_by: []
-collection_status: collected
+rag_status: collected
 ocr_status: done
 review_status: approved
 rag_status: not_indexed

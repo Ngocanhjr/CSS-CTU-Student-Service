@@ -15,7 +15,7 @@ def chunk_markdown_body(
     body: str,  
     document_key: str,
     version_key: str,
-    child_chunk_size: int = 1200,
+    child_chunk_size: int = 800,
     child_chunk_overlap: int = 100,
 ) -> list[Chunk]:
     if not body.strip():

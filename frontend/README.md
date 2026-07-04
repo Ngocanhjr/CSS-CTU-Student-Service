@@ -4,41 +4,27 @@ Flutter frontend for the student chat UI, citation viewer, procedure screens, an
 
 ## Frontend decision
 
-Updated: `2026-06-18`
+Updated: `2026-07-04`
 
 Use Flutter only. Do not introduce React, Next.js, Tailwind, or plain HTML for the app UI unless the project owner changes the decision.
 
 ## Backend pipeline shown in UI
 
-Admin screens should display the current backend pipeline decisions:
-
 | Stage | Decision |
 |---|---|
-| OCR | `ocr-pvl` using PaddleOCR / VietOCR for normal OCR and LlamaParse for table-heavy OCR cases |
+| OCR/parser | LlamaParse only |
 | Chunking / RAG workflow | LangChain |
 | Embedding | `BAAI/bge-m3` |
-| Vector store | Qdrant |
+| Retrieval | Hybrid: Qdrant dense + PostgreSQL sparse + RRF |
 | Metadata store | PostgreSQL |
-| HNSW optimization | Future upgrade only; not part of the current MVP pipeline |
+| HNSW optimization | Future upgrade only |
 
-## Status display policy
+## MVP UI scope
 
-- Admin/internal search may show expired documents when `review_status = approved` and `rag_status = indexed`.
-- Student chat results must only show valid published public documents.
-- Expired or replaced documents shown in admin/internal views must display a clear warning that they are not current guidance.
-
-## MVP target from 2026-06-08 to 2026-06-19
-
-The frontend should support the minimum UI needed to verify a running vertical slice with working code:
-
-- chat screen calling `/rag/answer`;
-- citation/source drawer;
-- related assets/forms section;
-- admin ingestion job status showing OCR, review, metadata validation, chunk, embed, and index stages;
-- clear status labels for `ocr-pvl`, LangChain chunking, BGE-M3 embedding, PostgreSQL metadata, and Qdrant indexing.
+- Chat screen calling `/api/v1/rag/answer`.
+- Citation/source drawer.
+- Related assets/forms section.
+- Admin ingestion job status showing parse, review, metadata validation, chunk, embed, and index steps.
+- Status labels for LlamaParse, chunking, embedding, PostgreSQL, and Qdrant.
 
 Flutter must not hard-code official procedure content, deadlines, fees, forms, or departments. These must come from backend responses with citations.
-
-## UI note for HNSW
-
-Do not show HNSW as an active feature in the MVP UI. If it appears in admin planning screens, label it clearly as a future optimization after the basic RAG workflow has run successfully.

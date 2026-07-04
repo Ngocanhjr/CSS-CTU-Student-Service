@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "CTU Student Service — Ingestion Pipeline",
+    "subtitle": "Canonical Markdown → Validate → Chunk → Embed → Qdrant → Published",
+    "output": "report/diagrams/ctu-ingestion.html",
+    "viewBox": [1080, 720]
+  },
+  "stages": [
+    { "label": "Input" },
+    { "label": "Validate" },
+    { "label": "Chunk" },
+    { "label": "Embed & Index" },
+    { "label": "Publish" }
+  ],
+  "nodes": [
+    { "id": "md_file",   "type": "external",    "label": "Canonical Markdown", "sublabel": "Dataset / YAML meta",   "stage": 0, "row": 0, "tag": "OCR reviewed" },
+    { "id": "ingest_api","type": "backend",     "label": "Ingestion API",       "sublabel": "POST /api/v1/ingest",  "stage": 0, "row": 2, "tag": "create job" },
+
+    { "id": "meta_val",  "type": "backend",     "label": "Metadata Validator",  "sublabel": "YAML + publish check","stage": 1, "row": 0, "tag": "ocr=done·review=approved" },
+    { "id": "job_row",   "type": "database",    "label": "ingestion_jobs",      "sublabel": "PostgreSQL",           "stage": 1, "row": 2, "tag": "current_step tracker" },
+
+    { "id": "chunker",   "type": "backend",     "label": "MD Chunker",   "sublabel": "langchain heading-aware",  "stage": 2, "row": 0, "tag": "parent + child" },
+    { "id": "pg_chunks", "type": "database",    "label": "document_chunks",     "sublabel": "PostgreSQL css schema","stage": 2, "row": 2, "tag": "chunk_key · parent_chunk_id" },
+
+    { "id": "embedder",  "type": "backend",     "label": "BGE-M3 Embedder",     "sublabel": "1024d · normalized",  "stage": 3, "row": 0, "tag": "child chunks only" },
+    { "id": "qdrant",    "type": "database",    "label": "Qdrant Upsert",       "sublabel": "cosine · payload",    "stage": 3, "row": 2, "tag": "qdrant_point_id" },
+
+    { "id": "status",    "type": "backend",     "label": "Status Updater",      "sublabel": "rag_status = published","stage": 4, "row": 1, "tag": "index_status = indexed" }
+  ],
+  "flows": [
+    { "from": "md_file",    "to": "ingest_api", "label": "upload + meta",   "classification": "canonical content", "variant": "emphasis",  "fromSide": "bottom", "toSide": "top" },
+    { "from": "ingest_api", "to": "job_row",    "label": "create job row",  "classification": "job tracking",      "variant": "default",   "fromSide": "right",  "toSide": "left" },
+    { "from": "ingest_api", "to": "meta_val",   "label": "validate request","classification": "YAML payload",      "variant": "emphasis",  "fromSide": "right",  "toSide": "left" },
+    { "from": "meta_val",   "to": "chunker",    "label": "approved Markdown","classification": "clean text",       "variant": "emphasis",  "fromSide": "right",  "toSide": "left" },
+    { "from": "meta_val",   "to": "job_row",    "label": "step = chunking", "classification": "status update",     "variant": "dashed",    "fromSide": "bottom", "toSide": "top" },
+    { "from": "chunker",    "to": "pg_chunks",  "label": "parent + child chunks","classification": "structured chunks","variant": "emphasis","fromSide": "right", "toSide": "left" },
+    { "from": "chunker",    "to": "embedder",   "label": "child chunks",    "classification": "text for embedding","variant": "emphasis",  "fromSide": "right",  "toSide": "left" },
+    { "from": "embedder",   "to": "qdrant",     "label": "vectors + payload","classification": "1024d vectors",   "variant": "emphasis",  "fromSide": "right",  "toSide": "left" },
+    { "from": "qdrant",     "to": "status",     "label": "upsert done",     "classification": "success signal",   "variant": "default",   "fromSide": "right",  "toSide": "left" },
+    { "from": "pg_chunks",  "to": "status",     "label": "chunk IDs",       "classification": "postgres ids",     "variant": "dashed",    "fromSide": "right",  "toSide": "left" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Input Gate", "items": ["OCR và human review xảy ra bên ngoài backend", "Backend chỉ nhận Canonical Markdown đã được approve", "Điều kiện publish: ocr_status=done & review_status=approved"] },
+    { "dot": "cyan",    "title": "Chunking", "items": ["Heading-aware parent chunks theo section lớn", "Child chunks 300–600 tokens kế thừa metadata", "Chunk key format: version_key::p::0001 / ::c::0001"] },
+    { "dot": "orange",  "title": "Indexing", "items": ["Chỉ child chunks được embed với BGE-M3", "Qdrant payload chứa chunk_key, parent_chunk_key, postgres_chunk_id", "Sau khi upsert thành công: rag_status = published"] }
+  ]
+}

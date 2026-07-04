@@ -1,196 +1,244 @@
-### departments
+# db_note.md — Working Note: Database Schema (9 Bảng Chốt)
 
-- [ ] id
-- [ ] code
-- [ ] name
-- [ ] description
-- [ ] is_active
-- [ ] created_at
-- [ ] updated_at
+> **Nguồn chính thức:**
+> - Schema đầy đủ: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md`
+> - Quick reference: `chatbot/.docs/DATABASE_SCHEMA.md`
 
-### document_types
+---
 
-- [ ] id
-- [ ] code
-- [ ] name
-- [ ] description
-- [ ] is_active
-- [ ] created_at
-- [ ] updated_at
-
-### documents
-
-- [x] id
-- [ ] document_key
-- [x] title
-- [x] department_id
-- [x] document_type_id
-- [x] domain
-- [x] audience
-- [ ] created_at
-- [ ] updated_at
-
-### document_versions
-
-- [ ] id
-- [x] document_id
-- [ ] title
-- [x] version_key
-- [x] version_label
-- [x] version_role
-- [x] code
-- [x] issued_date
-- [x] effective_date
-- [x] expiry_date
-- [x] is_latest
-- [x] source_url
-- [x] source_file
-- [x] source_path
-- [x] file_type
-- [ ] canonical_markdown_path
-- [x] accessed_date
-- [x] language
-- [x] citation_type
-- [x] checksum
-- [ ] metadata_hash
-- [ ] extra_metadata
-- [ ] created_at
-- [ ] updated_at
-
-`version_role` uses:
+## Quy ước key và id
 
 ```text
-base | replacement | amendment | supplement
+Trong PostgreSQL:
+- id          → SERIAL PRIMARY KEY, khóa kỹ thuật nội bộ
+- *_id        → Foreign key nội bộ (document_id, document_version_id, asset_id, department_id, document_type_id, parent_chunk_id)
+
+Trong YAML / Pydantic / RAG payload:
+- *_key       → Business key ổn định (document_key, version_key, chunk_key, parent_chunk_key, asset_key)
 ```
 
-Do not treat `is_latest` as a retrieval hard filter. A base version can remain valid and retrievable when it is amended or supplemented by a newer version.
+Không dùng `document_id` / `version_id` trong Pydantic metadata — dùng `document_key` / `version_key`.
 
-### document_version_status
+---
 
-Bảng này lưu snapshot trạng thái hiện tại của một dòng `document_versions`. Giữ các field này ngoài `document_versions` để không trộn định danh/version với trạng thái workflow.
+## 9 Bảng Chốt
 
-- [ ] document_version_id
-- [x] validity_status
-- [x] collection_status
-- [x] ocr_status
-- [x] review_status
-- [x] rag_status
-- [x] status_note
-- [ ] updated_by
-- [ ] created_at
-- [ ] updated_at
-
-Giá trị mặc định:
+### 1. departments
 
 ```text
-validity_status   = unchecked
-collection_status = collected
-ocr_status        = not_started
-review_status     = not_reviewed
-rag_status        = not_indexed
+id            SERIAL PRIMARY KEY
+code          VARCHAR(50) UNIQUE NOT NULL
+name          VARCHAR(255) NOT NULL
+description   TEXT
+is_active     BOOLEAN DEFAULT TRUE
 ```
 
-Điều kiện publish:
+### 2. document_types
 
 ```text
-ocr_status = done
+id            SERIAL PRIMARY KEY
+code          VARCHAR(50) UNIQUE NOT NULL   -- noi_quy | quy_trinh | bieu_mau | hoi_dap
+name          VARCHAR(255) NOT NULL
+is_active     BOOLEAN DEFAULT TRUE
+```
+
+### 3. documents
+
+```text
+id                SERIAL PRIMARY KEY
+document_key      VARCHAR(255) UNIQUE NOT NULL
+title             VARCHAR(500) NOT NULL
+domain            VARCHAR(100)
+audience          JSONB
+document_type_id  INTEGER REFERENCES document_types(id)
+```
+
+> `documents` KHÔNG có `department_id`.
+> Quan hệ document ↔ department thể hiện qua bảng `document_recipients`.
+
+### 4. document_versions
+
+```text
+id                        SERIAL PRIMARY KEY
+version_key               VARCHAR(255) UNIQUE NOT NULL
+title                     VARCHAR(500) NOT NULL
+code                      VARCHAR(100)
+issued_date               DATE
+is_latest                 BOOLEAN DEFAULT FALSE
+source_url                TEXT
+source_path               TEXT
+canonical_markdown_path   TEXT
+file_type                 VARCHAR(50)
+language                  VARCHAR(10) DEFAULT 'vi'
+issuing_authority         VARCHAR(255)
+signer                    VARCHAR(255)
+checksum                  VARCHAR(64)
+extra_metadata            JSONB
+accessed_date             DATE
+ocr_status                VARCHAR(50) DEFAULT 'not_started'
+review_status             VARCHAR(50) DEFAULT 'not_reviewed'
+rag_status                VARCHAR(50) DEFAULT 'not_indexed'
+status_note               TEXT
+document_id               INTEGER REFERENCES documents(id) ON DELETE CASCADE
+```
+
+> Status (`ocr_status`, `review_status`, `rag_status`) nằm **trực tiếp** trong bảng này.
+> Không có bảng `document_version_status` riêng biệt.
+> Không có `effective_date`, `expiry_date`, `version_role`, `version_label`, `citation_type`, `collection_status` trong schema chốt.
+
+### 5. document_chunks
+
+```text
+id                  SERIAL PRIMARY KEY
+parent_chunk_id     INTEGER REFERENCES document_chunks(id)   -- self-FK, NULL nếu là parent chunk
+chunk_key           VARCHAR(255) NOT NULL
+chunk_index         INTEGER NOT NULL
+chunk_type          VARCHAR(20) NOT NULL                      -- 'parent' | 'child'
+section_title       TEXT
+heading_path        TEXT
+content             TEXT NOT NULL
+page_start          INTEGER
+page_end            INTEGER
+token_count         INTEGER
+checksum            VARCHAR(64)
+qdrant_point_id     VARCHAR(255)
+index_status        VARCHAR(50) DEFAULT 'not_indexed'
+created_at          TIMESTAMP DEFAULT NOW()
+updated_at          TIMESTAMP DEFAULT NOW()
+document_version_id INTEGER REFERENCES document_versions(id) ON DELETE CASCADE
+
+UNIQUE(document_version_id, chunk_key)
+UNIQUE(document_version_id, chunk_index)
+```
+
+> Dùng `parent_chunk_id` (không phải `parent_id`).
+> Dùng `chunk_type` (không phải `chunk_level`).
+
+### 6. ingestion_jobs
+
+```text
+id                   SERIAL PRIMARY KEY
+job_type             VARCHAR(50)
+status               VARCHAR(50)          -- pending | running | done | failed | cancelled
+current_step         VARCHAR(100)         -- uploaded | parsing | parsed | chunking | embedding | indexing | published | failed
+total_chunks         INTEGER
+processed_chunks     INTEGER DEFAULT 0
+error_message        TEXT
+started_at           TIMESTAMP
+finished_at          TIMESTAMP
+created_by           VARCHAR(100)
+created_at           TIMESTAMP DEFAULT NOW()
+updated_at           TIMESTAMP DEFAULT NOW()
+document_version_id  INTEGER REFERENCES document_versions(id) ON DELETE CASCADE
+```
+
+> Dùng `current_step` (không phải `current_stage`).
+> Không có `tool_name` trong schema chốt.
+
+### 7. document_recipients
+
+```text
+document_version_id  INTEGER REFERENCES document_versions(id) ON DELETE CASCADE
+department_id        INTEGER REFERENCES departments(id)
+effective_date       DATE NOT NULL
+
+PRIMARY KEY (document_version_id, department_id, effective_date)
+```
+
+> **Ý nghĩa `effective_date`:** ngày phòng ban tiếp nhận văn bản.
+>
+> **Lý do nằm trong PK:** cùng một version có thể được gửi lại cho cùng phòng ban vào
+> ngày khác (gửi lại sau cập nhật, hoặc gửi chính thức sau khi đã gửi nháp). `effective_date`
+> cho phép lưu đầy đủ lịch sử các lần tiếp nhận mà không vi phạm khóa chính.
+>
+> Bảng trung gian M:N giữa `document_versions` và `departments`.
+
+### 8. assets
+
+```text
+id               SERIAL PRIMARY KEY
+asset_key        VARCHAR(255) UNIQUE NOT NULL
+title            VARCHAR(500) NOT NULL
+asset_type       VARCHAR(50) NOT NULL    -- FORM_LINK | VIDEO_LINK | WEB_LINK | ...
+url              TEXT
+checksum         VARCHAR(64)
+validity_status  VARCHAR(50) DEFAULT 'valid'   -- valid | invalid | expired
+created_at       TIMESTAMP DEFAULT NOW()
+```
+
+### 9. document_assets
+
+```text
+document_version_id  INTEGER REFERENCES document_versions(id) ON DELETE CASCADE
+asset_id             INTEGER REFERENCES assets(id) ON DELETE CASCADE
+relation_type        VARCHAR(50) NOT NULL
+required_when        TEXT
+display_order        INTEGER DEFAULT 0
+
+PRIMARY KEY (document_version_id, asset_id, relation_type)
+```
+
+---
+
+## Status Enums
+
+```text
+ocr_status:
+  not_started | processing | need_review | failed | done
+
+review_status:
+  not_reviewed | reviewing | need_fix | approved | rejected
+
+rag_status:
+  not_indexed | chunked | embedded | indexed | published | deactivated | failed
+
+index_status (document_chunks):
+  not_indexed | indexed | deactivated | failed
+
+validity_status (assets):
+  valid | invalid | expired
+```
+
+---
+
+## Bảng đã bị loại khỏi schema
+
+```text
+document_version_status      → đã xóa, status nằm trong document_versions
+document_version_relationships → đã xóa
+collection_status            → đã xóa
+version_status_history       → đã xóa
+```
+
+---
+
+## Điều kiện publish
+
+```text
+ocr_status    = done
 review_status = approved
-validity_status = valid
+```
+
+Sau khi Qdrant upsert thành công:
+
+```text
 rag_status = published
 ```
 
-### document_version_relationships
-
-Use this table to query version governance. Keep original YAML relationship arrays in `document_versions.extra_metadata` if useful, but retrieval should use structured relationship rows.
-
-- [ ] id
-- [ ] source_version_id
-- [ ] target_version_id
-- [ ] relation_type
-- [ ] created_at
-- [ ] updated_at
-
-Recommended relation direction:
+## Student retrieval filter
 
 ```text
-replacement version --replaces--> old version
-amendment version   --amends--> old/base version
-supplement version  --supplements--> old/base version
-old/base version    --replaced_by/amended_by/supplemented_by--> newer version
+review_status = approved
+rag_status    = published
 ```
 
-Recommended SQL indexes:
+`is_latest` là ranking preference, không phải hard filter.
 
-```sql
-CREATE INDEX idx_version_relationships_source
-ON document_version_relationships(source_version_id, relation_type);
+---
 
-CREATE INDEX idx_version_relationships_target
-ON document_version_relationships(target_version_id, relation_type);
+## Chunk key format
+
+```text
+Parent: <version_key>::p::<index>    ví dụ: quy-che-2024-v1::p::0001
+Child:  <version_key>::c::<index>    ví dụ: quy-che-2024-v1::c::0001
 ```
-
-### document_chunks
-
-- [x] id
-- [ ] document_version_id
-- [ ] parent_id
-- [x] chunk_index
-- [ ] chunk_level
-- [ ] heading_path
-- [ ] section_title
-- [ ] content
-- [ ] page_start
-- [ ] page_end
-- [x] token_count
-- [ ] checksum ?
-- [ ] qdrant_point_id
-- [ ] index_status
-- [ ] created_at
-- [ ] updated_at
-
-### assets
-
-- [ ] id
-- [x] asset_key
-- [x] asset_type
-- [x] title
-- [x] file_path
-- [x] file_type
-- [x] download_url
-- [x] checksum
-- [x] validity_status
-- [x] is_latest
-- [x] review_status
-- [x] rag_status
-- [ ] created_at
-- [ ] updated_at
-
-### document_assets
-
-- [x] document_version_id
-- [x] asset_id
-- [x] relation_type
-- [x] required
-- [x] required_when
-- [x] display_order
-- [ ] created_at
-- [ ] updated_at
-
-### ingestion_jobs
-
-- [ ] id
-- [ ] document_version_id
-- [ ] job_type
-- [ ] status
-- [ ] current_stage
-- [ ] tool_name
-- [ ] total_chunks
-- [ ] processed_chunks
-- [ ] error_message
-- [ ] started_at
-- [ ] finished_at
-- [ ] created_by
-- [ ] created_at
-- [ ] updated_at
-
-`ingestion_jobs.status` chỉ là trạng thái chạy job, ví dụ `pending`, `running`, `done`, `failed`, hoặc `cancelled`. Trạng thái workflow hiện tại của tài liệu phải nằm trong `document_version_status`.

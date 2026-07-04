@@ -17,7 +17,7 @@
 - Backend API (FastAPI)
 - RAG Service (retrieval + generation)
 - Data layer (PostgreSQL, Qdrant, Storage)
-- OCR Service (ocr-pvl)
+- OCR/parser Service (LlamaParse)
 
 **Visual Pattern:** Layered architecture with arrows showing data flow
 
@@ -52,7 +52,7 @@
 
 **Stages:**
 1. Upload → Storage
-2. OCR (ocr-pvl) → Markdown
+2. OCR/parser (LlamaParse) → Markdown
 3. Human Review → Approved
 4. Chunking (LangChain) → Parent-Child chunks
 5. Embedding (BGE-M3) → Vectors

@@ -1,0 +1,81 @@
+%% CTU-Service - RAG Workflow Overview (Activity Diagram)
+%% Toan bo luong tu luc upload tai lieu den luc tra loi cau hoi co trich dan
+%% Tham chieu: .docs/spec/ctu-service/07_RAG_SPEC.md, 08_OCR_INGESTION_SPEC.md
+
+flowchart TB
+    subgraph L1["USER / UI"]
+        direction LR
+        A0([Document Upload<br/>PDF / DOCX]):::userUI
+        B0([User Query]):::userUI
+    end
+
+    subgraph L2["API"]
+        direction LR
+        A0b[POST /documents]:::api
+        B0b[POST /rag/answer]:::api
+    end
+
+    subgraph L3["PROCESSING PIPELINE - Ingestion"]
+        direction LR
+        A1[OCR<br/>LlamaParse]:::processing
+        A2[Markdown<br/>Conversion]:::processing
+        A3[Metadata YAML<br/>Validation]:::processing
+        A4[Chunking<br/>Parent / Child]:::processing
+        A5[Embedding<br/>BAAI/bge-m3]:::processing
+    end
+
+    subgraph L4["STORAGE / INDEXING"]
+        direction LR
+        A6[(PostgreSQL<br/>chunks + metadata)]:::storage
+        A7[(Qdrant<br/>vector index)]:::storage
+    end
+
+    subgraph L5["RETRIEVAL - Query time"]
+        direction LR
+        B1[Query<br/>Preprocessing]:::retrieval
+        B2[Metadata<br/>Filtering]:::retrieval
+        B3[Hybrid<br/>Retrieval]:::retrieval
+        B4[Re-ranking<br/>Post-MVP]:::inactive
+        B5[Context<br/>Assembly]:::retrieval
+    end
+
+    subgraph L6["LLM"]
+        direction LR
+        B6[LLM Generation<br/>Qwen3-Next-80B]:::llm
+        B7([Citation<br/>Response]):::endok
+    end
+
+    A0 -->|raw file| A0b
+    A0b -->|job_id| A1
+    A1 -->|OCR text| A2
+    A2 -->|Markdown content| A3
+    A3 -->|metadata + chunks OK| A4
+    A4 -->|parent/child chunks| A5
+    A5 -->|embeddings 1024-dim| A6
+    A6 -->|synced chunk_id| A7
+    A7 -.->|rag_status = published| B3
+
+    B0 -->|cau hoi| B0b
+    B0b -->|raw query| B1
+    B1 -->|normalized query| B2
+    B2 -->|allowed doc/version keys| B3
+    B3 -->|fused ranked chunks| B4
+    B4 -->|reranked chunks| B5
+    B5 -->|context + prompt| B6
+    B6 -->|answer text| B7
+
+    classDef userUI fill:#a8d8ea,stroke:#5b9bd5,stroke-width:2px,color:#1e3a5f
+    classDef api fill:#60a5fa,stroke:#1e3a5f,stroke-width:2px,color:#ffffff
+    classDef processing fill:#fef3c7,stroke:#d4a843,stroke-width:2px,color:#374151
+    classDef storage fill:#a7f3d0,stroke:#6aa84f,stroke-width:2px,color:#374151
+    classDef retrieval fill:#fecaca,stroke:#e06666,stroke-width:2px,color:#374151
+    classDef llm fill:#ddd6fe,stroke:#6d28d9,stroke-width:2px,color:#374151
+    classDef endok fill:#a7f3d0,stroke:#047857,stroke-width:2px,color:#374151
+    classDef inactive fill:#dbeafe,stroke:#1e40af,stroke-width:2px,color:#374151,stroke-dasharray: 5 5
+
+    style L1 fill:#f8fafc,stroke:#94a3b8,stroke-width:1px
+    style L2 fill:#eff6ff,stroke:#94a3b8,stroke-width:1px
+    style L3 fill:#fffbeb,stroke:#94a3b8,stroke-width:1px
+    style L4 fill:#ecfdf5,stroke:#94a3b8,stroke-width:1px
+    style L5 fill:#fef2f2,stroke:#94a3b8,stroke-width:1px
+    style L6 fill:#f5f3ff,stroke:#94a3b8,stroke-width:1px
