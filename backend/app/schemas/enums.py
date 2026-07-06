@@ -10,13 +10,13 @@ CollectionStatus mô tả trạng thái thu thập nguồn/file trước OCR và
 - failed: thu thập hoặc tải nguồn thất bại.
 """
 
-CollectionStatus = Literal[
-    "link_collected", 
-    "collected", 
-    "downloaded", 
-    "missing", 
-    "failed"
-]
+# CollectionStatus = Literal[
+#     "link_collected", 
+#     "collected", 
+#     "downloaded", 
+#     "missing", 
+#     "failed"
+# ]
 
 """
 OcrStatus mô tả trạng thái OCR/parser trước khi tài liệu được review và đưa vào RAG.
@@ -63,13 +63,13 @@ ValidityStatus mô tả tình trạng hiệu lực pháp lý/nghiệp vụ của
 - unknown: đã kiểm tra nhưng chưa xác định được hiệu lực.
 """
 
-ValidityStatus = Literal [
-    "unchecked", 
-    "valid", 
-    "expired", 
-    "replaced", 
-    "unknown"
-]
+# ValidityStatus = Literal [
+#     "unchecked", 
+#     "valid", 
+#     "expired", 
+#     "replaced", 
+#     "unknown"
+# ]
 
 """
 RagStatus mô tả trạng thái của tài liệu trong pipeline RAG.
@@ -92,6 +92,7 @@ RagStatus = Literal [
     "failed"
 ]
 
+
 DocumentType = Literal [
     "noi_quy",
     "quy_trinh",
@@ -99,22 +100,13 @@ DocumentType = Literal [
     "hoi_dap",
     "ke_hoach",
     "thong_bao",
+    "bao_cao",
+    "huong_dan",
+    "quyet_dinh"
+    "cong_van",
+    "thong_tu"
+    "nghi_quyet"
     "unknown",
-]
-
-"""
-DocumentAssetRelationType mô tả quan hệ giữa document version và asset đi kèm.
-
-- required_form: biểu mẫu bắt buộc cho thủ tục/tài liệu.
-- reference: tài liệu/file tham khảo.
-- supplement: file bổ sung cho nội dung chính.
-- guide: hướng dẫn sử dụng hoặc hướng dẫn thực hiện.
-"""
-DocumentAssetRelationType = Literal[
-    "required_form",
-    "reference",
-    "supplement",
-    "guide",
 ]
 
 """
@@ -130,27 +122,6 @@ AssetType = Literal[
     "template",
     "guide",
     "attachment",
-]
-
-"""
-VersionRole mô tả vai trò của một version tài liệu trong quan hệ version.
-
-- base: bản gốc hoặc bản nền, có thể vẫn còn hiệu lực nếu chỉ bị sửa đổi/bổ sung một phần.
-- replacement: bản thay thế toàn bộ một hoặc nhiều version cũ; version cũ thường chuyển sang validity_status = replaced.
-- amendment: bản sửa đổi một phần version khác; bản gốc có thể vẫn valid và cần được truy xuất cùng bản sửa đổi.
-- supplement: bản bổ sung một phần version khác; bản gốc có thể vẫn valid và cần được truy xuất cùng bản bổ sung.
-"""
-VersionRole = Literal [
-    "base", 
-    "replacement", 
-    "amendment", 
-    "supplement"
-]
-
-DocumentRelationshipType = Literal[
-    "replaces",
-    "amends",
-    "supplements",
 ]
 
 FileType = Literal[
@@ -199,4 +170,58 @@ Domain = Literal[
     "hop_tac_quoc_te",
     "hoc_bong",
     "sinh_vien",
+    "giang_vien",
+    "can_bo",
+    "tuyen_sinh",
+    "vh_xh",
+    "ne_nep",
+    "unknown"
 ]
+
+signer_name = Literal[
+    "HT" # Hiệu trưởng
+    "PHT" # Phó hiệu trưởng
+    "TT" # Thứ trưởng
+    "TP" # Trưởng phòng
+    "CT" # Chủ tịch
+]
+
+responsible_department = Literal[
+    "PHTQT" #phòng hơp tác quốc tế 
+    "PDT" # phòng đào tạo
+    "PCTSV" # phòng công tác sinh viên
+    "PKHTH" # phòng kế hoạch tổng hợp
+    "PKHTC" # phòng kế hoạch tài chính
+    "PTV" # phòng tài vụ
+    "PTCCB" # phòng tổ chức cán bộ
+    "PTC"  # phòng tài chính
+    "PQTTB" # phòng quản trị thiết bị
+    "PQLKH" # phòng quản lý khoa học
+    "PTTPC" # phòng thanh tra pháp chế
+    "PTCPTNS" # phòng tổ chức cán bộ và phát triển nhân sự
+    "PCTCT" # phòng công tác chính trị
+    "TTGDQP&AN" # trung tâm giáo dục quốc phòng và an ninh
+    "TTQLCL" # trung tâm quản lý chất lượng
+    "TTHL" # trung tâm học liệu
+    "TTTT&QTM" # trung tâm thông tin và quản trị mạng
+    "TTDGNLNN" # trung tâm đánh giá năng lực ngoại ngữ
+    "TTLKDT" # trung tâm liên kết đào tạo
+    "TTPVSV" # trung tâm phục vụ sinh viên
+    "KNN" # khoa ngoai ngữ
+    "KDBDT" # khoa dự bị dân tộc
+    "KSDH" # khoa sau đại học
+    "KGDTC" # khoa giáo dục thể chất
+    "VPTr" # văn phòng trường
+    "DVQLN" # đơn vị quản lý ngành
+    "HDXMCNDHP" # hội đồng xét miễn và công nhận điểm học phần
+    "HDDGNLNN" # hội đồng đánh giá năng lực ngoại ngữ
+    "BGDDT" # bộ giáo dục và đào tạo
+    
+    "BO"        # Các Bộ trưởng / các Bộ
+    "CQNB"      # Cơ quan ngang bộ
+    "CQCP"      # Cơ quan thuộc Chính phủ
+    "UBND-TT"   # Ủy ban nhân dân tỉnh, thành phố trực thuộc trung ương
+    "NHCSXH"    # Ngân hàng Chính sách xã hội
+]
+
+

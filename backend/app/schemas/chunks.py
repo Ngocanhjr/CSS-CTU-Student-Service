@@ -9,18 +9,19 @@ from app.schemas.enums import ChunkType
 
 class Chunk(StrictSchema):
     document_key: str = Field(min_length=1)
-    version_key: str = Field(min_length=1)
-
+    
     chunk_key: str = Field(min_length=1)
     parent_chunk_key: str | None = None
+    chunk_index: int = Field(ge=0)
     chunk_type: ChunkType
 
-    content: str = Field(min_length=1)
     heading_path: list[str] = Field(default_factory=list)
-
+    
+    section_title: str | None = None
+    content: str = Field(min_length=1)
     page_start: int = Field(ge=1)
     page_end: int = Field(ge=1)
-    chunk_index: int = Field(ge=0)
+
     token_count: int = Field(ge=0)
 
     metadata: dict[str, Any] = Field(default_factory=dict)

@@ -3,6 +3,7 @@ Dùng lưu link youtube, form
 """
 
 from __future__ import annotations
+from datetime import datetime
 
 from pydantic import Field
 
@@ -20,13 +21,10 @@ class AssetMetadata(StrictSchema):
     asset_key: str = Field(min_length=1)
     asset_type: AssetType
     title: str = ""
-
-    file_name: str = ""
-    file_path: str = ""
-    file_type: FileType = "pdf"
-    download_url: str = ""
+    
+    url: str = ""
     checksum: str | None = None
-    validity_status: ValidityStatus = "unchecked"
+    created_at: datetime | None = None
 
 class DocumentAssetRelation(StrictSchema):
     document_key: str = Field(min_length=1)

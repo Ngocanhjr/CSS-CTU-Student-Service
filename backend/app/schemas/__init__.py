@@ -4,7 +4,7 @@ from app.schemas.documents import (
     DocumentBaseMetadata,
     DocumentMetadata,
     DocumentVersionMetadata,
-    DocumentVersionStatus,
+    DocumentVersionStatusFields,
 )
 
 __all__ = [
@@ -14,5 +14,5 @@ __all__ = [
     "DocumentBaseMetadata",
     "DocumentMetadata",
     "DocumentVersionMetadata",
-    "DocumentVersionStatus",
+    "DocumentVersionStatusFields",
 ]
