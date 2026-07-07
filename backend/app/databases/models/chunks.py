@@ -22,7 +22,7 @@ class DocumentChunk(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     document_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True)
-    parent_id: Mapped[int | None] = mapped_column(ForeignKey("css.document_chunks.id", ondelete="CASCADE"))
+    parent_chunk_id: Mapped[int | None] = mapped_column(ForeignKey("css.document_chunks.id", ondelete="CASCADE"), nullable=False)
 
     chunk_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -41,11 +41,11 @@ class DocumentChunk(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     document_version: Mapped["DocumentVersion"] = relationship(back_populates="chunks")
-    parent: Mapped["DocumentChunk | None"] = relationship(remote_side=[id])
+    parent: Mapped["DocumentChunk | None"] = relationship(remote_side=[id], foreign_keys=[parent_chunk_id])
 
     __table_args__ = (
         UniqueConstraint("document_version_id", "chunk_index", name="uq_document_chunk_index"),
         UniqueConstraint("document_version_id", "chunk_key", name="uq_document_chunk_key"), 
         CheckConstraint("chunk_type IN ('parent', 'child')", name="chk_document_chunks_type"),
-       CheckConstraint("page_start <= page_end", name="chk_document_chunks_page_range"),
+        CheckConstraint("page_start IS NULL OR page_end IS NULL OR page_start <= page_end", name="chk_document_chunks_page_range")
     )

@@ -19,10 +19,10 @@ class Chunk(StrictSchema):
     
     section_title: str | None = None
     content: str = Field(min_length=1)
-    page_start: int = Field(ge=1)
-    page_end: int = Field(ge=1)
+    page_start: int | None = Field(default=None, ge=1)
+    page_end: int | None= Field(default=None, ge=1)
 
-    token_count: int = Field(ge=0)
+    token_count: int | None = Field(default=None, ge=0)
 
     metadata: dict[str, Any] = Field(default_factory=dict)
 

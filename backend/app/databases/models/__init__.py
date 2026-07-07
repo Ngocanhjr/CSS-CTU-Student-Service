@@ -4,9 +4,7 @@ from app.databases.models.documents import (
     Department,
     Document,
     DocumentType,
-    DocumentVersion,
-    DocumentRelationship,
-    DocumentVersionStatus,
+    DocumentVersion
 )
 from app.databases.models.ingestion import IngestionJob
 
@@ -18,7 +16,5 @@ __all__ = [
     "DocumentChunk",
     "DocumentType",
     "DocumentVersion",
-    "DocumentRelationship",
-    "DocumentVersionStatus",
     "IngestionJob",
 ]

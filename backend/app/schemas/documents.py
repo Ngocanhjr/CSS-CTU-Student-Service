@@ -20,6 +20,11 @@ class DocumentBaseMetadata(StrictSchema):
     - title: tiêu đề tài liệu, có thể lấy từ metadata hoặc trích xuất từ nội dung.
     - document_type: loại tài liệu, ví dụ: quy_trinh, bieu_mau, hoi_dap, ...
     - responsible_department: tài liệu được gửi tới các bộ phận liên quan
+    input: list[str] các department code, ví dụ: ["hoc_vu", "tai_chinh", "nhan_su"]
+    or
+    responsible_department:
+        - PDT 
+        - PCTSV
     """
     #Documents
     document_key: str = Field(min_length=1)
@@ -27,20 +32,25 @@ class DocumentBaseMetadata(StrictSchema):
     document_type: DocumentType
     domain: str = "" #hoc_vu, tai_chinh, nhan_su, phap_ly, ky_thuat, quy_trinh, bieu_mau, hoi_dap, unknown
     audience: list[str] = Field(default_factory=list)
-    responsible_department: str = ""
+    responsible_department: list[str] = Field(default_factory=list)
     
     @field_validator("audience")
     @classmethod
     def clean_string_list(cls, value: list[str]) -> list[str]:
         return [item.strip() for item in value if item and item.strip()]
 
+
     @field_validator("responsible_department")
     @classmethod
-    def validate_department_code(cls, value: str) -> str:
-        value = value.strip()
-        if value and not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_/-]*", value):
-            raise ValueError("Department code must be uppercase letters, numbers, or underscores")
-        return value
+    def clean_department_codes(cls, value: list[str]) -> list[str]:
+        cleaned = []
+        for item in value:
+            item = item.strip()
+            if item and not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_/-]*", item):
+                raise ValueError("Department code must be letters, numbers, underscore, slash, or dash")
+            if item:
+                cleaned.append(item)
+        return cleaned
     
 class DocumentVersionStatusFields(StrictSchema):
     """

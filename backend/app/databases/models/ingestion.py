@@ -1,23 +1,23 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import (
-    Boolean,
-    CheckConstraint,
-    Date,
     DateTime,
     ForeignKey,
     Integer,
     String,
     Text,
-    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.databases.base import Base
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.databases.models.documents import DocumentVersion
 
 class IngestionJob(Base):
     __tablename__ = "ingestion_jobs"
@@ -26,8 +26,7 @@ class IngestionJob(Base):
     document_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True)
     job_type: Mapped[str] = mapped_column(String(50), default="ingestion", nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False, index=True)
-    current_stage: Mapped[str] = mapped_column(String(100), default="", nullable=False)
-    tool_name: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    current_step: Mapped[str] = mapped_column(String(100), default="", nullable=False)
     total_chunks: Mapped[int | None] = mapped_column(Integer)
     processed_chunks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text)
