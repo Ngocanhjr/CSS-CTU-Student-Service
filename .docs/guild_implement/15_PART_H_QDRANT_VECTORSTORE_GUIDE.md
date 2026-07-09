@@ -1,10 +1,10 @@
-# 15. Part H - Huong Dan Implement Qdrant Vectorstore
+# 15. Part H - Hướng Dẫn Implement Qdrant Vectorstore
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu guide 07, phan H.
+File này tách chi tiết từ guide 07, phần H.
 
-Muc tieu:
+Mục tiêu:
 
 ```text
 Tao Qdrant client
@@ -14,13 +14,13 @@ search voi filter student
 cap nhat DocumentChunk.qdrant_point_id va index_status
 ```
 
-Neu da lam smoke test theo:
+Nếu đã làm smoke test theo:
 
 ```text
 chatbot/.docs/guild_implement/14A_EMBEDDING_RETRIEVAL_SMOKE_TEST_GUIDE.md
 ```
 
-thi guide nay la buoc chuan hoa production:
+thì guide này là bước chuẩn hóa production:
 
 ```text
 14A ensure_collection() -> app/vectorstore/repository.py
@@ -29,7 +29,7 @@ thi guide nay la buoc chuan hoa production:
 14A search top-k -> search_points()
 ```
 
-Khac biet quan trong:
+Khác biệt quan trọng:
 
 ```text
 14A bo qua PostgreSQL.
@@ -40,7 +40,7 @@ Repository nay van can de kiem soat payload/status DB ro rang.
 
 ---
 
-## 1. File Can Tao/Sua
+## 1. File Cần Tạo/Sửa
 
 ```text
 chatbot/backend/app/vectorstore/qdrant_client.py
@@ -59,7 +59,7 @@ File:
 chatbot/backend/requirements.txt
 ```
 
-Them:
+Thêm:
 
 ```text
 qdrant-client>=1.9
@@ -97,7 +97,7 @@ def get_qdrant_client() -> QdrantClient:
     return QdrantClient(url=url, api_key=api_key)
 ```
 
-Neu dung local docker khong auth, `api_key=None` ok.
+Nếu dùng local docker không auth, `api_key=None` ok.
 
 ---
 
@@ -109,7 +109,7 @@ File:
 chatbot/backend/app/vectorstore/models.py
 ```
 
-Dung dataclass cho input upsert:
+Dùng dataclass cho input upsert:
 
 ```python
 from dataclasses import dataclass
@@ -139,7 +139,7 @@ class VectorSearchResult:
 
 ## 5. Stable Point ID
 
-Vi `Chunk.chunk_key` la stable key va duoc luu vao DB, Qdrant point id tao tu `version_key + chunk_key`:
+Vì `Chunk.chunk_key` là stable key và được lưu vào DB, Qdrant point id tạo từ `version_key + chunk_key`:
 
 ```python
 from uuid import NAMESPACE_URL, uuid5
@@ -149,7 +149,7 @@ def make_point_id(version_key: str, chunk_key: str) -> str:
     return str(uuid5(NAMESPACE_URL, f"ctu-student-service/chunk/{version_key}/{chunk_key}"))
 ```
 
-Ly do:
+Lý do:
 
 ```text
 Cung version_key + chunk_key -> cung Qdrant point id.
@@ -173,7 +173,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 
 
-DEFAULT_COLLECTION = "ctu_student_service_chunks"
+DEFAULT_COLLECTION = "css_qdrant"
 VECTOR_NAME = "embedding"
 
 
@@ -197,7 +197,7 @@ def ensure_collection(
     )
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 vector_size lay tu len(vector dau tien), khong hardcode khi dung fake embedder.
@@ -207,7 +207,7 @@ vector_size lay tu len(vector dau tien), khong hardcode khi dung fake embedder.
 
 ## 7. Build Payload
 
-Payload can du de filter va trace:
+Payload cần đủ để filter và trace:
 
 ```python
 def build_chunk_payload(
@@ -283,7 +283,7 @@ def upsert_points(
 
 ---
 
-## 9. Metadata Filter Theo Ngu Canh
+## 9. Metadata Filter Theo Ngữ Cảnh
 
 ```python
 from dataclasses import dataclass
@@ -323,19 +323,22 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
     return Filter(must=conditions)
 ```
 
-Student collection chi chua chunks da approved + published + audience_student. Status filter la guard rieng, khong phai filter chinh.
+Student collection chỉ chứa chunks đã approved + published + audience_student. Status filter là guard riêng, không phải filter chính.
 
 ---
 
 ## 10. Search
 
 ```python
+DEFAULT_TOP_K = 5
+
+
 def search_points(
     client: QdrantClient,
     *,
     query_vector: list[float],
     collection_name: str = DEFAULT_COLLECTION,
-    top_k: int = 5,
+    top_k: int = DEFAULT_TOP_K,
     student_only: bool = True,
 ) -> list[VectorSearchResult]:
     query_filter = build_student_filter() if student_only else None
@@ -359,11 +362,13 @@ def search_points(
     ]
 ```
 
+`top_k` trong caller production lấy từ `get_settings().retrieval.top_k` (default `5` trong settings model). Không dùng `settings.retrieval.top_k or 5`.
+
 ---
 
 ## 11. Update DB Sau Upsert
 
-Sau khi upsert Qdrant xong, pipeline/repository can update:
+Sau khi upsert Qdrant xong, pipeline/repository cần update:
 
 ```text
 DocumentChunk.qdrant_point_id
@@ -451,11 +456,11 @@ def test_upsert_and_search_qdrant():
         },
     )
 
-    upsert_points(client, points=[point], collection_name="test_ctu_chunks")
+    upsert_points(client, points=[point], collection_name="css_qdrant")
     results = search_points(
         client,
         query_vector=vector,
-        collection_name="test_ctu_chunks",
+        collection_name="css_qdrant",
         top_k=1,
     )
 
@@ -464,7 +469,7 @@ def test_upsert_and_search_qdrant():
 
 ---
 
-## 13. Lenh Chay Qdrant
+## 13. Lệnh Chạy Qdrant
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot
@@ -482,27 +487,27 @@ cd backend
 
 ## 14. Done Khi
 
-- [ ] Co Qdrant client factory.
+- [ ] Có Qdrant client factory.
 - [ ] Point ID stable theo `version_key + chunk_key`.
-- [ ] Ensure collection dung vector size thuc te.
-- [ ] Payload co `postgres_chunk_id`, `chunk_key`, `parent_chunk_key`.
-- [ ] Student filter co review_status=approved, rag_status=published, audience_student.
-- [ ] Upsert va search test duoc.
-- [ ] DB update duoc `qdrant_point_id`.
+- [ ] Ensure collection dùng vector size thực tế.
+- [ ] Payload có `postgres_chunk_id`, `chunk_key`, `parent_chunk_key`.
+- [ ] Student filter có review_status=approved, rag_status=published, audience_student.
+- [ ] Upsert và search test được.
+- [ ] DB update được `qdrant_point_id`.
 
 ---
 
-## 15. Loi De Gap
+## 15. Lỗi Dễ Gặp
 
-### Loi: collection vector size mismatch
+### Lỗi: collection vector size mismatch
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Collection tao bang fake vector 3 dimensions, sau do upsert BGE-M3 1024 dimensions.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Dung collection test rieng cho fake.
@@ -510,29 +515,29 @@ Dung collection dev rieng cho BGE-M3.
 Neu can, recreate collection.
 ```
 
-### Loi: duplicate search results
+### Lỗi: duplicate search results
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Point id random.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Dung uuid5 theo `version_key + chunk_key`.
 ```
 
-### Loi: version chua duyet van search ra
+### Lỗi: version chưa duyệt vẫn search ra
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Filter student thieu review_status/rag_status.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Them hard filter review_status=approved AND rag_status=published trong build_student_filter va test.

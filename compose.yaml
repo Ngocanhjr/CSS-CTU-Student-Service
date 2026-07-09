@@ -23,10 +23,9 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
-      - ./db/postgres:/var/lib/postgresql/data
-      - ./database/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/docker/db/postgres:/var/lib/postgresql/data
       # Bật dòng dưới khi đã có script khởi tạo database.
-      # - ./database/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test:
         ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
@@ -52,8 +51,8 @@ services:
       - "${QDRANT_GRPC_PORT}:6334"
 
     volumes:
-      - ./db/qdrant:/qdrant/storage
-      - ./db/qdrant_snapshots:/qdrant/snapshots
+      - ./infrastructure/docker/db/qdrant:/qdrant/storage
+      - ./infrastructure/docker/db/qdrant_snapshots:/qdrant/snapshots
 
     networks:
       - ctu-network

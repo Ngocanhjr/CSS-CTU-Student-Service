@@ -1,534 +1,353 @@
-# 10B. Part C - Huong Dan Page-Aware Chunker Decisions
+# 10B. Part C - Hướng Dẫn Page-Aware Structural Chunker Decisions
 
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-07-09
 
-File nay ghi rieng cac quyet dinh moi sau guide `10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md`.
+File này chốt quyết định page-aware parent-child chunking sau guide 09A/10.
 
-Guide 10 giu vai tro MVP structural parent-child chunker. File nay chi mo ta chien luoc nang cap de xu ly dung cac case page marker nam giua section cu va heading moi.
+---
+
+## 0. Flow Theo Dõi Nhanh
+
+```text
+Markdown body da validate tu markdown_reader
+  -> page_markers.split_body_by_page_markers()
+       - tao PageBlock(page_number, content)
+       - khong tao page_blocks.py
+  -> structural_parser.parse_structural_blocks() tung PageBlock
+       - fenced code block truoc
+       - Markdown table truoc
+       - Markdown heading truoc moi item regex
+       - numbered_item / lettered_item / bullet_item / paragraph sau cung
+  -> parent_chunker.build_parent_sections()
+       - parent tao theo Markdown heading
+       - content truoc heading dau tien vao document-root parent
+       - page_start/page_end lay tu PageBlock va block range
+       - heading_path cap nhat tu block_type="heading"
+  -> parent_chunker.merge_adjacent_parent_sections()
+       - gop section lien ke cung heading_path
+       - giu page_start dau va page_end cuoi
+  -> parent_chunker.make_parent_chunk()
+       - chunk_type = parent
+       - chunk_key = <version_key>::p::<0001>
+       - parent_chunk_key = None
+  -> child_chunker.build_child_units()
+       - child boundary theo numbered_item / lettered_item / bullet_item
+       - table/code/paragraph gan vao item/context dung
+       - item_path va legal_unit_type duoc tinh truoc split
+  -> child_chunker.make_child_chunks()
+       - chunk_type = child
+       - chunk_key = <version_key>::c::<0001>
+       - parent_chunk_key = parent.chunk_key
+       - heading_path ke thua parent
+       - item_path ke thua structural context
+  -> chunker.chunk_markdown_body()
+       - dieu phoi tat ca buoc tren
+       - chunk_index global sequential cho parent + child
+```
+
+Rule cần nhớ:
+
+```text
+Markdown heading -> parent structure.
+Dieu/Khoan/Diem/Bullet -> item structure va child boundary.
+Khong convert 1., 2., a) thanh Markdown heading.
+Khong demote Markdown heading co san thanh item.
+Table/code chi parse truoc item regex va split o child layer.
+RecursiveCharacterTextSplitter chi dung sau structural parsing, trong mot item/paragraph/table/code dai.
+```
 
 ---
 
 ## 1. File Layout
 
-Them/sua cac function theo dung file sau:
-
 ```text
 chatbot/backend/app/ingestion/parsing/page_markers.py
+- PAGE_RE
 - PageBlock
+- extract_page_numbers()
+- extract_page_range()
+- require_page_range()
 - split_body_by_page_markers()
 
+chatbot/backend/app/ingestion/parsing/structural_parser.py
+- StructuralBlock
+- AmbiguousBlockReport
+- parse_structural_blocks()
+- classify_line()
+- build_item_path()
+
 chatbot/backend/app/ingestion/chunking/parent_chunker.py
+- ParentSection
 - build_parent_sections()
 - merge_adjacent_parent_sections()
-- current_heading_path logic nam trong build_parent_sections()
+- make_parent_chunk()
 
 chatbot/backend/app/ingestion/chunking/child_chunker.py
-- ChildText
-- split_parent_chunk_to_child_texts_page_aware()
-- neu dung ChildText thi cap nhat make_child_chunks()
+- ChildUnit
+- build_child_units()
+- split_long_child_unit()
+- make_child_chunks()
+
+chatbot/backend/app/ingestion/chunking/table_blocks.py
+- detect Markdown table
+- split large table by row group
 
 chatbot/backend/app/ingestion/chunking/chunker.py
-- chi orchestration, goi build_parent_sections()
-- neu sau MVP dung ChildText thi doi cach goi make_child_chunks()
+- orchestration only
 
+chatbot/backend/test/ingestion/test_structural_parser.py
 chatbot/backend/test/ingestion/test_chunker.py
-- test_page_marker_before_new_heading_belongs_to_new_heading()
-- test_page_continuation_inherits_previous_heading_until_new_heading()
 ```
 
-Rule tach file:
+Không tạo:
 
 ```text
-page_markers.py chi parse marker/page block.
-parent_chunker.py chi build ParentSection va parent Chunk.
-child_chunker.py chi split child text va tao child Chunk.
-chunker.py chi dieu phoi, khong dat logic split page/heading phuc tap o day.
+page_blocks.py
+logic convert item thanh heading
+logic parent chunk dua tren numbered_item/lettered_item
 ```
 
 ---
 
-## 2. Van De Can Xu Ly
+## 2. Vấn Đề Cần Xử Lý
 
-Input co the co dang:
+Nếu split heading toàn document trước page marker, marker page mới có thể dính vào section cũ.
 
-```markdown
-<!-- page: 1 -->
-## Muc 2
-Noi dung cua muc 2 o page 1.
+Nếu convert `1.`, `a)` thành Markdown heading, parent bị sai: item con trở thành parent mới.
 
-<!-- page: 2 -->
-# Xin giay khai sinh
-## Dieu kien
-Noi dung dieu kien o page 2.
-```
-
-Neu split heading tren toan bo body ngay tu dau, `MarkdownHeaderTextSplitter` co the gan marker `<!-- page: 2 -->` vao section truoc.
-
-Ket qua sai:
+Kết quả đúng:
 
 ```text
-Section "Muc 2" bi dinh marker page 2.
-Section "Xin giay khai sinh" khong con marker page.
-```
-
-Ket qua dung:
-
-```text
-Section "Muc 2" page_start=1, page_end=1
-Section "Xin giay khai sinh / Dieu kien" page_start=2, page_end=2
+Page marker quyet dinh page range.
+Markdown heading quyet dinh parent.
+Item marker quyet dinh child boundary.
 ```
 
 ---
 
-## 3. Chien Luoc Page-Aware Parent Section
+## 3. Page-Aware Parent Section
 
-Khong de `MarkdownHeaderTextSplitter` tu quyet dinh page marker thuoc section nao.
+Parent section chỉ tạo từ Markdown heading.
 
-Flow dung:
-
-```text
-Markdown body
-  -> split_body_by_page_markers()
-  -> PageBlock[]
-  -> split heading trong tung PageBlock
-  -> ParentSection[]
-  -> merge adjacent sections neu cung heading_path
-```
-
-Parent section lay page range tu `PageBlock`, khong lay bang:
-
-```python
-require_page_range(content)
-```
-
-Ly do:
+Hard rule:
 
 ```text
-Content sau khi split heading co the khong con marker dung.
-PageBlock da biet chac noi dung do thuoc page nao.
+### 1. Muc dich  -> heading, tao/cap nhat parent heading_path
+1. Muc dich      -> numbered_item, khong tao parent
+
+### a) Doi tuong -> heading
+a) Doi tuong     -> lettered_item
+
+### - Noi dung   -> heading
+- Noi dung       -> bullet_item
 ```
+
+Parent content:
+
+```text
+Gom tat ca structural blocks tu heading hien tai den truoc heading cung/higher level tiep theo.
+Noi dung truoc heading dau tien thuoc document-root parent.
+```
+
+Page range:
+
+```text
+page_start = min page cua cac block trong parent
+page_end = max page cua cac block trong parent
+```
+
+Không lấy page range bằng cách đoán marker sau khi heading splitter đã cắt text.
 
 ---
 
-## 4. PageBlock Helper
+## 4. Structural Block Parser
 
-File:
+Parser order bắt buộc:
 
 ```text
-chatbot/backend/app/ingestion/parsing/page_markers.py
+1. page marker
+2. fenced code block
+3. Markdown table
+4. Markdown heading
+5. numbered_item
+6. lettered_item
+7. bullet_item
+8. paragraph
 ```
 
-Them import:
+Suggested classification:
 
 ```python
-from dataclasses import dataclass
+def classify_line(line: str, *, in_code: bool, in_table: bool) -> str:
+    if in_code:
+        return "code"
+    if in_table:
+        return "table"
+    if is_page_marker(line) or is_html_comment(line):
+        return "paragraph"
+    if MARKDOWN_HEADING_RE.match(line):
+        return "heading"
+    if NUMBERED_ITEM_RE.match(line):
+        return "numbered_item"
+    if LETTERED_ITEM_RE.match(line):
+        return "lettered_item"
+    if BULLET_ITEM_RE.match(line):
+        return "bullet_item"
+    return "paragraph"
 ```
 
-Dataclass:
-
-```python
-@dataclass(frozen=True)
-class PageBlock:
-    page_number: int
-    content: str
-```
-
-Function:
-
-```python
-def split_body_by_page_markers(body: str) -> list[PageBlock]:
-    matches = list(PAGE_RE.finditer(body))
-    if not matches:
-        raise ValueError("Markdown body requires page marker before chunking")
-
-    blocks: list[PageBlock] = []
-    for index, match in enumerate(matches):
-        page_number = int(match.group(1))
-        start = match.start()
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(body)
-        content = body[start:end].strip()
-        if content:
-            blocks.append(PageBlock(page_number=page_number, content=content))
-
-    return blocks
-```
+`MARKDOWN_HEADING_RE` phải chạy trước item regex.
 
 ---
 
-## 5. Carry Heading Context Across Pages
+## 5. Legal Hierarchy
 
-File:
-
-```text
-chatbot/backend/app/ingestion/chunking/parent_chunker.py
-```
-
-Case can xu ly:
-
-```markdown
-<!-- page: 1 -->
-## Muc 2
-Noi dung cua muc 2 o page 1.
-
-<!-- page: 2 -->
-Noi dung cua muc 2 o page 2.
-abc
-
-# Xin giay khai sinh
-## Dieu kien
-Noi dung dieu kien o page 2.
-```
-
-Dau page 2 chua co heading moi, nen content:
+Mapping:
 
 ```text
-Noi dung cua muc 2 o page 2.
-abc
+Markdown heading "Điều ..." -> legal_unit_type = article
+numbered_item              -> legal_unit_type = clause
+lettered_item              -> legal_unit_type = point
+bullet_item                -> legal_unit_type = bullet
+paragraph/table/code       -> legal_unit_type = none, hoac ke thua context item
 ```
 
-phai ke thua heading cuoi cua page truoc:
+Hierarchy:
 
-```python
-["Muc 2"]
+```text
+Điều
+└── Khoản
+    └── Điểm
+        └── Bullet
 ```
 
-Dung bien:
+`item_path` ví dụ:
 
-```python
-current_heading_path: list[str] = ["Document"]
+```text
+["Điều 18", "Khoản 2", "Điểm c)", "Bullet 1"]
+```
+
+Nếu item nhảy cấp, mất parent, hoặc page mới làm mất context, ghi ambiguous report.
+
+---
+
+## 6. Child Chunk Boundary
+
+Atomic boundary:
+
+```text
+numbered_item
+lettered_item
+bullet_item
 ```
 
 Rule:
 
-```python
-heading_path = heading_path_from_metadata(doc.metadata or {})
-if heading_path == ["Document"]:
-    heading_path = current_heading_path
-else:
-    current_heading_path = heading_path
+```text
+Moi item la mot child unit rieng neu co noi dung doc lap.
+Khong gop hai item khac nhau de dat chunk_size.
+Item cha ket thuc bang ":" va chi dan vao item con thi chi lam context, khong tao child rong.
+Paragraph sau item gan vao item hien tai neu ro rang tiep tuc item.
+Neu paragraph khong ro parent, ghi ambiguous report.
+```
+
+Item quá dài:
+
+```text
+Chi split ben trong item do.
+Giu item_path, legal_unit_type, heading_path.
+Overlap chi trong pham vi item hien tai.
 ```
 
 ---
 
-## 6. Build Parent Sections Page-Aware
+## 7. Table Và Code
 
-File:
+Table/code phải được nhận diện trước item regex.
+
+Rule:
 
 ```text
-chatbot/backend/app/ingestion/chunking/parent_chunker.py
+Marker 1. hoac a) trong table/code khong parse thanh item.
+Table/code nam trong item thi ke thua item_path.
+Table ngan giu nguyen thanh mot child unit.
+Table dai split theo row group, moi chunk lap lai header + separator.
+Code block giu nguyen hoac split bang logic rieng, khong cat vo nghia.
 ```
 
-Can import:
-
-```python
-from app.ingestion.parsing.page_markers import split_body_by_page_markers
-```
-
-```python
-def build_parent_sections(body: str) -> list[ParentSection]:
-    splitter = MarkdownHeaderTextSplitter(
-        headers_to_split_on=HEADERS_TO_SPLIT_ON,
-        strip_headers=False,
-    )
-
-    sections: list[ParentSection] = []
-    current_heading_path: list[str] = ["Document"]
-
-    for page_block in split_body_by_page_markers(body):
-        docs = splitter.split_text(page_block.content)
-
-        if not docs:
-            content = page_block.content.strip()
-            if content:
-                sections.append(
-                    ParentSection(
-                        content=content,
-                        heading_path=current_heading_path,
-                        page_start=page_block.page_number,
-                        page_end=page_block.page_number,
-                    )
-                )
-            continue
-
-        for doc in docs:
-            content = doc.page_content.strip()
-            if not content:
-                continue
-
-            heading_path = heading_path_from_metadata(doc.metadata or {})
-            if heading_path == ["Document"]:
-                heading_path = current_heading_path
-            else:
-                current_heading_path = heading_path
-
-            sections.append(
-                ParentSection(
-                    content=content,
-                    heading_path=heading_path,
-                    page_start=page_block.page_number,
-                    page_end=page_block.page_number,
-                )
-            )
-
-    return merge_adjacent_parent_sections(sections)
-```
+Table chỉ xử lý ở child layer. Parent vẫn giữ full section.
 
 ---
 
-## 7. Merge Adjacent Parent Sections
+## 8. Child Metadata
 
-File:
+Mỗi child cần giữ:
 
 ```text
-chatbot/backend/app/ingestion/chunking/parent_chunker.py
+heading_path
+item_marker
+item_level
+item_path
+legal_unit_type
+page_start
+page_end
+parent_chunk_key
+block_type
 ```
 
-Neu mot heading keo dai qua nhieu page, sau khi split theo page se co nhieu section cung `heading_path`.
+Có thể giữ thêm trong JSON metadata:
 
-Can merge section lien ke co cung heading:
-
-```python
-def merge_adjacent_parent_sections(sections: list[ParentSection]) -> list[ParentSection]:
-    merged: list[ParentSection] = []
-
-    for section in sections:
-        if not merged:
-            merged.append(section)
-            continue
-
-        previous = merged[-1]
-        if previous.heading_path == section.heading_path:
-            merged[-1] = ParentSection(
-                content=f"{previous.content}\n\n{section.content}",
-                heading_path=previous.heading_path,
-                page_start=previous.page_start,
-                page_end=section.page_end,
-            )
-            continue
-
-        merged.append(section)
-
-    return merged
+```text
+raw_text
+embedding_text
+split_index
+split_count
+source_url
 ```
+
+Không đổi schema DB nếu metadata có thể lưu JSON.
 
 ---
 
-## 8. Child Chunk MVP
+## 9. Embedding Text
 
-File:
+Raw child content giữ nguyên.
 
-```text
-chatbot/backend/app/ingestion/chunking/child_chunker.py
-```
-
-Child chunk MVP khong can doi lon.
-
-Rule hien tai:
+`embedding_text` tạo từ context thật:
 
 ```text
-Child text co page marker -> lay page tu marker.
-Child text khong co page marker -> fallback ve parent_chunk.page_start/page_end.
+heading_path
+item_path
+legal_unit_type
+raw child content
 ```
 
-```python
-page_start, page_end = require_page_range(
-    text,
-    fallback=(parent_chunk.page_start, parent_chunk.page_end),
-)
-```
-
-Cach nay dam bao `page_start/page_end` khong null, nhung citation co the rong neu parent chunk trai qua nhieu page.
+Không đưa page marker vào embedding text.
+Không thêm thông tin suy diễn.
 
 ---
 
-## 9. Sau MVP: Page-Aware Child Splitter
+## 10. Tests Cần Có
 
-File:
-
-```text
-chatbot/backend/app/ingestion/chunking/child_chunker.py
-```
-
-Neu can citation chinh xac hon, nang cap child splitter thanh page-aware.
-
-Flow:
-
-```text
-parent_chunk.content
-  -> split thanh PageBlock/PageSegment theo marker
-  -> split tung page segment thanh child texts
-  -> tao child chunk voi page_start/page_end cua segment
-```
-
-Pattern:
-
-```python
-from dataclasses import dataclass
-
-from app.ingestion.parsing.page_markers import split_body_by_page_markers
-
-
-@dataclass(frozen=True)
-class ChildText:
-    content: str
-    page_start: int
-    page_end: int
-
-
-def split_parent_chunk_to_child_texts_page_aware(
-    parent_chunk: Chunk,
-    *,
-    child_chunk_size: int,
-    child_chunk_overlap: int,
-) -> list[ChildText]:
-    splitter = build_child_splitter(
-        child_chunk_size=child_chunk_size,
-        child_chunk_overlap=child_chunk_overlap,
-    )
-
-    child_texts: list[ChildText] = []
-    for page_block in split_body_by_page_markers(parent_chunk.content):
-        texts = splitter.split_text(page_block.content)
-        for text in texts:
-            content = text.strip()
-            if not content:
-                continue
-            child_texts.append(
-                ChildText(
-                    content=content,
-                    page_start=page_block.page_number,
-                    page_end=page_block.page_number,
-                )
-            )
-
-    return child_texts
-```
-
-Khi dung `ChildText`, `make_child_chunks()` se gan page truc tiep:
-
-```python
-page_start=child_text.page_start
-page_end=child_text.page_end
-content=child_text.content
-```
-
----
-
-## 10. Cap Nhat Orchestration Neu Dung Page-Aware Child
-
-File:
-
-```text
-chatbot/backend/app/ingestion/chunking/chunker.py
-```
-
-Neu chi dung page-aware parent section, `chunker.py` khong can doi nhieu vi van goi:
-
-```python
-sections = build_parent_sections(body)
-```
-
-Neu nang cap page-aware child splitter, flow trong `chunker.py` doi thanh:
-
-```python
-child_texts = split_parent_chunk_to_child_texts_page_aware(
-    parent,
-    child_chunk_size=child_chunk_size,
-    child_chunk_overlap=child_chunk_overlap,
-)
-
-children = make_child_chunks(
-    child_texts=child_texts,
-    parent_chunk=parent,
-    document_key=document_key,
-    version_key=version_key,
-    child_start_index=child_counter,
-    chunk_start_index=chunk_index,
-)
-```
-
-Luc nay `make_child_chunks()` trong `child_chunker.py` phai doc:
-
-```python
-child_text.content
-child_text.page_start
-child_text.page_end
-```
-
-thay vi coi moi item trong `child_texts` la `str`.
-
----
-
-## 11. Test Can Co
-
-File:
-
-```text
-chatbot/backend/test/ingestion/test_chunker.py
-```
-
-Test marker page moi nam truoc heading moi:
-
-```python
-def test_page_marker_before_new_heading_belongs_to_new_heading():
-    body = """<!-- page: 1 -->
-
-## Muc 2
-Noi dung page 1.
-
-<!-- page: 2 -->
-# Xin giay khai sinh
-## Dieu kien
-Noi dung page 2.
-"""
-    chunks = chunk_markdown_body(body=body, document_key="doc", version_key="doc-v1")
-
-    xin_giay_chunks = [
-        chunk
-        for chunk in chunks
-        if "Xin giay khai sinh" in chunk.heading_path
-    ]
-
-    assert xin_giay_chunks
-    assert all(chunk.page_start == 2 for chunk in xin_giay_chunks)
-```
-
-Test dau page moi tiep noi heading cu truoc khi gap heading moi:
-
-```python
-def test_page_continuation_inherits_previous_heading_until_new_heading():
-    body = """<!-- page: 1 -->
-## Muc 2
-Noi dung cua muc 2 o page 1.
-
-<!-- page: 2 -->
-Noi dung cua muc 2 o page 2.
-abc
-
-# Xin giay khai sinh
-## Dieu kien
-Noi dung dieu kien o page 2.
-"""
-    chunks = chunk_markdown_body(body=body, document_key="doc", version_key="doc-v1")
-
-    muc_2_chunks = [
-        chunk
-        for chunk in chunks
-        if chunk.chunk_type == "parent" and chunk.heading_path == ["Muc 2"]
-    ]
-    xin_giay_chunks = [
-        chunk
-        for chunk in chunks
-        if chunk.chunk_type == "parent"
-        and chunk.heading_path == ["Xin giay khai sinh", "Dieu kien"]
-    ]
-
-    assert len(muc_2_chunks) == 1
-    assert muc_2_chunks[0].page_start == 1
-    assert muc_2_chunks[0].page_end == 2
-    assert "abc" in muc_2_chunks[0].content
-
-    assert len(xin_giay_chunks) == 1
-    assert xin_giay_chunks[0].page_start == 2
-    assert xin_giay_chunks[0].page_end == 2
-```
+- [ ] Danh sách 5 mục dưới một heading tạo 1 parent và 5 child.
+- [ ] Item không bị convert thành heading.
+- [ ] `### 1. Mục đích` vẫn là heading.
+- [ ] `### 1) Phạm vi` vẫn là heading.
+- [ ] `### a) Đối tượng` vẫn là heading.
+- [ ] `### - Nội dung` vẫn là heading.
+- [ ] Markdown heading không bị demote thành item.
+- [ ] Điều -> Khoản -> Điểm -> Bullet tạo đúng `item_path`.
+- [ ] Paragraph được gắn đúng item hoặc sinh ambiguous report.
+- [ ] Item con kế thừa context cha.
+- [ ] Item cha kết thúc bằng `:` không tạo child rỗng.
+- [ ] Bullet `-`, `+`, `*` tạo atomic child.
+- [ ] Item quá dài chỉ split nội bộ.
+- [ ] Không child nào chứa nội dung của hai item khác nhau.
+- [ ] Marker trong table không bị parse thành item.
+- [ ] Marker trong fenced code không bị parse thành item.
+- [ ] Nội dung trước heading đầu tiên thuộc `document-root` parent.
+- [ ] Table/code trong item kế thừa đúng context.
+- [ ] Child ngắn có `embedding_text` chứa context thật.
+- [ ] Paragraph không rõ parent xuất ambiguous report.
+- [ ] Item qua page mới vẫn giữ đúng `item_path`.
+- [ ] Page marker không bị đưa vào embedding text.

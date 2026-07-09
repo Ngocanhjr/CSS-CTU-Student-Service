@@ -1,11 +1,11 @@
-# 00. Huong Dan Implement `app/schemas/enums.py`
+# 00. Hướng Dẫn Implement `app/schemas/enums.py`
 
 **Last Updated:** 2026-07-04
 
-Source of truth cho enum: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md` (phan Status Enums,
+Source of truth cho enum: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md` (phần Status Enums,
 Domain Values, Asset Type Values).
 
-File nay huong dan tao/cap nhat enum dung chung cho cac schema:
+File này hướng dẫn tạo/cập nhật enum dùng chung cho các schema:
 
 ```text
 documents.py
@@ -14,25 +14,25 @@ chunks.py
 rag.py
 ```
 
-Trong code hien tai nen dung `typing.Literal`, chua can tao class ke thua `Enum`.
+Trong code hiện tại nên dùng `typing.Literal`, chưa cần tạo class kế thừa `Enum`.
 
-## Muc Tieu
+## Mục Tiêu
 
-`enums.py` la noi duy nhat dinh nghia cac gia tri hop le cho:
+`enums.py` là nơi duy nhất định nghĩa các giá trị hợp lệ cho:
 
 - status workflow (ocr/review/rag/index);
-- loai tai lieu;
+- loại tài liệu;
 - domain;
 - file type;
 - asset type + validity;
-- quan he document version -> asset;
+- quan hệ document version -> asset;
 - chunk type.
 
-Khong khai bao lai enum trong `documents.py`, `assets.py`, `chunks.py`.
+Không khai báo lại enum trong `documents.py`, `assets.py`, `chunks.py`.
 
-## Quyet Dinh Da Chot
+## Quyết Định Đã Chốt
 
-Khong them cac enum/gia tri sau (da loai khoi schema hien tai):
+Không thêm các enum/giá trị sau (đã loại khỏi schema hiện tại):
 
 ```text
 Priority
@@ -44,7 +44,7 @@ Confidentiality
 CitationType
 ```
 
-Rule quan trong:
+Rule quan trọng:
 
 ```text
 File parser-only/Markdown/text van dung ocr_status = "done" sau khi parser validation hoan tat.
@@ -52,9 +52,9 @@ Index eligibility: ocr_status = done AND review_status = approved.
 Student RAG chi dung version co review_status = approved AND rag_status = published.
 ```
 
-## Quy Uoc Key Va ID
+## Quy Ước Key Và ID
 
-Enum khong quan ly identifier, nhung cac schema dung chung quy uoc sau:
+Enum không quản lý identifier, nhưng các schema dùng chung quy ước sau:
 
 ```text
 id           = khoa ky thuat noi bo cua database
@@ -63,9 +63,9 @@ version_key  = ma on dinh cua version trong YAML/RAG
 asset_key    = ma on dinh cua asset trong YAML/RAG
 ```
 
-Khong dung `document_id`/`version_id` trong YAML/RAG schema neu da chon quy uoc `*_key`.
+Không dùng `document_id`/`version_id` trong YAML/RAG schema nếu đã chọn quy ước `*_key`.
 
-## File Can Sua
+## File Cần Sửa
 
 ```text
 chatbot/backend/app/schemas/enums.py
@@ -79,11 +79,11 @@ from typing import Literal
 
 ## Status Enums
 
-Khop chinh xac phan Status Enums trong spec 05.
+Khớp chính xác phần Status Enums trong spec 05.
 
 ### `OcrStatus`
 
-Khong co `"not_required"`.
+Không có `"not_required"`.
 
 ```python
 OcrStatus = Literal[
@@ -121,7 +121,7 @@ RagStatus = Literal[
 ]
 ```
 
-Y nghia quan trong:
+Ý nghĩa quan trọng:
 
 ```text
 indexed   = da index, co the dung cho admin/internal search
@@ -130,7 +130,7 @@ published = duoc student RAG su dung
 
 ### `IndexStatus`
 
-Dung cho `document_chunks.index_status`.
+Dùng cho `document_chunks.index_status`.
 
 ```python
 IndexStatus = Literal[
@@ -143,15 +143,7 @@ IndexStatus = Literal[
 
 ### `ValidityStatus`
 
-Chi dung cho `assets.validity_status`. Khong dua vao version metadata.
-
-```python
-ValidityStatus = Literal[
-    "valid",
-    "invalid",
-    "expired",
-]
-```
+Đã bỏ khỏi schema DB và YAML metadata. Không định nghĩa enum này trong MVP.
 
 ## Document Enums
 
@@ -169,7 +161,7 @@ DocumentType = Literal[
 
 ### `Domain`
 
-Khop phan Domain Values trong spec 05 (`documents.domain`).
+Khớp phần Domain Values trong spec 05 (`documents.domain`).
 
 ```python
 Domain = Literal[
@@ -196,7 +188,7 @@ AssetType = Literal[
 ]
 ```
 
-Y nghia:
+Ý nghĩa:
 
 ```text
 form       = bieu mau can dien/tai ve
@@ -216,7 +208,7 @@ DocumentAssetRelationType = Literal[
 ]
 ```
 
-Y nghia:
+Ý nghĩa:
 
 ```text
 required_form = bieu mau bat buoc cho thu tuc/tai lieu
@@ -255,9 +247,9 @@ ChunkType = Literal[
 ]
 ```
 
-## Full Template Goi Y
+## Full Template Gợi Ý
 
-Neu can viet lai file `enums.py`, co the dung khung nay:
+Nếu cần viết lại file `enums.py`, có thể dùng khung này:
 
 ```python
 from typing import Literal
@@ -294,12 +286,6 @@ IndexStatus = Literal[
     "indexed",
     "deactivated",
     "failed",
-]
-
-ValidityStatus = Literal[
-    "valid",
-    "invalid",
-    "expired",
 ]
 
 DocumentType = Literal[
@@ -355,20 +341,20 @@ ChunkType = Literal[
 ]
 ```
 
-## Common Mistakes Can Tranh
+## Common Mistakes Cần Tránh
 
-- Khong them `Priority`.
-- Khong them `ChunkingStrategy`.
-- Khong them `"not_required"` vao `OcrStatus`.
-- Khong them `CollectionStatus`, `VersionRole`, `Confidentiality`, `CitationType`. Da loai khoi schema.
-- `ValidityStatus` chi co `valid`/`invalid`/`expired`, va chi dung cho `assets`.
-- Khong dung enum tieng Anh cu nhu `procedure`, `form`, `faq` cho `DocumentType`; dung `quy_trinh`, `bieu_mau`, `hoi_dap`.
-- Khong nham `AssetType = "form"` voi `DocumentType = "bieu_mau"`.
-- Khong nham `RagStatus.indexed` voi `RagStatus.published`.
+- Không thêm `Priority`.
+- Không thêm `ChunkingStrategy`.
+- Không thêm `"not_required"` vào `OcrStatus`.
+- Không thêm `CollectionStatus`, `VersionRole`, `Confidentiality`, `CitationType`. Đã loại khỏi schema.
+- Không thêm `ValidityStatus`. Field này đã bỏ khỏi DB và YAML metadata.
+- Không dùng enum tiếng Anh cũ như `procedure`, `form`, `faq` cho `DocumentType`; dùng `quy_trinh`, `bieu_mau`, `hoi_dap`.
+- Không nhầm `AssetType = "form"` với `DocumentType = "bieu_mau"`.
+- Không nhầm `RagStatus.indexed` với `RagStatus.published`.
 
-## Test Sau Khi Sua
+## Test Sau Khi Sửa
 
-Chay tai:
+Chạy tại:
 
 ```text
 chatbot/backend
@@ -381,7 +367,7 @@ python -c "from app.schemas.enums import AssetType, DocumentAssetRelationType; p
 python -c "from app.schemas.enums import OcrStatus, RagStatus, DocumentType, ChunkType, Domain; print('core enums ok')"
 ```
 
-Validation test nhanh voi Pydantic:
+Validation test nhanh với Pydantic:
 
 ```powershell
 @'
@@ -403,7 +389,7 @@ except ValidationError as exc:
 '@ | python -
 ```
 
-Ket qua mong doi:
+Kết quả mong đợi:
 
 ```text
 asset enums ok

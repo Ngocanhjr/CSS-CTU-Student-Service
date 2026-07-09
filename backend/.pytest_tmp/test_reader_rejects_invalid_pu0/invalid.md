@@ -17,9 +17,10 @@ file_type: "md"
 language: "vi"
 citation_type: "page"
 checksum: "test-checksum"
-rag_status: "collected"
+collection_status: "collected"
 ocr_status: "not_started"
 review_status: "approved"
+validity_status: "valid"
 rag_status: "published"
 ---
 

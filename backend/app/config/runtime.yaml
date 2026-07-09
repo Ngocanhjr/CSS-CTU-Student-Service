@@ -1,0 +1,8 @@
+chunking:
+  child_chunk_size: 1200
+  child_chunk_overlap: 100
+
+retrieval:
+  top_k: 5
+  score_threshold: 0.5
+  candidate_k: 30

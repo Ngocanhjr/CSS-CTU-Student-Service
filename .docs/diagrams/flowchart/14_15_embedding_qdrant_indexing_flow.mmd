@@ -1,0 +1,27 @@
+%% Sources:
+%% - chatbot/.docs/guild_implement/14_PART_G_EMBEDDING_GUIDE.md
+%% - chatbot/.docs/guild_implement/15_PART_H_QDRANT_VECTORSTORE_GUIDE.md
+
+flowchart TD
+    A[(PostgreSQL<br/>child chunks)]
+    B[select child chunks<br/>index_status=not_indexed]
+    C["build_embedding_text()"]
+    D["TextEmbedder<br/>Fake or LangChain NVIDIA/BGE-M3"]
+    E[vector list]
+    F{collection exists?}
+    G["ensure_collection<br/>vector_size=len(vector)"]
+    H["build_chunk_payload()"]
+    I["make_point_id<br/>version_key + chunk_key"]
+    J["upsert_points()"]
+    K[(Qdrant<br/>css_qdrant)]
+    L["mark_chunks_indexed()"]
+    M[(PostgreSQL<br/>qdrant_point_id<br/>index_status=indexed)]
+
+    A --> B --> C --> D --> E --> F
+    F -->|no| G --> H
+    F -->|yes| H
+    H --> I --> J --> K
+    J --> L --> M
+
+    C -. enriches with .-> N["title<br/>department<br/>document_type<br/>heading_path<br/>page range"]
+    H -. payload must trace .-> O["postgres_chunk_id<br/>chunk_key<br/>review_status<br/>rag_status<br/>audience_student"]

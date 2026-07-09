@@ -1,50 +1,55 @@
-# 10. Part C - Huong Dan Implement Structural Parent-Child Chunker
+# 10. Part C - Hướng Dẫn Implement Structural Parent-Child Chunker
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu guide 07, phan C.
+File này tách chi tiết từ guide 07, phần C.
 
-Muc tieu:
+Mục tiêu:
 
 ```text
 Nhan Markdown body da validate
-dung langchain-text-splitters de tach structural parent sections
-dung RecursiveCharacterTextSplitter de tach child chunks trong tung parent
-giu heading_path, page range, table/page marker neu co
+tach page marker truoc structural parsing
+parent tao theo Markdown heading
+child tao theo Dieu/Khoan/Diem/Bullet structural boundary
+RecursiveCharacterTextSplitter chi dung cho item/paragraph/table/code qua dai
+giu heading_path, item_path, legal_unit_type, page range, table/page marker neu co
 tra ve list[Chunk] voi stable chunk keys
 ```
 
-Chunker khong doc file, khong parse YAML, khong ghi DB, khong tao DB id.
+Chunker không đọc file, không parse YAML, không ghi DB, không tạo DB id.
 
 ---
 
-## 1. File Can Tao/Sua
+## 1. File Cần Tạo/Sửa
 
 ```text
 chatbot/backend/app/ingestion/chunking/__init__.py
 chatbot/backend/app/ingestion/chunking/chunker.py
 chatbot/backend/app/ingestion/chunking/parent_chunker.py
 chatbot/backend/app/ingestion/chunking/child_chunker.py
+chatbot/backend/app/ingestion/chunking/table_blocks.py
 chatbot/backend/app/ingestion/chunking/text_stats.py
 chatbot/backend/app/ingestion/parsing/__init__.py
 chatbot/backend/app/ingestion/parsing/page_markers.py
+chatbot/backend/app/ingestion/parsing/structural_parser.py
 chatbot/backend/test/ingestion/test_chunker.py
+chatbot/backend/test/ingestion/test_structural_parser.py
 chatbot/backend/requirements.txt
 ```
 
-Chunker nhan input tu:
+Chunker nhận input từ:
 
 ```text
 app.ingestion.markdown_reader.MarkdownDocument
 ```
 
-Dependency can co:
+Dependency cần có:
 
 ```text
 langchain-text-splitters>=0.2
 ```
 
-Import de xuat trong tung file:
+Import đề xuất trong từng file:
 
 ```python
 # parent_chunker.py
@@ -59,9 +64,9 @@ from app.ingestion.chunking.text_stats import count_units
 
 ---
 
-## 1.1 Tach File Theo Trach Nhiem
+## 1.1 Tách File Theo Trách Nhiệm
 
-Dung cau truc:
+Dùng cấu trúc:
 
 ```text
 app/ingestion/chunking/
@@ -69,10 +74,11 @@ app/ingestion/chunking/
     chunker.py
     parent_chunker.py
     child_chunker.py
+    table_blocks.py
     text_stats.py
 ```
 
-Trach nhiem:
+Trách nhiệm:
 
 ```text
 chunker.py
@@ -91,16 +97,31 @@ parent_chunker.py
 
 child_chunker.py
 - build_child_splitter()
-- split_parent_chunk_to_child_texts()
+- ChildUnit dataclass
+- build_child_units()
+- split_long_child_unit()
 - make_child_chunks()
+
+table_blocks.py
+- TextBlock dataclass
+- split_markdown_table_blocks()
+- split_large_table_block()
+- protect Markdown table truoc khi child splitter cat text
 
 text_stats.py
 - count_units()
+
+parsing/structural_parser.py
+- StructuralBlock dataclass
+- AmbiguousBlockReport dataclass
+- parse_structural_blocks()
+- classify_line()
+- build_item_path()
 ```
 
-Khong tach nho hon nua trong MVP. Ba file nay du de clean code ma khong lam structure qua phan manh.
+Không tách nhỏ hơn nữa trong MVP. Các file này đủ để clean code mà không làm structure quá phân mảnh.
 
-## 2. Contract Quan Trong
+## 2. Contract Quan Trọng
 
 Trong MVP:
 
@@ -111,23 +132,23 @@ DocumentChunk.id = internal PostgreSQL primary key sau khi insert DB
 DocumentChunk.parent_chunk_id = internal FK sau khi repository map parent_chunk_key -> DB id
 ```
 
-Chunker tao stable key, khong tao DB id.
+Chunker tạo stable key, không tạo DB id.
 
-Stable key de xuat:
+Stable key đề xuất:
 
 ```text
 <version_key>::p::<parent_index>
 <version_key>::c::<child_index>
 ```
 
-Vi du:
+Ví dụ:
 
 ```text
 qd3266-2024::p::0001
 qd3266-2024::c::0001
 ```
 
-Luu y quan trong:
+Lưu ý quan trọng:
 
 ```text
 parent_index va child_index chi dung de tao stable key rieng tung loai.
@@ -137,32 +158,41 @@ Khong reset chunk_index rieng cho parent/child, vi DB unique(document_version_id
 
 ---
 
-## 3. Chien Luoc Chunking
+## 3. Chiến Lược Chunking
 
-MVP dung 2 lop:
+MVP dùng 3 lớp:
 
 ```text
-Layer 1: MarkdownHeaderTextSplitter
-  -> tach Markdown thanh parent structural sections theo heading
+Layer 1: Page-aware structural parser
+  -> PageBlock[]
+  -> StructuralBlock[]
+  -> nhan dien code/table/heading/item/paragraph theo thu tu bat buoc
 
-Layer 2: RecursiveCharacterTextSplitter
-  -> tach tung parent section thanh child chunks nho hon
+Layer 2: Parent chunker
+  -> tao parent theo Markdown heading
+  -> noi dung truoc heading dau tien vao document-root parent
+
+Layer 3: Child chunker
+  -> tao child theo numbered_item / lettered_item / bullet_item / table / code / paragraph boundary
+  -> RecursiveCharacterTextSplitter chi split ben trong mot child unit qua dai
 
 Project code
-  -> gan stable chunk_key, parent_chunk_key, page_start/page_end, heading_path, chunk_index
+  -> gan stable chunk_key, parent_chunk_key, page_start/page_end, heading_path, item_path, legal_unit_type, chunk_index
 ```
 
-Ly do:
+Lý do:
 
 ```text
-LangChain lo phan splitting co ban.
+Markdown heading la parent boundary.
+Dieu/Khoan/Diem/Bullet la child boundary.
+Khong convert item thanh Markdown heading.
 Project code van giu quyen kiem soat metadata, citation, DB mapping.
 Khong dua DB id vao chunker.
 ```
 
 ---
 
-## 4. Public API De Xuat
+## 4. Public API Đề Xuất
 
 File:
 
@@ -185,21 +215,34 @@ def chunk_markdown_document(document: MarkdownDocument) -> list[Chunk]:
     )
 ```
 
-Ham core:
+Hàm core:
 
 ```python
+DEFAULT_CHILD_CHUNK_SIZE = 1000
+DEFAULT_CHILD_CHUNK_OVERLAP = 100
+
+
 def chunk_markdown_body(
     *,
     body: str,
     document_key: str,
     version_key: str,
-    child_chunk_size: int = 1800,
-    child_chunk_overlap: int = 200,
+    child_chunk_size: int = DEFAULT_CHILD_CHUNK_SIZE,
+    child_chunk_overlap: int = DEFAULT_CHILD_CHUNK_OVERLAP,
 ) -> list[Chunk]:
     ...
 ```
 
-Trong MVP, `child_chunk_size` va `child_chunk_overlap` tinh theo ky tu vi `RecursiveCharacterTextSplitter` mac dinh dung length function theo character.
+Trong MVP, `child_chunk_size` và `child_chunk_overlap` tính theo ký tự vì `RecursiveCharacterTextSplitter` mặc định dùng length function theo character.
+
+Giá trị default lấy từ runtime settings (xem `21_RUNTIME_SETTINGS_GUIDE.md`):
+
+```text
+chunking.child_chunk_size = 1000
+chunking.child_chunk_overlap = 100
+```
+
+Không dùng fallback kiểu `settings.chunking.child_chunk_size or 1000`. Default nằm trong settings model, config YAML chỉ override.
 
 ---
 
@@ -211,7 +254,7 @@ File:
 chatbot/backend/app/ingestion/chunking/parent_chunker.py
 ```
 
-`ParentSection` nam trong `parent_chunker.py` vi no la output cua buoc tach parent section. Khong dat trong `chunker.py`, vi `chunker.py` chi nen dieu phoi orchestration.
+`ParentSection` nằm trong `parent_chunker.py` vì nó là output của bước tách parent section. Không đặt trong `chunker.py`, vì `chunker.py` chỉ nên điều phối orchestration.
 
 ```python
 from dataclasses import dataclass
@@ -225,37 +268,37 @@ class ParentSection:
     page_end: int
 ```
 
-Neu `child_chunker.py` can type hint `ParentSection`, import:
+Nếu `child_chunker.py` cần type hint `ParentSection`, import:
 
 ```python
 from app.ingestion.chunking.parent_chunker import ParentSection
 ```
 
-`ParentSection` khong phai schema/API public; no chi la dataclass noi bo cua ingestion chunking.
+`ParentSection` không phải schema/API public; nó chỉ là dataclass nội bộ của ingestion chunking.
 
 ---
 
 ## 6. Page Marker
 
-OCR/canonical Markdown phai giu marker:
+OCR/canonical Markdown phải giữ marker:
 
 ```markdown
 <!-- page: 1 -->
 ```
 
-Page marker helper duoc tach rieng o:
+Page marker helper được tách riêng ở:
 
 ```text
 chatbot/backend/app/ingestion/parsing/page_markers.py
 ```
 
-Xem chi tiet tai:
+Xem chi tiết tại:
 
 ```text
 chatbot/.docs/guild_implement/10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md
 ```
 
-Trong `parent_chunker.py` va `child_chunker.py`, import:
+Trong `parent_chunker.py` và `child_chunker.py`, import:
 
 ```python
 from app.ingestion.parsing.page_markers import require_page_range
@@ -281,7 +324,7 @@ File:
 chatbot/backend/app/ingestion/chunking/text_stats.py
 ```
 
-MVP dung word count don gian de gan `token_count`. Sau nay co the thay bang tokenizer that neu can.
+MVP dùng word count đơn giản để gán `token_count`. Sau này có thể thay bằng tokenizer thật nếu cần.
 
 ```python
 def count_units(text: str) -> int:
@@ -297,7 +340,7 @@ Parent va child chunk deu dung cung helper nay.
 
 ---
 
-## 7. Tao Parent Sections Bang MarkdownHeaderTextSplitter
+## 7. Tạo Parent Sections Bằng MarkdownHeaderTextSplitter
 
 File:
 
@@ -305,7 +348,7 @@ File:
 chatbot/backend/app/ingestion/chunking/parent_chunker.py
 ```
 
-Header config de xuat:
+Header config đề xuất:
 
 ```python
 HEADERS_TO_SPLIT_ON = [
@@ -315,7 +358,7 @@ HEADERS_TO_SPLIT_ON = [
 ]
 ```
 
-Helper nho de code gon hon:
+Helper nhỏ để code gọn hơn:
 
 ```python
 def heading_path_from_metadata(metadata: dict) -> list[str]:
@@ -337,7 +380,7 @@ def make_parent_section(content: str, heading_path: list[str]) -> ParentSection:
     )
 ```
 
-Function chinh:
+Function chính:
 
 ```python
 def build_parent_sections(body: str) -> list[ParentSection]:
@@ -367,7 +410,7 @@ def build_parent_sections(body: str) -> list[ParentSection]:
     return sections
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 LangChain metadata chi giu heading theo header config.
@@ -378,9 +421,9 @@ Can test case page marker nam truoc heading. Neu MarkdownHeaderTextSplitter lam 
 
 ---
 
-## 8. Tao Parent Chunk
+## 8. Tạo Parent Chunk
 
-Parent chunk luu full section trong PostgreSQL, khong embed trong MVP.
+Parent chunk lưu full section trong PostgreSQL, không embed trong MVP.
 
 File:
 
@@ -417,7 +460,91 @@ def make_parent_chunk(
 
 ---
 
-## 9. Tao Child Texts Bang RecursiveCharacterTextSplitter
+## 9. Protect Markdown Table Blocks Trước Khi Split Child
+
+Markdown table không được để `RecursiveCharacterTextSplitter` cắt tùy ý theo từng dòng, vì row table mất header sẽ mất ngữ cảnh retrieval.
+
+Ví dụ cần bảo vệ:
+
+```markdown
+| Điểm số<br>theo thang điểm 10 | Điểm chữ | Điểm số<br>theo thang điểm 4 |
+| --- | --- | --- |
+| 9,0 - 10,0 | A | 4,0 |
+| 8,0 - 8,9 | B+ | 3,5 |
+```
+
+Rule:
+
+```text
+Bang ngan hon child_chunk_size thi giu nguyen thanh 1 child text rieng.
+Bang khong duoc tron chung voi cau truoc/sau neu co the tach rieng.
+Bang dai hon child_chunk_size thi split theo nhom row, moi child table phai lap lai header + separator.
+Khong split ngang mot row table.
+Page marker nam gan bang phai duoc giu de child table resolve page_start/page_end.
+```
+
+File nên đặt helper:
+
+```text
+chatbot/backend/app/ingestion/chunking/table_blocks.py
+```
+
+Dataclass gợi ý:
+
+```python
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class TextBlock:
+    content: str
+    block_type: str  # "text" | "table"
+```
+
+Detect Markdown table block:
+
+```python
+TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
+TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$")
+```
+
+Heuristic:
+
+```text
+Mot table block can co it nhat:
+- 1 dong header bat dau/ket thuc bang "|"
+- 1 dong separator ngay sau header
+- 0..n dong data lien tiep bat dau/ket thuc bang "|"
+```
+
+API gợi ý:
+
+```python
+def split_markdown_table_blocks(text: str) -> list[TextBlock]:
+    ...
+
+
+def split_large_table_block(
+    table: str,
+    *,
+    child_chunk_size: int,
+) -> list[str]:
+    ...
+```
+
+`split_large_table_block()` phải giữ:
+
+```text
+header
+separator
+row group
+```
+
+trong từng child table.
+
+---
+
+## 10. Tạo Child Units Theo Structural Boundary
 
 File:
 
@@ -425,7 +552,38 @@ File:
 chatbot/backend/app/ingestion/chunking/child_chunker.py
 ```
 
-Child splitter:
+Child boundary:
+
+```text
+numbered_item
+lettered_item
+bullet_item
+table
+code
+paragraph ro rang doc lap
+```
+
+Không gộp hai item khác nhau chỉ để đạt `child_chunk_size`.
+
+Dataclass gợi ý:
+
+```python
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ChildUnit:
+    content: str
+    block_type: str
+    page_start: int
+    page_end: int
+    item_marker: str | None
+    item_level: int | None
+    item_path: list[str]
+    legal_unit_type: str
+```
+
+Recursive splitter chỉ dùng cho một unit quá dài:
 
 ```python
 def build_child_splitter(
@@ -446,44 +604,59 @@ def build_child_splitter(
     )
 ```
 
-Split:
+Build child units:
 
 ```python
-def split_parent_chunk_to_child_texts(
+def build_child_units(
     parent_chunk: Chunk,
     *,
     child_chunk_size: int,
     child_chunk_overlap: int,
-) -> list[str]:
-    splitter = build_child_splitter(
-        child_chunk_size=child_chunk_size,
-        child_chunk_overlap=child_chunk_overlap,
-    )
-    texts = splitter.split_text(parent_chunk.content)
-    return [text.strip() for text in texts if text.strip()]
+) -> list[ChildUnit]:
+    units = build_structural_child_units(parent_chunk.content)
+    result: list[ChildUnit] = []
+
+    for unit in units:
+        if unit.block_type == "table":
+            result.extend(split_table_child_unit(unit, child_chunk_size=child_chunk_size))
+            continue
+
+        if len(unit.content) > child_chunk_size:
+            result.extend(
+                split_long_child_unit(
+                    unit,
+                    child_chunk_size=child_chunk_size,
+                    child_chunk_overlap=child_chunk_overlap,
+                )
+            )
+            continue
+
+        result.append(unit)
+
+    return result
 ```
 
-Ly do split bang `parent_chunk` thay vi `ParentSection`:
+Lý do split bằng `parent_chunk` thay vì `ParentSection`:
 
 ```text
 Sau khi da tao parent Chunk, child pipeline chi nen lam viec voi parent Chunk.
 ParentSection chi la object tam de build parent Chunk.
 Dung parent_chunk.content giup flow don gian hon:
-ParentSection -> parent Chunk -> child texts -> child Chunks
+ParentSection -> parent Chunk -> ChildUnit -> child Chunks
 ```
 
-Luu y ve table:
+Lưu ý về table:
 
 ```text
 RecursiveCharacterTextSplitter khong hieu semantic table cua du an.
-Voi MVP, uu tien child_chunk_size du lon de table thuong khong bi cat.
-Neu table bi cat, them buoc protect table blocks truoc khi split trong version sau.
-Khong split Markdown table line-by-line bang custom code neu chua co test.
+Phai detect table truoc item regex va truoc recursive splitter.
+Table ngan thanh 1 child chunk rieng.
+Table dai split theo row group va lap lai header/separator.
 ```
 
 ---
 
-## 10. Tao Child Chunks
+## 11. Tạo Child Chunks
 
 File:
 
@@ -494,7 +667,7 @@ chatbot/backend/app/ingestion/chunking/child_chunker.py
 ```python
 def make_child_chunks(
     *,
-    child_texts: list[str],
+    child_units: list[ChildUnit],
     parent_chunk: Chunk,
     document_key: str,
     version_key: str,
@@ -502,12 +675,8 @@ def make_child_chunks(
     chunk_start_index: int,
 ) -> list[Chunk]:
     chunks: list[Chunk] = []
-    for offset, text in enumerate(child_texts):
+    for offset, unit in enumerate(child_units):
         child_number = child_start_index + offset
-        page_start, page_end = require_page_range(
-            text,
-            fallback=(parent_chunk.page_start, parent_chunk.page_end),
-        )
 
         chunks.append(
             Chunk(
@@ -516,18 +685,23 @@ def make_child_chunks(
                 chunk_key=f"{version_key}::c::{child_number:04d}",
                 parent_chunk_key=parent_chunk.chunk_key,
                 chunk_type="child",
-                content=text,
+                content=unit.content,
                 heading_path=parent_chunk.heading_path,
-                page_start=page_start,
-                page_end=page_end,
+                item_marker=unit.item_marker,
+                item_level=unit.item_level,
+                item_path=unit.item_path,
+                legal_unit_type=unit.legal_unit_type,
+                block_type=unit.block_type,
+                page_start=unit.page_start,
+                page_end=unit.page_end,
                 chunk_index=chunk_start_index + offset,
-                token_count=count_units(text),
+                token_count=count_units(unit.content),
             )
         )
     return chunks
 ```
 
-Ly do khong truyen `section` vao `make_child_chunks()`:
+Lý do không truyền `section` vào `make_child_chunks()`:
 
 ```text
 ParentSection chi la object tam sau buoc tach heading.
@@ -535,14 +709,14 @@ parent_chunk la Chunk cha chinh thuc da tao tu ParentSection.
 Child chunk chi can parent_chunk de lay:
 - parent_chunk.chunk_key lam parent_chunk_key
 - parent_chunk.heading_path
-- parent_chunk.page_start/page_end lam fallback
+- parent_chunk.page_start/page_end lam fallback khi structural unit thieu page
 ```
 
-Sau khi da co `parent_chunk`, child pipeline khong can dua `section` tiep vao nua.
+Sau khi đã có `parent_chunk`, child pipeline không cần đưa `section` tiếp vào nữa.
 
 ---
 
-## 11. Ham Core `chunk_markdown_body`
+## 12. Hàm Core `chunk_markdown_body`
 
 File:
 
@@ -554,8 +728,8 @@ Suggested pattern:
 
 ```python
 from app.ingestion.chunking.child_chunker import (
+    build_child_units,
     make_child_chunks,
-    split_parent_chunk_to_child_texts,
 )
 from app.ingestion.chunking.parent_chunker import (
     build_parent_sections,
@@ -563,13 +737,17 @@ from app.ingestion.chunking.parent_chunker import (
 )
 
 
+DEFAULT_CHILD_CHUNK_SIZE = 1000
+DEFAULT_CHILD_CHUNK_OVERLAP = 100
+
+
 def chunk_markdown_body(
     *,
     body: str,
     document_key: str,
     version_key: str,
-    child_chunk_size: int = 1800,
-    child_chunk_overlap: int = 200,
+    child_chunk_size: int = DEFAULT_CHILD_CHUNK_SIZE,
+    child_chunk_overlap: int = DEFAULT_CHILD_CHUNK_OVERLAP,
 ) -> list[Chunk]:
     if not body.strip():
         raise ValueError("Markdown body is empty")
@@ -590,13 +768,13 @@ def chunk_markdown_body(
         chunks.append(parent)
         chunk_index += 1
 
-        child_texts = split_parent_chunk_to_child_texts(
+        child_units = build_child_units(
             parent,
             child_chunk_size=child_chunk_size,
             child_chunk_overlap=child_chunk_overlap,
         )
         children = make_child_chunks(
-            child_texts=child_texts,
+            child_units=child_units,
             parent_chunk=parent,
             document_key=document_key,
             version_key=version_key,
@@ -610,9 +788,11 @@ def chunk_markdown_body(
     return chunks
 ```
 
+Trong production caller, truyền `child_chunk_size` và `child_chunk_overlap` từ `get_rag_settings().chunking`. Function vẫn có default để test/unit call đơn giản, nhưng không rải magic number ở pipeline.
+
 ---
 
-## 12. Test Can Co
+## 13. Test Cần Có
 
 File:
 
@@ -721,100 +901,141 @@ def test_chunker_rejects_missing_page_marker():
         )
 ```
 
-Table test nen bat dau don gian:
+Table test:
 
 ```python
-def test_chunker_keeps_small_table_visible():
+def test_chunker_keeps_small_table_as_one_child_chunk():
     chunks = chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1")
-    table_chunks = [chunk for chunk in chunks if "| Cot A | Cot B |" in chunk.content]
+    table_chunks = [
+        chunk
+        for chunk in chunks
+        if chunk.chunk_type == "child" and "| Cot A | Cot B |" in chunk.content
+    ]
 
-    assert table_chunks
+    assert len(table_chunks) == 1
+    assert "|---|---|" in table_chunks[0].content
     assert "| A | B |" in table_chunks[0].content
 ```
 
-Khong assert table khong bao gio bi split neu `child_chunk_size` qua nho. Neu muon rule do, can implement table-protection rieng.
+Với table lớn hơn `child_chunk_size`, test phải assert mỗi child table vẫn có header + separator:
+
+```python
+def test_large_table_chunks_repeat_header_and_separator():
+    ...
+    table_chunks = [...]
+
+    assert len(table_chunks) > 1
+    for chunk in table_chunks:
+        assert "| Cot A | Cot B |" in chunk.content
+    assert "|---|---|" in chunk.content
+```
+
+Structural parser/chunker tests bắt buộc:
+
+```text
+1. Danh sách 5 mục dưới một heading tạo 1 parent và 5 child.
+2. Item không bị convert thành heading.
+3. `### 1. Mục đích` vẫn là heading.
+4. `### 1) Phạm vi` vẫn là heading.
+5. `### a) Đối tượng` vẫn là heading.
+6. `### - Nội dung` vẫn là heading.
+7. Markdown heading không bị demote thành numbered_item/lettered_item/bullet_item.
+8. Điều -> Khoản -> Điểm -> Bullet tạo đúng item_path.
+9. Paragraph được gắn đúng item hoặc sinh ambiguous report.
+10. Item con kế thừa context cha.
+11. Item cha kết thúc bằng ":" không tạo child rỗng.
+12. Bullet -, +, * tạo atomic child.
+13. Item quá dài chỉ split nội bộ.
+14. Không child nào chứa nội dung của hai item khác nhau.
+15. Marker trong table/code không bị parse thành item.
+16. Nội dung trước heading đầu tiên thuộc document-root parent.
+17. Table/code trong item kế thừa đúng context.
+18. Child ngắn có embedding_text chứa context thật.
+19. Page marker không bị đưa vào embedding_text.
+```
 
 ---
 
-## 13. Lenh Test
+## 14. Lệnh Test
 
 ```powershell
-cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
+cd E:\RHNA\1Visual\NLCS\CTU-Service\chatbot\backend
 ..\..\.venv\Scripts\python.exe -m pytest test/ingestion/test_chunker.py
 ```
 
 ---
 
-## 14. Done Khi
+## 15. Done Khi
 
-- [ ] Co dependency `langchain-text-splitters`.
-- [ ] Chunker khong mat noi dung body.
-- [ ] Parent chunk khong co `parent_chunk_key`.
-- [ ] Child chunk co `parent_chunk_key` la stable parent key.
+- [ ] Có dependency `langchain-text-splitters`.
+- [ ] Chunker không mất nội dung body.
+- [ ] Parent chunk không có `parent_chunk_key`.
+- [ ] Child chunk có `parent_chunk_key` là stable parent key.
 - [ ] `chunk_key` theo pattern `<version_key>::p/c::<0001>`.
 - [ ] `chunk_index` global sequential trong version.
-- [ ] `heading_path` duoc gan theo Markdown headers.
-- [ ] Moi chunk deu co `page_start`, `page_end`, `token_count`.
+- [ ] `heading_path` được gán theo Markdown headers.
+- [ ] Mọi chunk đều có `page_start`, `page_end`, `token_count`.
 - [ ] `page_start <= page_end`.
-- [ ] Small table van hien trong it nhat mot child chunk.
+- [ ] Small table thành đúng một child chunk riêng.
+- [ ] Large table nếu bị split thì mỗi child table có header + separator.
 - [ ] Test chunker pass.
 
 ---
 
-## 15. Loi De Gap
+## 16. Lỗi Dễ Gặp
 
-### Loi: import langchain sai
+### Lỗi: import langchain sai
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Dung import cu `from langchain.text_splitter import ...`
 ```
 
-Xu ly:
+Xử lý:
 
 ```python
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 ```
 
-### Loi: child chunk parent id khong ton tai
+### Lỗi: child chunk parent id không tồn tại
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 parent_chunk_key bi set bang DB id truoc khi insert DB.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Trong chunker chi dung stable parent key.
 Repository moi map stable key sang DB id.
 ```
 
-### Loi: unique constraint chunk_index
+### Lỗi: unique constraint chunk_index
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 chunk_index reset rieng cho parent va child.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Dung chunk_index global sequential cho tat ca parent + child chunks trong cung version.
 ```
 
-### Loi: table bi split
+### Lỗi: table bị split
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Recursive splitter cat theo character/paragraph, khong hieu semantic table.
 ```
 
-Xu ly MVP:
+Xử lý MVP:
 
 ```text
 Tang child_chunk_size va them test small table.

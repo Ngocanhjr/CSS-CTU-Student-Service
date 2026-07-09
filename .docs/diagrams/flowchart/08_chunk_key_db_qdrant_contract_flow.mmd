@@ -1,0 +1,24 @@
+%% Source: chatbot/.docs/guild_implement/08_PART_A_DB_SCHEMA_CONTRACT_GUIDE.md
+%% Contract: stable chunk_key crosses schema, preview, DB, and Qdrant.
+
+flowchart LR
+    A[Chunker creates Chunk<br/>chunk_key<br/>parent_chunk_key]
+    B[Repository inserts parent chunks<br/>by chunk_key]
+    C[Build map<br/>parent chunk_key -> DocumentChunk.id]
+    D[Repository inserts child chunks<br/>parent_chunk_id from map]
+    E[(PostgreSQL<br/>document_chunks)]
+    F[Build Qdrant payload]
+    G[(Qdrant point)]
+    H[Retriever uses<br/>postgres_chunk_id]
+    I[(PostgreSQL hydrate<br/>canonical content)]
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+
+    A -. stable external key .-> F
+    E -. internal source of truth .-> F
+    F -. includes .-> P["chunk_key<br/>parent_chunk_key<br/>postgres_chunk_id"]
+
+    J{{Do not use<br/>random point id}}
+    F --> K["make_point_id(version_key,<br/>chunk_key)"]
+    K --> G
+    J -. avoided by .-> K

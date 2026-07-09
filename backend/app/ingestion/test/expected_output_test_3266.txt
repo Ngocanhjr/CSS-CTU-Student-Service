@@ -1,0 +1,297 @@
+Expected output fixture for test_3266.md
+Strategy: page-aware parent sectioning from 9A, then embedding-ready text enrichment.
+
+Notes:
+- Page markers must be preserved until page range extraction runs.
+- This fixture records the stable parent-section output shape used before child splitting.
+- Child chunks inherit the parent page range when a child has no own page marker.
+- The last article in the source fixture is partial; that tail is expected.
+
+--------------------------------------------------------------------------------
+chunk_index: 0
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0001
+parent_chunk_key:
+page_start: 1
+page_end: 1
+heading_path: QUYẾT ĐỊNH > Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 1
+content_preview:
+Điều 1. Ban hành kèm theo Quyết định này Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy của Trường Đại học Cần Thơ.
+embedding_text_preview:
+Tai lieu: QUYẾT ĐỊNH Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUYẾT ĐỊNH > Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 1
+Trang: 1
+
+--------------------------------------------------------------------------------
+chunk_index: 1
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0002
+parent_chunk_key:
+page_start: 2
+page_end: 2
+heading_path: QUYẾT ĐỊNH > Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 2
+content_preview:
+Điều 2. Quyết định này có hiệu lực thi hành từ Học kỳ 2, năm học 2024 - 2025.
+embedding_text_preview:
+Tai lieu: QUYẾT ĐỊNH Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUYẾT ĐỊNH > Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 2
+Trang: 2
+
+--------------------------------------------------------------------------------
+chunk_index: 2
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0003
+parent_chunk_key:
+page_start: 2
+page_end: 2
+heading_path: QUYẾT ĐỊNH > Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 3
+content_preview:
+Điều 3. Chánh văn phòng Trường, Trưởng phòng Đào tạo, Trưởng phòng Công tác Sinh viên, Trưởng các đơn vị, viên chức và sinh viên có liên quan chịu trách nhiệm thi hành Quyết định này./.
+embedding_text_preview:
+Tai lieu: QUYẾT ĐỊNH Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUYẾT ĐỊNH > Ban hành Quy định công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 3
+Trang: 2
+
+--------------------------------------------------------------------------------
+chunk_index: 3
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0004
+parent_chunk_key:
+page_start: 3
+page_end: 3
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 1
+content_preview:
+Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 1
+Trang: 3
+
+--------------------------------------------------------------------------------
+chunk_index: 4
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0005
+parent_chunk_key:
+page_start: 3
+page_end: 3
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 2
+content_preview:
+Điều 2. Sinh viên.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 2
+Trang: 3
+
+--------------------------------------------------------------------------------
+chunk_index: 5
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0006
+parent_chunk_key:
+page_start: 3
+page_end: 4
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 3
+content_preview:
+Điều 3. Chương trình đào tạo, Bản mô tả chương trình đào tạo và chương trình dạy học.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 3
+Trang: 3-4
+
+--------------------------------------------------------------------------------
+chunk_index: 6
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0007
+parent_chunk_key:
+page_start: 4
+page_end: 4
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 4
+content_preview:
+Điều 4. Kế hoạch học tập.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 4
+Trang: 4
+
+--------------------------------------------------------------------------------
+chunk_index: 7
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0008
+parent_chunk_key:
+page_start: 4
+page_end: 5
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 5
+content_preview:
+Điều 5. Thời gian học tập.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 5
+Trang: 4-5
+
+--------------------------------------------------------------------------------
+chunk_index: 8
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0009
+parent_chunk_key:
+page_start: 5
+page_end: 5
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 6
+content_preview:
+Điều 6. Học kỳ.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 6
+Trang: 5
+
+--------------------------------------------------------------------------------
+chunk_index: 9
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0010
+parent_chunk_key:
+page_start: 5
+page_end: 6
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 7
+content_preview:
+Điều 7. Học phần, lớp học phần và lớp chuyên ngành.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 7
+Trang: 5-6
+
+--------------------------------------------------------------------------------
+chunk_index: 10
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0011
+parent_chunk_key:
+page_start: 6
+page_end: 6
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 8
+content_preview:
+Điều 8. Khối lượng học tập, tín chỉ và giờ giảng dạy.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 8
+Trang: 6
+
+--------------------------------------------------------------------------------
+chunk_index: 11
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0012
+parent_chunk_key:
+page_start: 6
+page_end: 7
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 9
+content_preview:
+Điều 9. Học bổng và trợ cấp xã hội.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 9
+Trang: 6-7
+
+--------------------------------------------------------------------------------
+chunk_index: 12
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0013
+parent_chunk_key:
+page_start: 7
+page_end: 7
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 10
+content_preview:
+Điều 10. Học phí, miễn, giảm học phí và hỗ trợ chi phí học tập.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Chương I > NHỮNG VẤN ĐỀ CHUNG > Điều 10
+Trang: 7
+
+--------------------------------------------------------------------------------
+chunk_index: 13
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0014
+parent_chunk_key:
+page_start: 7
+page_end: 7
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Sau thời hạn đóng học phí, SV không đóng học phí sẽ bị hủy kết quả học tập những học phần nợ học phí trong HK đó và buộc phải đóng học phí còn nợ cùng lúc với học phí của HK tiếp theo. Sinh viên không đóng học phí 2 HK liên tiếp sẽ bị buộc thôi học.
+content_preview:
+Sau thời hạn đóng học phí, SV không đóng học phí sẽ bị hủy kết quả học tập những học phần nợ học phí trong HK đó và buộc phải đóng học phí còn nợ cùng lúc với học phí của HK tiếp theo.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Sau thời hạn đóng học phí, SV không đóng học phí sẽ bị hủy kết quả học tập những học phần nợ học phí trong HK đó và buộc phải đóng học phí còn nợ cùng lúc với học phí của HK tiếp theo. Sinh viên không đóng học phí 2 HK liên tiếp sẽ bị buộc thôi học.
+Trang: 7
+
+--------------------------------------------------------------------------------
+chunk_index: 14
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0015
+parent_chunk_key:
+page_start: 10
+page_end: 11
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 18
+content_preview:
+Điều 18. Nghỉ học tạm thời, cảnh báo học tập, đình chỉ học tập và buộc thôi học.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 18
+Trang: 10-11
+
+--------------------------------------------------------------------------------
+chunk_index: 15
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0016
+parent_chunk_key:
+page_start: 11
+page_end: 11
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 19
+content_preview:
+Điều 19. Giờ lên lớp.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 19
+Trang: 11
+
+--------------------------------------------------------------------------------
+chunk_index: 16
+chunk_type: parent
+chunk_key: ctu-ctsv-qd3266-quy-dinh-cong-tac-hoc-vu-danh-cho-sinh-vien-trinh-do-dai-hoc-hinh-thuc-chinh-quy-v3::p::0017
+parent_chunk_key:
+page_start: 12
+page_end: 12
+heading_path: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 20
+content_preview:
+Điều 20. Học cùng lúc hai chương trình.
+embedding_text_preview:
+Tai lieu: QUY ĐỊNH Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy
+Don vi: Đại học Cần Thơ
+Loai: quyet_dinh
+Muc: QUY ĐỊNH > Công tác học vụ dành cho sinh viên trình độ đại học hình thức chính quy > Điều 20
+Trang: 12

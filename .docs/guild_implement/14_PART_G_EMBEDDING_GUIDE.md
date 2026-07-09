@@ -1,10 +1,12 @@
-# 14. Part G - Huong Dan Implement Embedding
+# 14. Part G - Hướng Dẫn Implement Embedding
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu guide 07, phan G.
+> **Trước khi embed:** chunks phải được tạo sau pre-chunk structural parsing theo `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md`. Bước này phải làm trước chunking, vì item/page/table/code sai sẽ làm sai `heading_path`, `item_path`, `legal_unit_type`, `page_start/page_end` của child trước khi embed.
 
-Muc tieu:
+File này tách chi tiết từ guide 07, phần G.
+
+Mục tiêu:
 
 ```text
 Tao abstraction embedder theo LangChain
@@ -13,15 +15,15 @@ co fake embedder de test nhanh
 co real NVIDIA/BGE-M3 embedder cho integration
 ```
 
-MVP chi embed child chunks.
+MVP chỉ embed child chunks.
 
-Neu da lam smoke test theo:
+Nếu đã làm smoke test theo:
 
 ```text
 chatbot/.docs/guild_implement/14A_EMBEDDING_RETRIEVAL_SMOKE_TEST_GUIDE.md
 ```
 
-thi guide nay khong phai cai lai tu dau. Chuyen cac phan da test tot sang module chinh thuc:
+thì guide này không phải cài lại từ đầu. Chuyển các phần đã test tốt sang module chính thức:
 
 ```text
 14A embed_texts() -> app/embedding/embedder.py
@@ -29,7 +31,7 @@ thi guide nay khong phai cai lai tu dau. Chuyen cac phan da test tot sang module
 14A query embedding -> embed_query()
 ```
 
-Khac biet quan trong:
+Khác biệt quan trọng:
 
 ```text
 14A doc Markdown va chunk truc tiep de smoke test.
@@ -40,7 +42,7 @@ Da chot RAG pipeline di theo LangChain, nen real embedder production dung LangCh
 
 ---
 
-## 1. File Can Tao/Sua
+## 1. File Cần Tạo/Sửa
 
 ```text
 chatbot/backend/app/embedding/embedder.py
@@ -49,7 +51,7 @@ chatbot/backend/app/embedding/embeder.py
 chatbot/backend/test/embedding/test_embedder.py
 ```
 
-File `embeder.py` dang sai chinh ta. Khong can xoa ngay. Tao `embedder.py`, roi de `embeder.py` re-export.
+File `embeder.py` đang sai chính tả. Không cần xóa ngay. Tạo `embedder.py`, rồi để `embeder.py` re-export.
 
 ---
 
@@ -61,30 +63,35 @@ File:
 chatbot/backend/requirements.txt
 ```
 
-Them:
+Thêm:
 
 ```text
 numpy>=1.26
 langchain-nvidia-ai-endpoints
 ```
 
-Unit test dung fake embedder. Integration test can `NVIDIA_API_KEY`.
+Unit test dùng fake embedder. Integration test cần `NVIDIA_API_KEY`.
 
 ---
 
 ## 3. Data Input Cho Embedding
 
-Khong embed moi raw content. Nen them context:
+Không embed mọi raw content. Nên thêm context:
 
 ```text
 Tai lieu: <title>
 Don vi: <department>
 Loai: <document_type>
 Muc: <heading_path>
+Don vi phap ly: <legal_unit_type>
+Duong dan muc: <item_path>
 Trang: <page_start>-<page_end>
 
 <content>
 ```
+
+Raw child content phải giữ nguyên. `embedding_text` chỉ là text phụ để embed, không ghi đè `content`.
+Không đưa page marker vào `embedding_text`. Không thêm thông tin suy diễn.
 
 Function:
 
@@ -98,6 +105,8 @@ def build_embedding_text(
     page_start: int | None,
     page_end: int | None,
     content: str,
+    item_path: list[str] | None = None,
+    legal_unit_type: str = "none",
 ) -> str:
     page = ""
     if page_start and page_end:
@@ -111,12 +120,28 @@ def build_embedding_text(
         f"Loai: {document_type}".strip(),
         f"Muc: {' > '.join(heading_path)}".strip(),
     ]
+    if legal_unit_type and legal_unit_type != "none":
+        lines.append(f"Don vi phap ly: {legal_unit_type}")
+    if item_path:
+        lines.append(f"Duong dan muc: {' > '.join(item_path)}")
     if page:
         lines.append(page)
 
     lines.append("")
-    lines.append(content.strip())
+    lines.append(remove_page_markers(content).strip())
     return "\n".join(line for line in lines if line is not None)
+```
+
+Helper:
+
+```python
+import re
+
+PAGE_RE = re.compile(r"<!--\s*page:\s*\d+\s*-->", re.IGNORECASE)
+
+
+def remove_page_markers(text: str) -> str:
+    return PAGE_RE.sub("", text)
 ```
 
 ---
@@ -145,7 +170,7 @@ class TextEmbedder(Protocol):
         raise NotImplementedError
 ```
 
-Dung Protocol de fake embedder va real embedder cung interface.
+Dùng Protocol để fake embedder và real embedder cùng interface.
 
 ---
 
@@ -169,7 +194,7 @@ class FakeEmbedder:
         return [base for _ in range(self.dimensions)]
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Fake vector chi dung test flow, khong dung retrieval quality.
@@ -208,7 +233,7 @@ class LangChainNvidiaEmbedder:
         return self.embedding.embed_query(query)
 ```
 
-Ghi chu:
+Ghi chú:
 
 ```text
 BGE-M3 dimension thuong la 1024.
@@ -218,11 +243,11 @@ Neu package LangChain NVIDIA doi signature, uu tien version package dang cai.
 
 ---
 
-## 7. Embed Child Chunks Tu DB Rows
+## 7. Embed Child Chunks Từ DB Rows
 
-Sau guide 12, DB da co `DocumentChunk` rows.
+Sau guide 12, DB đã có `DocumentChunk` rows.
 
-Function de format input:
+Function để format input:
 
 ```python
 from app.databases.models import DocumentChunk, DocumentVersion
@@ -244,10 +269,16 @@ def build_embedding_text_from_row(
         page_start=chunk.page_start,
         page_end=chunk.page_end,
         content=chunk.content,
+        item_path=chunk.extra_metadata.get("item_path", []) if chunk.extra_metadata else [],
+        legal_unit_type=(
+            chunk.extra_metadata.get("legal_unit_type", "none")
+            if chunk.extra_metadata
+            else "none"
+        ),
     )
 ```
 
-MVP chi select:
+MVP chỉ select:
 
 ```text
 chunk_type = child
@@ -279,10 +310,13 @@ def test_build_embedding_text_contains_context():
         page_start=1,
         page_end=2,
         content="Noi dung chunk",
+        item_path=["Khoan 1", "Diem a)"],
+        legal_unit_type="point",
     )
 
     assert "Tai lieu: Quy trinh cap bang diem" in text
     assert "Muc: Quy trinh > Buoc 1" in text
+    assert "Duong dan muc: Khoan 1 > Diem a)" in text
     assert "Noi dung chunk" in text
 
 
@@ -294,7 +328,7 @@ def test_fake_embedder_returns_vectors():
     assert len(vectors[0]) == 3
 ```
 
-Integration test that:
+Integration test thật:
 
 ```python
 import pytest
@@ -310,7 +344,7 @@ def test_bge_m3_embedder_returns_vector():
     assert len(vector) > 0
 ```
 
-Integration test phai skip khi khong co `NVIDIA_API_KEY`:
+Integration test phải skip khi không có `NVIDIA_API_KEY`:
 
 ```python
 @pytest.mark.skip(reason="requires NVIDIA_API_KEY")
@@ -318,7 +352,7 @@ Integration test phai skip khi khong co `NVIDIA_API_KEY`:
 
 ---
 
-## 9. Update `__init__.py` Va `embeder.py`
+## 9. Update `__init__.py` Và `embeder.py`
 
 File:
 
@@ -354,7 +388,7 @@ from app.embedding.embedder import *  # noqa: F401,F403
 
 ---
 
-## 10. Lenh Test
+## 10. Lệnh Test
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
@@ -365,21 +399,21 @@ cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
 
 ## 11. Done Khi
 
-- [ ] Co `embedder.py`.
-- [ ] Co `TextEmbedder` Protocol.
-- [ ] Co `FakeEmbedder` cho unit test.
-- [ ] Co `LangChainNvidiaEmbedder` cho NVIDIA/BGE-M3.
-- [ ] `build_embedding_text` them context title/heading/page.
-- [ ] `embeder.py` re-export de tranh import cu bi loi.
-- [ ] Unit test pass khong can tai model that.
+- [ ] Có `embedder.py`.
+- [ ] Có `TextEmbedder` Protocol.
+- [ ] Có `FakeEmbedder` cho unit test.
+- [ ] Có `LangChainNvidiaEmbedder` cho NVIDIA/BGE-M3.
+- [ ] `build_embedding_text` thêm context title/heading/page.
+- [ ] `embeder.py` re-export để tránh import cũ bị lỗi.
+- [ ] Unit test pass không cần tải model thật.
 
 ---
 
-## 12. Loi De Gap
+## 12. Lỗi Dễ Gặp
 
-### Loi: NVIDIA API key thieu hoac het credit
+### Lỗi: NVIDIA API key thiếu hoặc hết credit
 
-Xu ly:
+Xử lý:
 
 ```text
 Dung FakeEmbedder trong unit test.
@@ -387,18 +421,18 @@ Chi chay LangChainNvidiaEmbedder trong integration test rieng khi co NVIDIA_API_
 Dung cache trong 14A de tranh embed lai.
 ```
 
-### Loi: vector dimension khong khop Qdrant
+### Lỗi: vector dimension không khớp Qdrant
 
-Xu ly:
+Xử lý:
 
 ```text
 Tao Qdrant collection theo len(vector) thuc te tu embedder.
 Khong hardcode 1024 trong test fake 3 dimensions.
 ```
 
-### Loi: import `embeder` cu
+### Lỗi: import `embeder` cũ
 
-Xu ly:
+Xử lý:
 
 ```text
 Giu embeder.py wrapper re-export den khi refactor import xong.

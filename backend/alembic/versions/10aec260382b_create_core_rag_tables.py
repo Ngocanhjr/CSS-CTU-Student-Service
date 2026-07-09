@@ -1,8 +1,8 @@
 """create core rag tables
 
-Revision ID: c6ed09e8023d
+Revision ID: 10aec260382b
 Revises: 
-Create Date: 2026-06-23 08:59:51.833881
+Create Date: 2026-07-06 18:10:04.789118
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'c6ed09e8023d'
+revision: str = '10aec260382b'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,13 +26,9 @@ def upgrade() -> None:
     sa.Column('asset_key', sa.String(length=255), nullable=False),
     sa.Column('asset_type', sa.String(length=50), nullable=False),
     sa.Column('title', sa.String(length=500), nullable=False),
-    sa.Column('file_path', sa.Text(), nullable=False),
-    sa.Column('file_type', sa.String(length=50), nullable=False),
-    sa.Column('download_url', sa.Text(), nullable=False),
-    sa.Column('checksum', sa.String(length=128), nullable=True),
-    sa.Column('validity_status', sa.String(length=50), nullable=False),
+    sa.Column('url', sa.Text(), nullable=False),
+    sa.Column('checksum', sa.String(length=64), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     schema='css'
     )
@@ -63,11 +59,9 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('document_key', sa.String(length=255), nullable=False),
     sa.Column('title', sa.String(length=500), nullable=False),
-    sa.Column('department_id', sa.Integer(), nullable=False),
-    sa.Column('document_type_id', sa.Integer(), nullable=False),
     sa.Column('domain', sa.String(length=255), nullable=False),
     sa.Column('audience', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.ForeignKeyConstraint(['department_id'], ['css.departments.id'], ),
+    sa.Column('document_type_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['document_type_id'], ['css.document_types.id'], ),
     sa.PrimaryKeyConstraint('id'),
     schema='css'
@@ -76,35 +70,36 @@ def upgrade() -> None:
     op.create_table('document_versions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('document_id', sa.Integer(), nullable=False),
+    sa.Column('version_key', sa.String(length=255), nullable=False),
     sa.Column('title', sa.String(length=500), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=True),
     sa.Column('issued_date', sa.Date(), nullable=True),
-    sa.Column('effective_date', sa.Date(), nullable=True),
-    sa.Column('expiry_date', sa.Date(), nullable=True),
+    sa.Column('issuing_authority', sa.String(length=255), nullable=True),
+    sa.Column('signer_name', sa.String(length=255), nullable=True),
     sa.Column('is_latest', sa.Boolean(), nullable=False),
-    sa.Column('version_key', sa.String(length=255), nullable=False),
-    sa.Column('version_label', sa.String(length=255), nullable=False),
-    sa.Column('version_role', sa.String(length=50), nullable=False),
     sa.Column('source_url', sa.Text(), nullable=False),
-    sa.Column('source_file', sa.String(length=255), nullable=False),
     sa.Column('source_path', sa.Text(), nullable=False),
-    sa.Column('file_type', sa.String(length=100), nullable=False),
     sa.Column('canonical_markdown_path', sa.Text(), nullable=False),
+    sa.Column('file_type', sa.String(length=100), nullable=False),
     sa.Column('language', sa.String(length=20), nullable=False),
-    sa.Column('citation_type', sa.String(length=50), nullable=False),
-    sa.Column('checksum', sa.String(length=128), nullable=False),
-    sa.Column('metadata_hash', sa.String(length=128), nullable=True),
-    sa.Column('extra_metadata', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('accessed_date', sa.Date(), nullable=True),
+    sa.Column('checksum', sa.String(length=64), nullable=False),
+    sa.Column('extra_metadata', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.CheckConstraint('expiry_date IS NULL OR effective_date IS NULL OR effective_date <= expiry_date', name='chk_document_versions_date_range'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('ocr_status', sa.String(length=50), nullable=False),
+    sa.Column('review_status', sa.String(length=50), nullable=False),
+    sa.Column('rag_status', sa.String(length=50), nullable=False),
+    sa.Column('status_note', sa.Text(), nullable=True),
     sa.ForeignKeyConstraint(['document_id'], ['css.documents.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='css'
     )
     op.create_index(op.f('ix_css_document_versions_document_id'), 'document_versions', ['document_id'], unique=False, schema='css')
     op.create_index(op.f('ix_css_document_versions_is_latest'), 'document_versions', ['is_latest'], unique=False, schema='css')
+    op.create_index(op.f('ix_css_document_versions_ocr_status'), 'document_versions', ['ocr_status'], unique=False, schema='css')
+    op.create_index(op.f('ix_css_document_versions_rag_status'), 'document_versions', ['rag_status'], unique=False, schema='css')
+    op.create_index(op.f('ix_css_document_versions_review_status'), 'document_versions', ['review_status'], unique=False, schema='css')
     op.create_index(op.f('ix_css_document_versions_version_key'), 'document_versions', ['version_key'], unique=True, schema='css')
     op.create_table('document_assets',
     sa.Column('document_version_id', sa.Integer(), nullable=False),
@@ -112,34 +107,32 @@ def upgrade() -> None:
     sa.Column('relation_type', sa.String(length=50), nullable=False),
     sa.Column('required_when', sa.Text(), nullable=True),
     sa.Column('display_order', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['asset_id'], ['css.assets.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['document_version_id'], ['css.document_versions.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('document_version_id', 'asset_id'),
+    sa.PrimaryKeyConstraint('document_version_id', 'asset_id', 'relation_type'),
     schema='css'
     )
     op.create_table('document_chunks',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('document_version_id', sa.Integer(), nullable=False),
-    sa.Column('parent_id', sa.Integer(), nullable=True),
+    sa.Column('parent_chunk_id', sa.Integer(), nullable=True),
     sa.Column('chunk_key', sa.String(length=255), nullable=False),
     sa.Column('chunk_index', sa.Integer(), nullable=False),
     sa.Column('chunk_type', sa.String(length=20), nullable=False),
     sa.Column('heading_path', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('section_title', sa.String(length=500), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
-    sa.Column('page_start', sa.Integer(), nullable=False),
-    sa.Column('page_end', sa.Integer(), nullable=False),
-    sa.Column('token_count', sa.Integer(), nullable=False),
+    sa.Column('page_start', sa.Integer(), nullable=True),
+    sa.Column('page_end', sa.Integer(), nullable=True),
+    sa.Column('token_count', sa.Integer(), nullable=True),
     sa.Column('qdrant_point_id', sa.String(length=255), nullable=True),
     sa.Column('index_status', sa.String(length=50), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.CheckConstraint("chunk_type IN ('parent', 'child')", name='chk_document_chunks_type'),
-    sa.CheckConstraint('page_start <= page_end', name='chk_document_chunks_page_range'),
+    sa.CheckConstraint('page_start IS NULL OR page_end IS NULL OR page_start <= page_end', name='chk_document_chunks_page_range'),
     sa.ForeignKeyConstraint(['document_version_id'], ['css.document_versions.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['parent_id'], ['css.document_chunks.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['parent_chunk_id'], ['css.document_chunks.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('document_version_id', 'chunk_index', name='uq_document_chunk_index'),
     sa.UniqueConstraint('document_version_id', 'chunk_key', name='uq_document_chunk_key'),
@@ -149,45 +142,21 @@ def upgrade() -> None:
     op.create_index(op.f('ix_css_document_chunks_chunk_key'), 'document_chunks', ['chunk_key'], unique=False, schema='css')
     op.create_index(op.f('ix_css_document_chunks_document_version_id'), 'document_chunks', ['document_version_id'], unique=False, schema='css')
     op.create_index(op.f('ix_css_document_chunks_index_status'), 'document_chunks', ['index_status'], unique=False, schema='css')
-    op.create_table('document_relationships',
-    sa.Column('source_version_id', sa.Integer(), nullable=False),
-    sa.Column('target_version_id', sa.Integer(), nullable=False),
-    sa.Column('relation_type', sa.String(length=50), nullable=False),
-    sa.ForeignKeyConstraint(['source_version_id'], ['css.document_versions.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['target_version_id'], ['css.document_versions.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('source_version_id', 'target_version_id'),
-    sa.UniqueConstraint('source_version_id', 'target_version_id', 'relation_type', name='uq_document_version_relationship'),
-    schema='css'
-    )
-    op.create_index(op.f('ix_css_document_relationships_source_version_id'), 'document_relationships', ['source_version_id'], unique=False, schema='css')
-    op.create_index(op.f('ix_css_document_relationships_target_version_id'), 'document_relationships', ['target_version_id'], unique=False, schema='css')
-    op.create_table('document_version_status',
+    op.create_table('document_recipients',
     sa.Column('document_version_id', sa.Integer(), nullable=False),
-    sa.Column('validity_status', sa.String(length=50), nullable=False),
-    sa.Column('collection_status', sa.String(length=50), nullable=False),
-    sa.Column('ocr_status', sa.String(length=50), nullable=False),
-    sa.Column('review_status', sa.String(length=50), nullable=False),
-    sa.Column('rag_status', sa.String(length=50), nullable=False),
-    sa.Column('status_note', sa.Text(), nullable=True),
-    sa.Column('updated_by', sa.String(length=255), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('department_id', sa.Integer(), nullable=False),
+    sa.Column('effective_date', sa.Date(), nullable=False),
+    sa.ForeignKeyConstraint(['department_id'], ['css.departments.id'], ),
     sa.ForeignKeyConstraint(['document_version_id'], ['css.document_versions.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('document_version_id'),
+    sa.PrimaryKeyConstraint('document_version_id', 'department_id', 'effective_date'),
     schema='css'
     )
-    op.create_index(op.f('ix_css_document_version_status_collection_status'), 'document_version_status', ['collection_status'], unique=False, schema='css')
-    op.create_index(op.f('ix_css_document_version_status_ocr_status'), 'document_version_status', ['ocr_status'], unique=False, schema='css')
-    op.create_index(op.f('ix_css_document_version_status_rag_status'), 'document_version_status', ['rag_status'], unique=False, schema='css')
-    op.create_index(op.f('ix_css_document_version_status_review_status'), 'document_version_status', ['review_status'], unique=False, schema='css')
-    op.create_index(op.f('ix_css_document_version_status_validity_status'), 'document_version_status', ['validity_status'], unique=False, schema='css')
     op.create_table('ingestion_jobs',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('document_version_id', sa.Integer(), nullable=False),
     sa.Column('job_type', sa.String(length=50), nullable=False),
     sa.Column('status', sa.String(length=50), nullable=False),
-    sa.Column('current_stage', sa.String(length=100), nullable=False),
-    sa.Column('tool_name', sa.String(length=100), nullable=False),
+    sa.Column('current_step', sa.String(length=100), nullable=False),
     sa.Column('total_chunks', sa.Integer(), nullable=True),
     sa.Column('processed_chunks', sa.Integer(), nullable=False),
     sa.Column('error_message', sa.Text(), nullable=True),
@@ -211,21 +180,16 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_css_ingestion_jobs_status'), table_name='ingestion_jobs', schema='css')
     op.drop_index(op.f('ix_css_ingestion_jobs_document_version_id'), table_name='ingestion_jobs', schema='css')
     op.drop_table('ingestion_jobs', schema='css')
-    op.drop_index(op.f('ix_css_document_version_status_validity_status'), table_name='document_version_status', schema='css')
-    op.drop_index(op.f('ix_css_document_version_status_review_status'), table_name='document_version_status', schema='css')
-    op.drop_index(op.f('ix_css_document_version_status_rag_status'), table_name='document_version_status', schema='css')
-    op.drop_index(op.f('ix_css_document_version_status_ocr_status'), table_name='document_version_status', schema='css')
-    op.drop_index(op.f('ix_css_document_version_status_collection_status'), table_name='document_version_status', schema='css')
-    op.drop_table('document_version_status', schema='css')
-    op.drop_index(op.f('ix_css_document_relationships_target_version_id'), table_name='document_relationships', schema='css')
-    op.drop_index(op.f('ix_css_document_relationships_source_version_id'), table_name='document_relationships', schema='css')
-    op.drop_table('document_relationships', schema='css')
+    op.drop_table('document_recipients', schema='css')
     op.drop_index(op.f('ix_css_document_chunks_index_status'), table_name='document_chunks', schema='css')
     op.drop_index(op.f('ix_css_document_chunks_document_version_id'), table_name='document_chunks', schema='css')
     op.drop_index(op.f('ix_css_document_chunks_chunk_key'), table_name='document_chunks', schema='css')
     op.drop_table('document_chunks', schema='css')
     op.drop_table('document_assets', schema='css')
     op.drop_index(op.f('ix_css_document_versions_version_key'), table_name='document_versions', schema='css')
+    op.drop_index(op.f('ix_css_document_versions_review_status'), table_name='document_versions', schema='css')
+    op.drop_index(op.f('ix_css_document_versions_rag_status'), table_name='document_versions', schema='css')
+    op.drop_index(op.f('ix_css_document_versions_ocr_status'), table_name='document_versions', schema='css')
     op.drop_index(op.f('ix_css_document_versions_is_latest'), table_name='document_versions', schema='css')
     op.drop_index(op.f('ix_css_document_versions_document_id'), table_name='document_versions', schema='css')
     op.drop_table('document_versions', schema='css')

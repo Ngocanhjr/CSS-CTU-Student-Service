@@ -52,8 +52,7 @@ SPEC_MAINTENANCE_LOG.md
 
 - Schema hiện tại có 9 bảng.
 - Không dùng `version_status_history`, `document_version_status`, `document_version_relationships`, `collection_status`.
-- Không dùng `validity_status` trong `document_versions`.
-- `assets.validity_status` vẫn được giữ cho asset/form/link.
+- Không dùng `validity_status` trong DB. `documents`, `document_versions`, và `assets` đều không có cột này.
 
 ### Current MVP stack
 

@@ -4,7 +4,8 @@ from app.databases.models.documents import (
     Department,
     Document,
     DocumentType,
-    DocumentVersion
+    DocumentVersion,
+    DocumentRecipient
 )
 from app.databases.models.ingestion import IngestionJob
 
@@ -17,4 +18,5 @@ __all__ = [
     "DocumentType",
     "DocumentVersion",
     "IngestionJob",
+    "DocumentRecipient"
 ]

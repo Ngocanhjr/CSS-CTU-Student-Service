@@ -115,7 +115,7 @@ Department(code, name)
 Metadata:
 
 ```text
-department: str
+responsible_department: list[str]
 ```
 
 Helper:
@@ -146,8 +146,8 @@ from sqlalchemy import select
 from app.databases.models import Department
 
 
-async def get_or_create_department(session: AsyncSession, department: str) -> Department:
-    code, name = normalize_department(department)
+async def get_or_create_department(session: AsyncSession, department_code: str) -> Department:
+    code, name = normalize_department(department_code)
     result = await session.execute(select(Department).where(Department.code == code))
     row = result.scalar_one_or_none()
 
@@ -227,9 +227,9 @@ Lưu ý:
 
 ```text
 Không tạo document mới nếu document_key đã tồn tại.
-documents KHÔNG có department_id (theo spec 05). Quan hệ phòng ban nằm ở
-document_recipients (theo document_version + effective_date) và được gán riêng,
-không lấy từ YAML metadata.
+documents KHÔNG có department_id (theo spec 05). YAML dùng `responsible_department`
+làm danh sách mã phòng ban. Repository map các mã này sang `document_recipients`
+theo `document_version_id + department_id + effective_date`.
 ```
 
 ---
@@ -277,7 +277,7 @@ async def upsert_document_version(
     row.canonical_markdown_path = metadata.canonical_markdown_path
     row.language = metadata.language
     row.issuing_authority = metadata.issuing_authority
-    row.signer = metadata.signer
+    row.signer_name = metadata.signer_name
     row.accessed_date = metadata.accessed_date
     row.checksum = metadata.checksum
 
@@ -334,7 +334,68 @@ Trong MVP test database thì delete thẳng được.
 
 ---
 
-## 9. Insert Parent/Child Chunks
+## 9. Upsert Document Recipients
+
+`responsible_department` trong YAML/schema là list mã phòng ban. DB không có cột
+`documents.department_id`; repository map list này sang bảng `document_recipients`.
+
+`document_recipients.effective_date` là `Date` bắt buộc trong primary key. Không lấy chuỗi
+kiểu `Học kỳ 2, năm học 2024-2025` để ghi vào cột này. Nếu không có ngày tiếp nhận chính xác,
+dùng `metadata.issued_date` làm fallback. Nếu có `responsible_department` nhưng thiếu
+`issued_date`, raise lỗi rõ để người review bổ sung ngày.
+
+```python
+from datetime import date
+from sqlalchemy import delete
+
+from app.databases.models import DocumentRecipient
+
+
+def resolve_recipient_effective_date(metadata: DocumentMetadata) -> date:
+    if metadata.issued_date is None:
+        raise ValueError(
+            "responsible_department requires issued_date when no exact recipient "
+            "effective_date is available"
+        )
+    return metadata.issued_date
+
+
+async def replace_document_recipients(
+    session: AsyncSession,
+    *,
+    document_version_id: int,
+    metadata: DocumentMetadata,
+) -> None:
+    await session.execute(
+        delete(DocumentRecipient).where(
+            DocumentRecipient.document_version_id == document_version_id
+        )
+    )
+
+    if not metadata.responsible_department:
+        await session.flush()
+        return
+
+    effective_date = resolve_recipient_effective_date(metadata)
+    for department_code in metadata.responsible_department:
+        department = await get_or_create_department(session, department_code)
+        session.add(
+            DocumentRecipient(
+                document_version_id=document_version_id,
+                department_id=department.id,
+                effective_date=effective_date,
+            )
+        )
+
+    await session.flush()
+```
+
+Nếu YAML có hiệu lực dạng kỳ/năm, lưu chuỗi đó trong metadata phụ/notes nếu cần audit.
+Không thêm `effective_date` vào `document_versions`.
+
+---
+
+## 10. Insert Parent/Child Chunks
 
 Phần này quan trọng nhất.
 
@@ -434,15 +495,16 @@ async def insert_chunks(
 
 ---
 
-## 10. Main Save Function
+## 11. Main Save Function
 
 Thứ tự insert đúng theo schema 9 bảng:
 
 1. Upsert document_type
 2. Upsert document
 3. Upsert document_version (gồm cả status fields — **không có bước upsert status riêng**)
-4. Delete old chunks
-5. Insert parent chunks trước, child chunks sau
+4. Replace document_recipients từ `metadata.responsible_department`
+5. Delete old chunks
+6. Insert parent chunks trước, child chunks sau
 
 ```python
 async def save_document_with_chunks(
@@ -465,8 +527,13 @@ async def save_document_with_chunks(
     )
     # Không gọi upsert_document_version_status riêng —
     # status fields đã được set trong upsert_document_version ở trên.
-    # document_recipients (phòng ban tiếp nhận) gán riêng theo version + effective_date,
-    # không lấy từ YAML metadata.
+    # document_recipients (phòng ban tiếp nhận) lấy từ metadata.responsible_department
+    # và gán theo version + effective_date.
+    await replace_document_recipients(
+        session,
+        document_version_id=version.id,
+        metadata=metadata,
+    )
 
     await delete_existing_chunks(session, version.id)
     saved_chunks = await insert_chunks(
@@ -484,7 +551,7 @@ async def save_document_with_chunks(
 
 ---
 
-## 11. Test Repository
+## 12. Test Repository
 
 File:
 
@@ -555,7 +622,7 @@ Có thể copy pattern cleanup từ test_database_models.py.
 ## 12. Lệnh Test
 
 ```powershell
-cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
+cd E:\RHNA\1Visual\NLCS\CTU-Service\chatbot\backend
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
 ..\..\.venv\Scripts\python.exe -m pytest test/ingestion/test_ingestion_repository.py
 ```
@@ -566,7 +633,7 @@ $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_s
 
 - [ ] Upsert document_type được.
 - [ ] Upsert document theo `document_key` (KHÔNG có `department_id`).
-- [ ] `document_recipients` gán theo version + effective_date (không lấy từ YAML metadata).
+- [ ] `document_recipients` gán từ `metadata.responsible_department` theo version + effective_date.
 - [ ] Upsert version theo `version_key`.
 - [ ] Status fields (`ocr_status`, `review_status`, `rag_status`) được set trực tiếp trong `DocumentVersion`.
 - [ ] `rag_status` sau save chunks là `"chunked"`.

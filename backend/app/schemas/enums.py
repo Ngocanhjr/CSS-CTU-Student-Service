@@ -124,6 +124,13 @@ AssetType = Literal[
     "attachment",
 ]
 
+DocumentAssetRelationType = Literal[
+    "reference",  # tài liệu tham khảo
+    "attachment", # tài liệu đính kèm
+    "template",   # tài liệu mẫu
+    "guide",      # tài liệu hướng dẫn
+]
+
 FileType = Literal[
     "pdf",
     "doc",

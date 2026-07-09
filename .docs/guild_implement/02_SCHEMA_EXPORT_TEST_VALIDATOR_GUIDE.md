@@ -1,40 +1,40 @@
-# 02. Huong Dan Export Schema, Test `rag.py`, Va Metadata Validator
+# 02. Hướng Dẫn Export Schema, Test `rag.py`, Và Metadata Validator
 
 **Last Updated:** 2026-06-17
 
-File nay huong dan 3 buoc sau khi implement xong `app/schemas/rag.py`:
+File này hướng dẫn 3 bước sau khi implement xong `app/schemas/rag.py`:
 
-1. cap nhat `app/schemas/__init__.py`;
-2. tao test `tests/test_rag_schema.py`;
-3. tao `app/ingestion/metadata_validator.py`.
+1. cập nhật `app/schemas/__init__.py`;
+2. tạo test `tests/test_rag_schema.py`;
+3. tạo `app/ingestion/metadata_validator.py`.
 
-Khong bat dau 3 buoc nay neu `app/schemas/rag.py` chua import duoc.
+Không bắt đầu 3 bước này nếu `app/schemas/rag.py` chưa import được.
 
-## Dieu Kien Truoc Khi Lam
+## Điều Kiện Trước Khi Làm
 
-Chay tai `chatbot/backend`:
+Chạy tại `chatbot/backend`:
 
 ```powershell
 python -c "from app.schemas.rag import DocumentMetadata, DocumentVersionStatus, Chunk; print('rag schema ok')"
 ```
 
-Neu lenh nay loi, quay lai sua `rag.py` truoc.
+Nếu lệnh này lỗi, quay lại sửa `rag.py` trước.
 
-## Buoc 1: Cap Nhat `app/schemas/__init__.py`
+## Bước 1: Cập Nhật `app/schemas/__init__.py`
 
-Muc tieu cua `__init__.py` la cho phep import ngan gon:
+Mục tiêu của `__init__.py` là cho phép import ngắn gọn:
 
 ```python
 from app.schemas import DocumentMetadata, Chunk
 ```
 
-Thay vi:
+Thay vì:
 
 ```python
 from app.schemas.rag import DocumentMetadata, Chunk
 ```
 
-### Noi Dung De Xuat
+### Nội Dung Đề Xuất
 
 File:
 
@@ -42,7 +42,7 @@ File:
 chatbot/backend/app/schemas/__init__.py
 ```
 
-Noi dung:
+Nội dung:
 
 ```python
 from app.schemas.rag import (
@@ -62,47 +62,47 @@ __all__ = [
 ]
 ```
 
-### Nguyen Tac
+### Nguyên Tắc
 
-- Chi export schema da on dinh.
-- Khong export bang wildcard `from app.schemas.rag import *`.
-- Khong export enum tu `schemas/__init__.py` neu chua can. Enum da nam trong `app.schemas.enums`.
-- Neu sau nay them schema rieng nhu `assets.py`, `ingestion.py`, chi export class API can dung nhieu noi.
+- Chỉ export schema đã ổn định.
+- Không export bằng wildcard `from app.schemas.rag import *`.
+- Không export enum từ `schemas/__init__.py` nếu chưa cần. Enum đã nằm trong `app.schemas.enums`.
+- Nếu sau này thêm schema riêng như `assets.py`, `ingestion.py`, chỉ export class API cần dùng nhiều nơi.
 
-### Test Sau Khi Sua
+### Test Sau Khi Sửa
 
 ```powershell
 python -c "from app.schemas import DocumentMetadata, DocumentVersionStatus, Chunk; print('schema package export ok')"
 ```
 
-## Buoc 2: Tao `tests/test_rag_schema.py`
+## Bước 2: Tạo `tests/test_rag_schema.py`
 
-Hien tai neu chua co thu muc:
+Hiện tại nếu chưa có thư mục:
 
 ```text
 chatbot/backend/tests
 ```
 
-thi tao thu muc nay va them file:
+thì tạo thư mục này và thêm file:
 
 ```text
 chatbot/backend/tests/test_rag_schema.py
 ```
 
-### Muc Tieu Test
+### Mục Tiêu Test
 
-Test nen cover cac rule quan trong:
+Test nên cover các rule quan trọng:
 
-- import schema thanh cong;
-- metadata toi thieu tao duoc;
-- published document bat buoc `ocr_status = "done"`;
-- published document bat buoc `review_status = "approved"`;
-- khong chap nhan `ocr_status = "not_required"`;
-- parent chunk khong co `parent_chunk_key`;
-- child chunk phai co `parent_chunk_key`;
+- import schema thành công;
+- metadata tối thiểu tạo được;
+- published document bắt buộc `ocr_status = "done"`;
+- published document bắt buộc `review_status = "approved"`;
+- không chấp nhận `ocr_status = "not_required"`;
+- parent chunk không có `parent_chunk_key`;
+- child chunk phải có `parent_chunk_key`;
 - `page_start <= page_end`.
 
-### Noi Dung De Xuat
+### Nội Dung Đề Xuất
 
 ```python
 import pytest
@@ -204,25 +204,25 @@ def test_chunk_page_range_order():
         )
 ```
 
-### Cach Chay Test
+### Cách Chạy Test
 
-Tai `chatbot/backend`:
+Tại `chatbot/backend`:
 
 ```powershell
 python -m pytest tests/test_rag_schema.py
 ```
 
-Neu chua co pytest:
+Nếu chưa có pytest:
 
 ```powershell
 pip install pytest
 ```
 
-Neu du an khong muon them dependency ngay, co the tam chay import/validation bang cac lenh `python -c`, nhung ve lau dai nen dung pytest.
+Nếu dự án không muốn thêm dependency ngay, có thể tạm chạy import/validation bằng các lệnh `python -c`, nhưng về lâu dài nên dùng pytest.
 
-## Buoc 3: Tao `app/ingestion/metadata_validator.py`
+## Bước 3: Tạo `app/ingestion/metadata_validator.py`
 
-Chi implement file nay sau khi:
+Chỉ implement file này sau khi:
 
 - `rag.py` import ok;
 - `tests/test_rag_schema.py` pass.
@@ -233,19 +233,19 @@ File:
 chatbot/backend/app/ingestion/metadata_validator.py
 ```
 
-### Trach Nhiem
+### Trách Nhiệm
 
-`metadata_validator.py` nen lam cac viec:
+`metadata_validator.py` nên làm các việc:
 
-- nhan dict metadata da parse tu YAML/frontmatter;
-- validate bang `DocumentMetadata`;
-- tra ve object ket qua ro rang;
-- khong doc file Markdown truc tiep neu chua can;
-- khong ghi database;
-- khong chunk/index;
-- khong sua metadata ngam.
+- nhận dict metadata đã parse từ YAML/frontmatter;
+- validate bằng `DocumentMetadata`;
+- trả về object kết quả rõ ràng;
+- không đọc file Markdown trực tiếp nếu chưa cần;
+- không ghi database;
+- không chunk/index;
+- không sửa metadata ngầm.
 
-### Khong Nen Lam Trong File Nay
+### Không Nên Làm Trong File Này
 
 ```text
 OCR
@@ -258,9 +258,9 @@ Asset validation
 Ingestion job transition
 ```
 
-Cac viec do thuoc service/pipeline khac.
+Các việc đó thuộc service/pipeline khác.
 
-### Noi Dung De Xuat
+### Nội Dung Đề Xuất
 
 ```python
 from __future__ import annotations
@@ -304,27 +304,27 @@ def validate_document_metadata(raw_metadata: dict[str, Any]) -> MetadataValidati
     return MetadataValidationResult(valid=True, metadata=metadata)
 ```
 
-### Rule Publish Nam O Dau?
+### Rule Publish Nằm Ở Đâu?
 
-Rule publish nen nam trong `DocumentMetadata`/`DocumentVersionMetadata` validator cua `rag.py`.
+Rule publish nên nằm trong `DocumentMetadata`/`DocumentVersionMetadata` validator của `rag.py`.
 
-`metadata_validator.py` chi goi:
+`metadata_validator.py` chỉ gọi:
 
 ```python
 DocumentMetadata.model_validate(raw_metadata)
 ```
 
-De tranh duplicate business rule.
+Để tránh duplicate business rule.
 
 ### Test Cho Metadata Validator
 
-Sau khi co file validator, tao them:
+Sau khi có file validator, tạo thêm:
 
 ```text
 chatbot/backend/tests/test_metadata_validator.py
 ```
 
-Noi dung toi thieu:
+Nội dung tối thiểu:
 
 ```python
 from app.ingestion.metadata_validator import validate_document_metadata
@@ -352,30 +352,30 @@ def test_validate_document_metadata_failure():
     assert result.errors
 ```
 
-Chay:
+Chạy:
 
 ```powershell
 python -m pytest tests/test_metadata_validator.py
 ```
 
-## Checklist Hoan Thanh
+## Checklist Hoàn Thành
 
-- [ ] `rag.py` import duoc.
-- [ ] `app/schemas/__init__.py` export schema can dung.
-- [ ] `from app.schemas import DocumentMetadata, Chunk` chay duoc.
-- [ ] `tests/test_rag_schema.py` ton tai.
+- [ ] `rag.py` import được.
+- [ ] `app/schemas/__init__.py` export schema cần dùng.
+- [ ] `from app.schemas import DocumentMetadata, Chunk` chạy được.
+- [ ] `tests/test_rag_schema.py` tồn tại.
 - [ ] `python -m pytest tests/test_rag_schema.py` pass.
-- [ ] `metadata_validator.py` chi validate, khong lam pipeline side effect.
+- [ ] `metadata_validator.py` chỉ validate, không làm pipeline side effect.
 - [ ] `tests/test_metadata_validator.py` pass.
 
-## Thu Tu Nen Commit/Lam Viec
+## Thứ Tự Nên Commit/Làm Việc
 
-Lam tung buoc nho:
+Làm từng bước nhỏ:
 
 1. commit/snapshot sau khi `rag.py` pass test;
-2. sau do cap nhat `schemas/__init__.py`;
-3. sau do them `test_rag_schema.py`;
-4. sau do them `metadata_validator.py`;
-5. sau do them `test_metadata_validator.py`.
+2. sau đó cập nhật `schemas/__init__.py`;
+3. sau đó thêm `test_rag_schema.py`;
+4. sau đó thêm `metadata_validator.py`;
+5. sau đó thêm `test_metadata_validator.py`.
 
-Neu test fail o buoc nao, sua ngay buoc do truoc khi sang buoc tiep theo.
+Nếu test fail ở bước nào, sửa ngay bước đó trước khi sang bước tiếp theo.

@@ -1,20 +1,22 @@
-# 14A. Huong Dan Smoke Test Embedding + Retrieval Khong Qua DB
+# 14A. Hướng Dẫn Smoke Test Embedding + Retrieval Không Qua DB
 
 **Last Updated:** 2026-06-25
 
-File nay la guide rieng de test nhanh:
+> **Trước khi chạy guide này:** chunks phải đi qua pre-chunk structural parsing theo `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md`. Nếu chunker chưa parse đúng heading/item/table/code/page, smoke test ở đây có thể đánh giá sai chất lượng retrieval.
+
+File này là guide riêng để test nhanh:
 
 ```text
 markdown_reader -> chunker -> embedding -> Qdrant -> retrieval
 ```
 
-Khong thay the guide 11/12/13/14/15 chinh thuc.
+Không thay thế guide 11/12/13/14/15 chính thức.
 
 ---
 
-## 1. Muc Tieu
+## 1. Mục Tiêu
 
-Muc tieu cua smoke test:
+Mục tiêu của smoke test:
 
 ```text
 - Kiem tra chunker tao child chunks co search duoc khong.
@@ -23,7 +25,7 @@ Muc tieu cua smoke test:
 - Test nhanh retrieval truoc khi implement PostgreSQL repository va pipeline chinh thuc.
 ```
 
-Khong lam trong guide nay:
+Không làm trong guide này:
 
 ```text
 - Khong ghi PostgreSQL.
@@ -36,9 +38,9 @@ Khong lam trong guide nay:
 
 ---
 
-## 2. File Can Tao/Sua
+## 2. File Cần Tạo/Sửa
 
-14A van la smoke test, nhung function nen dat vao dung module ngay tu dau de sau nay 14/15/16 chi can hoan thien tiep.
+14A vẫn là smoke test, nhưng function nên đặt vào đúng module ngay từ đầu để sau này 14/15/16 chỉ cần hoàn thiện tiếp.
 
 ```text
 chatbot/backend/app/embedding/embedder.py
@@ -48,7 +50,7 @@ chatbot/backend/app/vectorstore/repository.py
 chatbot/backend/app/ingestion/smoke_embedding_retrieval.py
 ```
 
-`smoke_embedding_retrieval.py` chi orchestration test local. Khong dat logic embedding/vectorstore chinh trong file smoke.
+`smoke_embedding_retrieval.py` chỉ orchestration test local. Không đặt logic embedding/vectorstore chính trong file smoke.
 
 ---
 
@@ -104,7 +106,7 @@ smoke_embedding_retrieval.py khong tro thanh pipeline chinh thuc.
 
 ---
 
-## 4. Flow Tong The
+## 4. Flow Tổng Thể
 
 ```text
 Markdown file
@@ -119,26 +121,26 @@ Markdown file
   -> in top-k ket qua
 ```
 
-Chi embed child chunks trong smoke test:
+Chỉ embed child chunks trong smoke test:
 
 ```python
 child_chunks = [chunk for chunk in chunks if chunk.chunk_type == "child"]
 ```
 
-Parent chunks chua can embed trong smoke test. Parent se dung sau de mo rong context/repository.
+Parent chunks chưa cần embed trong smoke test. Parent sẽ dùng sau để mở rộng context/repository.
 
 ---
 
-## 5. Payload Qdrant Toi Thieu
+## 5. Payload Qdrant Tối Thiểu
 
-Moi point trong Qdrant can co payload:
+Mỗi point trong Qdrant cần có payload:
 
 ```python
 {
     "document_key": chunk.document_key,
     "version_key": chunk.version_key,
     "title": document.metadata.title,
-    "department": document.metadata.department,
+    "department": (document.metadata.responsible_department or ["UNKNOWN"])[0],
     "document_type": document.metadata.document_type,
     "domain": document.metadata.domain,
     "chunk_key": chunk.chunk_key,
@@ -151,7 +153,7 @@ Moi point trong Qdrant can co payload:
 }
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Khong co db_chunk_id/document_version_id trong smoke test vi bo qua PostgreSQL.
@@ -162,17 +164,17 @@ Metadata filter trong smoke test se filter tren payload nay, khong filter trong 
 
 ---
 
-## 6. Collection Qdrant De Xuat
+## 6. Collection Qdrant Đề Xuất
 
-Dung collection rieng cho smoke test:
+Dùng collection riêng cho smoke test:
 
 ```text
-ctu_chunks_smoke
+css_qdrant
 ```
 
-Khong dung chung collection production de tranh lan data test.
+Không dùng chung collection production để tránh lẫn data test.
 
-Neu dung BGE-M3, vector size thuong la:
+Nếu dùng BGE-M3, vector size thường là:
 
 ```text
 1024
@@ -186,7 +188,7 @@ Cosine
 
 ---
 
-## 7. Embedding Adapter Tam Thoi
+## 7. Embedding Adapter Tạm Thời
 
 File:
 
@@ -194,9 +196,9 @@ File:
 chatbot/backend/app/embedding/embedder.py
 ```
 
-Trong 14A, `embed_texts()` van la adapter nho, nhung dat ngay trong `app/embedding/embedder.py` de sau nay guide 14 hoan thien tiep, khong phai di chuyen file.
+Trong 14A, `embed_texts()` vẫn là adapter nhỏ, nhưng đặt ngay trong `app/embedding/embedder.py` để sau này guide 14 hoàn thiện tiếp, không phải di chuyển file.
 
-Yeu cau:
+Yêu cầu:
 
 ```text
 - Input: list[str]
@@ -204,17 +206,17 @@ Yeu cau:
 - Moi vector co cung dimension voi Qdrant collection
 ```
 
-Implementation that cua `embed_texts()` nam o muc 8, dung LangChain `NVIDIAEmbeddings`. Khong de `pass`, `...`, hoac `NotImplementedError` khi bat dau chay smoke test.
+Implementation thật của `embed_texts()` nằm ở mục 8, dùng LangChain `NVIDIAEmbeddings`. Không để `pass`, `...`, hoặc `NotImplementedError` khi bắt đầu chạy smoke test.
 
-Guide 14 se hoan thien them `TextEmbedder` protocol va `LangChainNvidiaEmbedder` trong cung file nay.
+Guide 14 sẽ hoàn thiện thêm `TextEmbedder` protocol và `LangChainNvidiaEmbedder` trong cùng file này.
 
 ---
 
-## 8. Dung NVIDIA API Key Qua LangChain
+## 8. Dùng NVIDIA API Key Qua LangChain
 
-Da chot RAG pipeline di theo LangChain, nen smoke test 14A cung dung LangChain embedding de khong lech voi production.
+Đã chốt RAG pipeline đi theo LangChain, nên smoke test 14A cũng dùng LangChain embedding để không lệch với production.
 
-Ly do:
+Lý do:
 
 ```text
 Chunker da dung langchain-text-splitters.
@@ -222,44 +224,44 @@ Embedding/retrieval dung LangChain giup thong nhat interface.
 14A smoke test se gan voi 14/15 production hon, it phai refactor lai.
 ```
 
-NVIDIA NIM retrieval API co endpoint embedding:
+NVIDIA NIM retrieval API có endpoint embedding:
 
 ```text
 https://integrate.api.nvidia.com/v1/embeddings
 ```
 
-Vi du model:
+Ví dụ model:
 
 ```text
 baai/bge-m3
 ```
 
-NVIDIA docs ghi endpoint nay nhan `model`, `input`, `encoding_format`, `truncate`; `input` co the la string hoac array string va khong duoc rong. Xem NVIDIA API docs: https://docs.api.nvidia.com/nim/reference/baai-bge-m3-invoke
+NVIDIA docs ghi endpoint này nhận `model`, `input`, `encoding_format`, `truncate`; `input` có thể là string hoặc array string và không được rỗng. Xem NVIDIA API docs: https://docs.api.nvidia.com/nim/reference/baai-bge-m3-invoke
 
-Bien moi truong:
+Biến môi trường:
 
 ```powershell
 $env:NVIDIA_API_KEY="nvapi-..."
 ```
 
-Hoac trong `.env` local:
+Hoặc trong `.env` local:
 
 ```text
 NVIDIA_API_KEY=nvapi-...
 NVIDIA_EMBEDDING_MODEL=baai/bge-m3
 ```
 
-Khong commit `.env` hoac API key.
+Không commit `.env` hoặc API key.
 
 ### Dependency
 
-Them vao `requirements.txt`:
+Thêm vào `requirements.txt`:
 
 ```text
 langchain-nvidia-ai-endpoints
 ```
 
-Neu sau nay dung Qdrant integration cua LangChain, them:
+Nếu sau này dùng Qdrant integration của LangChain, thêm:
 
 ```text
 langchain-qdrant
@@ -311,7 +313,7 @@ def embed_query(query: str) -> list[float]:
     return embeddings.embed_query(query)
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Huong chinh la LangChain NVIDIAEmbeddings.
@@ -320,9 +322,9 @@ Neu package doi signature, sua theo version package dang cai thay vi doi sang cl
 
 ---
 
-## 9. Vector Cache De Tiet Kiem Credit
+## 9. Vector Cache Để Tiết Kiệm Credit
 
-Nen lam cache ngay trong smoke test de tranh goi NVIDIA embedding lai nhieu lan khi chay thu.
+Nên làm cache ngay trong smoke test để tránh gọi NVIDIA embedding lại nhiều lần khi chạy thử.
 
 File:
 
@@ -336,9 +338,9 @@ Cache theo:
 chunk_key + model_name + text_hash
 ```
 
-Khong chi cache theo `chunk_key`, vi neu embedding text doi nhung key van giong thi vector cu se sai.
+Không chỉ cache theo `chunk_key`, vì nếu embedding text đổi nhưng key vẫn giống thì vector cũ sẽ sai.
 
-File cache de xuat:
+File cache đề xuất:
 
 ```text
 chatbot/backend/.cache/embedding_vectors.json
@@ -383,16 +385,17 @@ def save_vector_cache(cache: dict[str, dict[str, Any]], path: Path = CACHE_PATH)
     path.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
 ```
 
-Embed voi cache:
+Embed với cache:
 
 ```python
 def build_smoke_embedding_text(document: MarkdownDocument, chunk: Chunk) -> str:
     metadata = document.metadata
     page = f"Trang: {chunk.page_start}-{chunk.page_end}"
+    department = ", ".join(metadata.responsible_department or ["UNKNOWN"])
     return "\n".join(
         [
             f"Tai lieu: {metadata.title}",
-            f"Don vi: {metadata.department}",
+            f"Don vi: {department}",
             f"Loai: {metadata.document_type}",
             f"Muc: {' > '.join(chunk.heading_path)}",
             page,
@@ -444,7 +447,7 @@ def embed_chunks_with_cache(
     return [vectors_by_key[chunk.chunk_key] for chunk in chunks]
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Cache chi dung cho smoke test local.
@@ -517,10 +520,11 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 def build_smoke_embedding_text(document: MarkdownDocument, chunk: Chunk) -> str:
     metadata = document.metadata
     page = f"Trang: {chunk.page_start}-{chunk.page_end}"
+    department = ", ".join(metadata.responsible_department or ["UNKNOWN"])
     return "\n".join(
         [
             f"Tai lieu: {metadata.title}",
-            f"Don vi: {metadata.department}",
+            f"Don vi: {department}",
             f"Loai: {metadata.document_type}",
             f"Muc: {' > '.join(chunk.heading_path)}",
             page,
@@ -670,7 +674,7 @@ from app.vectorstore.models import (
 )
 
 
-SMOKE_COLLECTION_NAME = "ctu_chunks_smoke"
+SMOKE_COLLECTION_NAME = "css_qdrant"
 VECTOR_NAME = "embedding"
 
 
@@ -758,7 +762,7 @@ def build_smoke_payload(document: MarkdownDocument, chunk: Chunk) -> dict:
         document_key=chunk.document_key,
         version_key=chunk.version_key,
         title=metadata.title,
-        department=metadata.department,
+        department=(metadata.responsible_department or ["UNKNOWN"])[0],
         document_type=metadata.document_type,
         domain=metadata.domain,
         chunk_key=chunk.chunk_key,
@@ -801,12 +805,15 @@ def upsert_smoke_points(
     return len(points)
 
 
+DEFAULT_TOP_K = 5
+
+
 def search_smoke_points(
     client: QdrantClient,
     *,
     query_vector: list[float],
     collection_name: str = SMOKE_COLLECTION_NAME,
-    top_k: int = 5,
+    top_k: int = DEFAULT_TOP_K,
     filters: RetrievalFilter | None = None,
 ) -> list[QdrantSearchResult]:
     response = client.query_points(
@@ -825,6 +832,8 @@ def search_smoke_points(
         for result in response.points
     ]
 ```
+
+Smoke test có thể giữ default `top_k=5`, nhưng app code chính phải lấy default từ runtime settings. Không dùng `settings.retrieval.top_k or 5`.
 
 ### 10.5 `app/ingestion/smoke_embedding_retrieval.py`
 
@@ -869,7 +878,7 @@ def upsert_child_chunks(path: str | Path) -> int:
 def search(
     query: str,
     *,
-    top_k: int = 5,
+    top_k: int = DEFAULT_TOP_K,
     filters: RetrievalFilter | None = None,
 ) -> list[dict]:
     embeddings = get_nvidia_embeddings()
@@ -940,11 +949,13 @@ if __name__ == "__main__":
     main()
 ```
 
+Nếu smoke script đọc settings, dùng default trong settings model. Không fallback bằng `or`.
+
 ---
 
 ## 11. Qdrant Point ID
 
-Smoke test chot dung UUID stable tu `chunk_key`.
+Smoke test chốt dùng UUID stable từ `chunk_key`.
 
 ```python
 import uuid
@@ -954,13 +965,13 @@ def point_id_from_chunk_key(chunk_key: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_key))
 ```
 
-Van luu `chunk_key` trong payload de debug, nhung Qdrant point id dung UUID o tren.
+Vẫn lưu `chunk_key` trong payload để debug, nhưng Qdrant point id dùng UUID ở trên.
 
 ---
 
-## 12. Ket Qua Search Can In Ra
+## 12. Kết Quả Search Cần In Ra
 
-Moi result nen in:
+Mỗi result nên in:
 
 ```python
 {
@@ -974,9 +985,9 @@ Moi result nen in:
 }
 ```
 
-Dung output nay de xem retrieval co tra dung van ban khong.
+Dùng output này để xem retrieval có trả đúng văn bản không.
 
-Luu y:
+Lưu ý:
 
 ```text
 search_smoke_points() tra ve list[QdrantSearchResult], khong phai list[dict].
@@ -986,19 +997,19 @@ Khong dung `item["score"]` hoac `item["payload"]`, neu khong se gap TypeError: '
 
 ---
 
-## 13. Metadata Filter Theo Ngu Canh
+## 13. Metadata Filter Theo Ngữ Cảnh
 
-Trong 14A, metadata filter la Qdrant payload filter, khong phai PostgreSQL filter.
+Trong 14A, metadata filter là Qdrant payload filter, không phải PostgreSQL filter.
 
-Filter mac dinh:
+Filter mặc định:
 
 ```python
 RetrievalFilter(chunk_type="child")
 ```
 
-Ly do: smoke test chi embed child chunks, nen search nen gioi han vao child ngay tu dau.
+Lý do: smoke test chỉ embed child chunks, nên search nên giới hạn vào child ngay từ đầu.
 
-Filter theo ngu canh nen ho tro:
+Filter theo ngữ cảnh nên hỗ trợ:
 
 ```text
 department
@@ -1009,7 +1020,7 @@ version_key
 chunk_type
 ```
 
-Y nghia:
+Ý nghĩa:
 
 ```text
 department: gioi han theo don vi/phong ban, vi du CTSV.
@@ -1020,7 +1031,7 @@ version_key: test dung mot version cu the.
 chunk_type: mac dinh child; chi doi khi can debug parent sau nay.
 ```
 
-Khong dua cac filter nay lam mac dinh bat buoc trong 14A:
+Không đưa các filter này làm mặc định bắt buộc trong 14A:
 
 ```text
 review_status=approved
@@ -1028,13 +1039,13 @@ rag_status=published
 audience_student=true
 ```
 
-Ly do: neu collection smoke/production da chi nap cac chunk approved + valid + published + audience_student thi cac filter status nay gan nhu khong con gia tri runtime. Co the them sau nhu safety guard, nhung filter chinh nen la ngu canh.
+Lý do: nếu collection smoke/production đã chỉ nạp các chunk approved + valid + published + audience_student thì các filter status này gần như không còn giá trị runtime. Có thể thêm sau như safety guard, nhưng filter chính nên là ngữ cảnh.
 
 ---
 
-## 13A. Optional Demo RAG Chain Sau Khi Retrieval Chay
+## 13A. Optional Demo RAG Chain Sau Khi Retrieval Chạy
 
-Sau khi 14A da search ra top-k chunks, co the demo them LangChain pipe:
+Sau khi 14A đã search ra top-k chunks, có thể demo thêm LangChain pipe:
 
 ```python
 rag_chain = (
@@ -1048,14 +1059,14 @@ question = input("Question: ")
 answer = rag_chain.invoke(question)
 ```
 
-Neu 14A da build san `context_str` tu top-k results, khong truyen thang string vao dict pipe:
+Nếu 14A đã build sẵn `context_str` từ top-k results, không truyền thẳng string vào dict pipe:
 
 ```python
 # Sai vi context_str la str.
 {"context": context_str, "question": RunnablePassthrough()}
 ```
 
-Dung:
+Dùng:
 
 ```python
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
@@ -1072,15 +1083,15 @@ rag_chain = (
 )
 ```
 
-Neu khong boc `context_str`, se gap:
+Nếu không bọc `context_str`, sẽ gặp:
 
 ```text
 TypeError: Expected a Runnable, callable or dict. Instead got an unsupported type: <class 'str'>
 ```
 
-Nhung day chi la demo hoc LangChain chain, khong phai production flow cua project.
+Nhưng đây chỉ là demo học LangChain chain, không phải production flow của project.
 
-Trong project nay, production khong nen dua raw Qdrant retriever thang vao prompt vi:
+Trong project này, production không nên đưa raw Qdrant retriever thẳng vào prompt vì:
 
 ```text
 Qdrant khong phai source of truth.
@@ -1089,7 +1100,7 @@ Query mo ho nhu "dieu kien la gi" phai clarification/context completion truoc.
 Citation phai validate truoc khi tra cho user.
 ```
 
-Flow dung sau 14A:
+Flow đúng sau 14A:
 
 ```text
 question
@@ -1103,32 +1114,32 @@ question
   -> validate citations
 ```
 
-Huong dan chi tiet nam o:
+Hướng dẫn chi tiết nằm ở:
 
 ```text
 chatbot/.docs/guild_implement/18_PART_K_RAG_ANSWER_CHAIN_GUIDE.md
 ```
 
-14A van uu tien muc tieu:
+14A vẫn ưu tiên mục tiêu:
 
 ```text
 markdown -> chunk -> embedding -> Qdrant -> retrieval
 ```
 
-Chua can LLM answer de ket luan smoke test embedding/retrieval thanh cong.
+Chưa cần LLM answer để kết luận smoke test embedding/retrieval thành công.
 
 ---
 
-## 14. Lenh Chay
+## 14. Lệnh Chạy
 
-Tu backend:
+Từ backend:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
 python -m app.ingestion.smoke_embedding_retrieval
 ```
 
-Sau khi chay, chuong trinh hoi tung gia tri trong console:
+Sau khi chạy, chương trình hỏi từng giá trị trong console:
 
 ```text
 Markdown path: app/ingestion/chunking/test/02_1470KHTH_06-05-2024.md
@@ -1142,23 +1153,23 @@ Version key filter (optional): ctu-ctsv-02-1470khth-06-05-2024-7aa5eda77e08
 Chunk type [child]: child
 ```
 
-Voi pipeline interactive, nen boc prompt trong `while True` de hoi lien tuc:
+Với pipeline interactive, nên bọc prompt trong `while True` để hỏi liên tục:
 
 ```text
 Question (nhập 0 để dừng):
 ```
 
-Neu nguoi dung nhap:
+Nếu người dùng nhập:
 
 ```text
 0
 ```
 
-thi dung chuong trinh ngay, khong retrieval va khong goi LLM. Neu nhap cau hoi khac, chuong trinh tra loi xong se quay lai hoi tiep.
+thì dừng chương trình ngay, không retrieval và không gọi LLM. Nếu nhập câu hỏi khác, chương trình trả lời xong sẽ quay lại hỏi tiếp.
 
-Neu khong can filter nao thi de trong va bam Enter.
+Nếu không cần filter nào thì để trống và bấm Enter.
 
-Vi du debug rieng mot tai lieu/version:
+Ví dụ debug riêng một tài liệu/version:
 
 ```text
 Markdown path: path/to/document.md
@@ -1172,7 +1183,7 @@ Version key filter (optional): xin-giay-khai-sinh-v1
 Chunk type [child]:
 ```
 
-Neu loi import `app`, dam bao dang dung folder:
+Nếu lỗi import `app`, đảm bảo đang dùng folder:
 
 ```text
 chatbot/backend
@@ -1182,27 +1193,27 @@ chatbot/backend
 
 ## 15. Checklist Done
 
-- [ ] Doc duoc Markdown bang `read_markdown_document()`.
-- [ ] Chunk duoc bang `chunk_markdown_document()`.
-- [ ] Co child chunks.
-- [ ] Co `NVIDIA_API_KEY` trong environment local.
-- [ ] Embedding model tra vector dung dimension.
+- [ ] Đọc được Markdown bằng `read_markdown_document()`.
+- [ ] Chunk được bằng `chunk_markdown_document()`.
+- [ ] Có child chunks.
+- [ ] Có `NVIDIA_API_KEY` trong environment local.
+- [ ] Embedding model trả vector đúng dimension.
 - [ ] Vector cache theo `chunk_key + model + text_hash`.
-- [ ] Chay lai smoke test khong embed lai chunk da cache.
-- [ ] Tao duoc Qdrant collection rieng `ctu_chunks_smoke`.
-- [ ] Upsert duoc child chunks.
-- [ ] Query tra ve top-k results.
-- [ ] Result co `chunk_key`, `heading_path`, `page_start/page_end`, `content_preview`.
-- [ ] Payload co `title`, `department`, `document_type`, `domain`.
-- [ ] Search smoke test truyen duoc `RetrievalFilter`.
-- [ ] Filter theo `department`, `document_type`, `domain`, `document_key`, `version_key`, `chunk_type` hoat dong.
-- [ ] Khong can PostgreSQL de chay smoke test.
+- [ ] Chạy lại smoke test không embed lại chunk đã cache.
+- [ ] Tạo được Qdrant collection riêng `css_qdrant`.
+- [ ] Upsert được child chunks.
+- [ ] Query trả về top-k results.
+- [ ] Result có `chunk_key`, `heading_path`, `page_start/page_end`, `content_preview`.
+- [ ] Payload có `title`, `department`, `document_type`, `domain`.
+- [ ] Search smoke test truyền được `RetrievalFilter`.
+- [ ] Filter theo `department`, `document_type`, `domain`, `document_key`, `version_key`, `chunk_type` hoạt động.
+- [ ] Không cần PostgreSQL để chạy smoke test.
 
 ---
 
-## 16. Khi Nao Quay Lai 11/12/13
+## 16. Khi Nào Quay Lại 11/12/13
 
-Sau khi smoke test chung minh retrieval co tin hieu tot, quay lai lam:
+Sau khi smoke test chứng minh retrieval có tín hiệu tốt, quay lại làm:
 
 ```text
 11 Chunk Preview
@@ -1212,7 +1223,7 @@ Sau khi smoke test chung minh retrieval co tin hieu tot, quay lai lam:
 15 Qdrant vectorstore chinh thuc
 ```
 
-Ly do:
+Lý do:
 
 ```text
 Smoke test chi kiem tra search duoc hay khong.

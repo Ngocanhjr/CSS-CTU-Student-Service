@@ -18,7 +18,7 @@
 
     { "id": "api",        "type": "backend",   "label": "FastAPI Backend",    "sublabel": "/api/v1 · versioned",       "pos": [560, 300], "size": [150, 58] },
 
-    { "id": "ingestion",  "type": "backend",   "label": "Ingestion Module",   "sublabel": "chunk · embed · index",     "pos": [860,  80], "size": [150, 58] },
+    { "id": "ingestion",  "type": "backend",   "label": "Ingestion Module",   "sublabel": "normalize · chunk · index",     "pos": [860,  80], "size": [150, 58] },
     { "id": "retrieval",  "type": "backend",   "label": "Retrieval Module",   "sublabel": "BM25 + dense · RRF",        "pos": [860, 300], "size": [150, 58] },
     { "id": "llm_mod",    "type": "backend",   "label": "LLM Module",         "sublabel": "grounded answer · citation","pos": [860, 520], "size": [150, 58] },
 
@@ -142,7 +142,7 @@
   ],
   "cards": [
     { "dot": "emerald", "title": "Frontend",           "items": ["Flutter là client duy nhất", "Không kết nối trực tiếp DB hay Qdrant", "Citation drawer hiển thị nguồn trích dẫn"] },
-    { "dot": "cyan",    "title": "Backend RAG Modules","items": ["Ingestion: validate → chunk → embed → index", "Retrieval: BM25/FTS + dense → RRF → parent expand", "LLM: grounded answer với citation bắt buộc"] },
+    { "dot": "cyan",    "title": "Backend RAG Modules","items": ["Ingestion: validate → normalize → chunk → embed → index", "Retrieval: BM25/FTS + dense → RRF → parent expand", "LLM: grounded answer với citation bắt buộc"] },
     { "dot": "rose",    "title": "Data & Security",    "items": ["PostgreSQL: nguồn chính thức 9 bảng css schema", "Qdrant: vector index BGE-M3 1024d cosine", "Auth/RBAC là post-MVP"] }
   ]
 }

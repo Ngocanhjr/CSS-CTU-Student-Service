@@ -13,7 +13,7 @@ class MarkdownDocument:
     path: Path # đường dẫn file gốc
     metadata: DocumentMetadata #metadata
     body: str #nội dung file
-    raw_frontmatter: dict #giữ lại yaml gốc
+    raw_frontmatter: dict[str, Any] #giữ lại yaml gốc
 
 def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     normalized = text.replace("\r\n", "\n")

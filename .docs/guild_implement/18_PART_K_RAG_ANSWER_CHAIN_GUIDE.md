@@ -1,16 +1,16 @@
-# 18. Part K - Huong Dan RAG Answer Chain Bang LangChain
+# 18. Part K - Hướng Dẫn RAG Answer Chain Bằng LangChain
 
 **Last Updated:** 2026-06-27
 
-File nay bat dau sau guide 16.
+File này bắt đầu sau guide 16.
 
-Guide 16 chi lam retrieval:
+Guide 16 chỉ làm retrieval:
 
 ```text
 query -> retriever -> hydrate PostgreSQL -> RetrievalResult co citation
 ```
 
-Guide 18 moi lam answer chain:
+Guide 18 mới làm answer chain:
 
 ```text
 question
@@ -27,9 +27,9 @@ question
 
 ---
 
-## 1. Vi Sao Khong Dung Chain Thang Cho Production
+## 1. Vì Sao Không Dùng Chain Thẳng Cho Production
 
-LangChain example don gian:
+LangChain example đơn giản:
 
 ```python
 rag_chain = (
@@ -40,9 +40,9 @@ rag_chain = (
 )
 ```
 
-Dung de demo nhanh, nhung chua du cho project nay.
+Dùng để demo nhanh, nhưng chưa đủ cho project này.
 
-Ly do:
+Lý do:
 
 ```text
 retriever tra ve LangChain Documents tu Qdrant payload.
@@ -53,13 +53,13 @@ Query mo ho nhu "dieu kien la gi" phai clarification truoc.
 Citation phai validate truoc khi tra cho user.
 ```
 
-Vi vay production chain khong dua raw Qdrant retriever thang vao prompt.
+Vì vậy production chain không đưa raw Qdrant retriever thẳng vào prompt.
 
 ---
 
-## 2. Chain Dung Cho Project
+## 2. Chain Dùng Cho Project
 
-Flow nen dung:
+Flow nên dùng:
 
 ```text
 input question
@@ -74,7 +74,7 @@ input question
   -> validate_answer_citations()
 ```
 
-Tach file de xuat:
+Tách file đề xuất:
 
 ```text
 chatbot/backend/app/retrieval/retriever.py
@@ -86,9 +86,9 @@ chatbot/backend/test/llm/test_rag_chain.py
 
 ---
 
-## 3. Context Block Co Citation
+## 3. Context Block Có Citation
 
-Input la `list[RetrievalResult]` tu guide 16.
+Input là `list[RetrievalResult]` từ guide 16.
 
 Function:
 
@@ -97,7 +97,7 @@ def build_context_block(results: list[RetrievalResult]) -> str:
     ...
 ```
 
-Format de xuat:
+Format đề xuất:
 
 ```text
 [SOURCE 1]
@@ -121,7 +121,7 @@ Khong co source phu hop thi noi khong tim thay trong tai lieu hien co.
 
 ---
 
-## 4. Prompt De Xuat
+## 4. Prompt Đề Xuất
 
 File:
 
@@ -202,6 +202,9 @@ def build_context_block(results: list[RetrievalResult]) -> str:
 Answer function:
 
 ```python
+DEFAULT_TOP_K = 5
+
+
 async def answer_question(
     *,
     session,
@@ -209,7 +212,7 @@ async def answer_question(
     llm,
     question: str,
     context: RetrievalContext | None = None,
-    top_k: int = 5,
+    top_k: int = DEFAULT_TOP_K,
 ) -> RagAnswer:
     # Production nen goi complete_or_clarify_query() truoc do.
     # Neu la greeting/smalltalk hoac query can clarification, tra response truc tiep
@@ -245,7 +248,9 @@ async def answer_question(
     )
 ```
 
-Luu y:
+`top_k` mặc định lấy từ runtime settings ở caller (`retrieval.top_k = 5`). Không dùng fallback kiểu `settings.retrieval.top_k or 5`.
+
+Lưu ý:
 
 ```text
 Skeleton tren chua validate citation trong text answer.
@@ -255,9 +260,9 @@ Buoc production tiep theo phai them citation_validator.py.
 
 ---
 
-## 6. Demo Chain Don Gian Chi De Hoc LangChain
+## 6. Demo Chain Đơn Giản Chỉ Để Học LangChain
 
-Neu chi muon hoc cach pipe cua LangChain, co the viet demo:
+Nếu chỉ muốn học cách pipe của LangChain, có thể viết demo:
 
 ```python
 while True:
@@ -280,7 +285,7 @@ while True:
     print(answer)
 ```
 
-Neu `context` da la string co dinh, vi du `context_str` duoc build tu retrieval results, khong duoc truyen thang string vao dict pipe:
+Nếu `context` đã là string cố định, ví dụ `context_str` được build từ retrieval results, không được truyền thẳng string vào dict pipe:
 
 ```python
 # Sai: context_str la str, khong phai Runnable/callable.
@@ -292,7 +297,7 @@ rag_chain = (
 )
 ```
 
-Dung:
+Đúng:
 
 ```python
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
@@ -309,13 +314,13 @@ rag_chain = (
 )
 ```
 
-Neu khong boc `context_str`, LangChain se bao loi:
+Nếu không bọc `context_str`, LangChain sẽ báo lỗi:
 
 ```text
 TypeError: Expected a Runnable, callable or dict. Instead got an unsupported type: <class 'str'>
 ```
 
-Nhung demo nay:
+Nhưng demo này:
 
 ```text
 Khong hydrate PostgreSQL.
@@ -324,17 +329,17 @@ Khong validate citation.
 Khong dam bao source of truth.
 ```
 
-Chi dung de hoc LangChain pipe, khong dung lam production RAG endpoint.
+Chỉ dùng để học LangChain pipe, không dùng làm production RAG endpoint.
 
 ---
 
 ## 7. Checklist
 
-- [ ] Guide 16 retrieval tra `RetrievalResult` co content/citation.
-- [ ] Query mo ho duoc clarification truoc retrieval.
-- [ ] `build_context_block()` tao context co SOURCE/citation.
-- [ ] Prompt yeu cau tra loi dua tren source.
-- [ ] Chain dung `RAG_ANSWER_PROMPT | llm | StrOutputParser()`.
-- [ ] Khong dua raw Qdrant retriever thang vao prompt production.
-- [ ] Co citation list trong response.
-- [ ] Them `citation_validator.py` truoc khi public endpoint cho user.
+- [ ] Guide 16 retrieval trả `RetrievalResult` có content/citation.
+- [ ] Query mơ hồ được clarification trước retrieval.
+- [ ] `build_context_block()` tạo context có SOURCE/citation.
+- [ ] Prompt yêu cầu trả lời dựa trên source.
+- [ ] Chain dùng `RAG_ANSWER_PROMPT | llm | StrOutputParser()`.
+- [ ] Không đưa raw Qdrant retriever thẳng vào prompt production.
+- [ ] Có citation list trong response.
+- [ ] Thêm `citation_validator.py` trước khi public endpoint cho user.

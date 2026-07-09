@@ -11,10 +11,6 @@ from app.schemas.base import StrictSchema
 from app.schemas.enums import (
     AssetType,
     DocumentAssetRelationType,
-    FileType,
-    RagStatus,
-    ReviewStatus,
-    ValidityStatus,
 )
 
 class AssetMetadata(StrictSchema):

@@ -45,6 +45,9 @@ Mermaid diagrams được dùng cho:
 | `erd.mmd` | ERD | Database entity-relationship diagram |
 | `sequence_chat_flow.mmd` | Sequence | Student question → answer sequence |
 | `sequence_ingestion_flow.mmd` | Sequence | Admin upload → publish sequence |
+| `rag-ingestion-module.mmd` | Flowchart | RAG Ingestion Module chi tiết: canonical MD + YAML → validate → chunk → embed → index → publish |
+| `rag-retrieval-module.mmd` | Flowchart | RAG Retrieval Module chi tiết: query → metadata filter → PostgreSQL FTS/BM25 + Qdrant dense → RRF → context pack |
+| `rag-llm-generation-module.mmd` | Flowchart | RAG LLM Answer Generation Module chi tiết: context pack → prompt → LLM → citation → trace → response |
 
 ### Cách Xem Mermaid Diagrams
 
@@ -122,6 +125,9 @@ Excalidraw diagrams được dùng cho:
 | `erd.mmd` | `05_DATABASE_SPEC.md` |
 | `sequence_chat_flow.mmd` | `02_REQUIREMENTS.md` (FR-1), `06_API_SPEC.md` |
 | `sequence_ingestion_flow.mmd` | `02_REQUIREMENTS.md` (FR-2), `06_API_SPEC.md` |
+| `rag-ingestion-module.html` / `.json` / `.mmd` | `07_RAG_SPEC.md`, `08_OCR_INGESTION_SPEC.md`, `05_DATABASE_SPEC.md` |
+| `rag-retrieval-module.html` / `.json` / `.mmd` | `07_RAG_SPEC.md`, `05_DATABASE_SPEC.md`, `06_API_SPEC.md` |
+| `rag-llm-generation-module.html` / `.json` / `.mmd` | `07_RAG_SPEC.md`, `06_API_SPEC.md`, `05_DATABASE_SPEC.md` |
 
 ---
 

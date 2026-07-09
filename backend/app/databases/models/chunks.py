@@ -22,7 +22,7 @@ class DocumentChunk(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     document_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True)
-    parent_chunk_id: Mapped[int | None] = mapped_column(ForeignKey("css.document_chunks.id", ondelete="CASCADE"), nullable=False)
+    parent_chunk_id: Mapped[int | None] = mapped_column(ForeignKey("css.document_chunks.id", ondelete="CASCADE"), nullable=True)
 
     chunk_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -31,9 +31,9 @@ class DocumentChunk(Base):
     section_title: Mapped[str] = mapped_column(String(500), default="", nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    page_start: Mapped[int] = mapped_column(Integer, nullable=False)
-    page_end: Mapped[int] = mapped_column(Integer, nullable=False)
-    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     qdrant_point_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     index_status: Mapped[str] = mapped_column(String(50), default="not_indexed", nullable=False, index=True)

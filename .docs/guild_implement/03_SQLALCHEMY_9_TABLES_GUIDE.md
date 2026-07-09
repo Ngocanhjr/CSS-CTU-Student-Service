@@ -322,7 +322,7 @@ Quan hệ với departments đi qua bảng document_recipients (theo document_ve
 ### Model 4: `DocumentVersion`
 
 Khớp DDL spec 05 (`document_versions`). Status nằm trực tiếp trong bảng này. Không có
-`validity_status` ở version (chỉ `assets` mới có).
+`validity_status` trong DB.
 
 ```python
 class DocumentVersion(Base):
@@ -341,7 +341,7 @@ class DocumentVersion(Base):
     file_type: Mapped[str | None] = mapped_column(String(50))
     language: Mapped[str] = mapped_column(String(10), default="vi", nullable=False)
     issuing_authority: Mapped[str | None] = mapped_column(String(255))
-    signer: Mapped[str | None] = mapped_column(String(255))
+    signer_name: Mapped[str | None] = mapped_column(String(255))
     checksum: Mapped[str | None] = mapped_column(String(64))
     extra_metadata: Mapped[dict | None] = mapped_column(JSONB)
     accessed_date: Mapped[date | None] = mapped_column(Date)
@@ -492,7 +492,7 @@ app/databases/models/assets.py
 ### Model 8: `Asset`
 
 Khớp DDL spec 05 (`assets`): chỉ `asset_key`, `title`, `asset_type`, `url`, `checksum`,
-`validity_status`, `created_at`. Không có `file_path/file_type/download_url/is_latest/review_status/rag_status`.
+`created_at`. Không có `validity_status/file_path/file_type/download_url/is_latest/review_status/rag_status`.
 
 ```python
 class Asset(Base):
@@ -504,7 +504,6 @@ class Asset(Base):
     asset_type: Mapped[str] = mapped_column(String(50), nullable=False)
     url: Mapped[str | None] = mapped_column(Text)
     checksum: Mapped[str | None] = mapped_column(String(64))
-    validity_status: Mapped[str] = mapped_column(String(50), default="valid", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     document_links: Mapped[list["DocumentAsset"]] = relationship(back_populates="asset", cascade="all, delete-orphan")
@@ -652,7 +651,7 @@ Chưa cần test Qdrant trong bước này.
 - Dùng `chunk_level` thay vì `chunk_type` trong `document_chunks`. Sai.
 - Dùng `current_stage` hoặc thêm `tool_name` trong `ingestion_jobs`. Sai, dùng `current_step`.
 - Tạo bảng riêng `document_version_status`. Sai, status nằm trực tiếp trong `document_versions`.
-- Thêm `validity_status` vào `document_versions`. Sai, chỉ `assets` có `validity_status`.
+- Thêm `validity_status` vào DB model. Sai, field này đã bỏ khỏi DB.
 - Bắt buộc `is_latest = true` để retrieve. Sai, `is_latest` chỉ là ranking preference.
 - Quên schema `css` trong Alembic migration.
 

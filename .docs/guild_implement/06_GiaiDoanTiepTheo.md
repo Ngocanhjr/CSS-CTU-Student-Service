@@ -111,7 +111,7 @@ accessed_date:
 
 language: "vi"
 issuing_authority: ""
-signer: ""
+signer_name: ""
 checksum: ""
 
 ocr_status: "done"
@@ -223,10 +223,12 @@ Module đề xuất:
 chatbot/backend/app/ingestion/chunker.py
 ```
 
-Chunker dùng `langchain-text-splitters`:
+Chunker dùng structural parser trước, LangChain splitter sau:
 
-- `MarkdownHeaderTextSplitter` để tách parent theo Markdown heading sections.
-- `RecursiveCharacterTextSplitter` để tách child bên trong từng parent.
+- Markdown heading tạo parent section.
+- `numbered_item`, `lettered_item`, `bullet_item` tạo child boundary.
+- Table/code được detect trước item regex.
+- `RecursiveCharacterTextSplitter` chỉ split bên trong item/paragraph/table/code quá dài.
 
 Chunker cần hiểu:
 

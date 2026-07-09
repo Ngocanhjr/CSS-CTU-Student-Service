@@ -36,7 +36,7 @@ class DocumentAsset(Base):
     document_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), primary_key=True)
     asset_id: Mapped[int] = mapped_column(ForeignKey("css.assets.id", ondelete="CASCADE"), primary_key=True)
     
-    relation_type: Mapped[str] = mapped_column(String(50), default="reference", nullable=False)
+    relation_type: Mapped[str] = mapped_column(String(50), nullable=False, primary_key=True)  # reference, required, optional
     required_when: Mapped[str | None] = mapped_column(Text)
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
    

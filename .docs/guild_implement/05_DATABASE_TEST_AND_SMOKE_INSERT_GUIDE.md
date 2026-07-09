@@ -1,14 +1,14 @@
-# 05. Huong Dan Tao DB Test Va Smoke Test SQLAlchemy Models
+# 05. Hướng Dẫn Tạo DB Test Và Smoke Test SQLAlchemy Models
 
 **Last Updated:** 2026-06-19
 
-File nay noi tiep sau `04_ALEMBIC_MIGRATION_GUIDE.md`.
+File này nối tiếp sau `04_ALEMBIC_MIGRATION_GUIDE.md`.
 
-Sau khi `alembic upgrade head` thanh cong, buoc tiep theo la xac nhan SQLAlchemy models co the insert/query du lieu that vao PostgreSQL. Nen lam viec nay tren database test rieng de khong lam ban database dev.
+Sau khi `alembic upgrade head` thành công, bước tiếp theo là xác nhận SQLAlchemy models có thể insert/query dữ liệu thật vào PostgreSQL. Nên làm việc này trên database test riêng để không làm bẩn database dev.
 
-## Muc Tieu
+## Mục Tiêu
 
-Sau guide nay can dat duoc:
+Sau guide này cần đạt được:
 
 ```text
 co database test rieng: ctu_student_service_test
@@ -18,25 +18,25 @@ pytest co the insert du lieu qua SQLAlchemy models
 test khong lam ban database dev ctu_student_service
 ```
 
-## Vi Sao Can DB Test Rieng
+## Vì Sao Cần DB Test Riêng
 
-Database dev hien tai:
+Database dev hiện tại:
 
 ```text
 ctu_student_service
 ```
 
-nen dung cho app chay thu, debug API, va du lieu dang phat trien.
+nên dùng cho app chạy thử, debug API, và dữ liệu đang phát triển.
 
-Database test rieng:
+Database test riêng:
 
 ```text
 ctu_student_service_test
 ```
 
-chi dung cho automated test.
+chỉ dùng cho automated test.
 
-Ly do:
+Lý do:
 
 ```text
 test co the insert/update/delete thoai mai
@@ -46,42 +46,42 @@ co the drop/recreate khi can
 co the chay CI/local test an toan hon
 ```
 
-## Nguyen Tac
+## Nguyên Tắc
 
-Khong de test ghi truc tiep vao DB dev:
+Không để test ghi trực tiếp vào DB dev:
 
 ```text
 postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service
 ```
 
-Test phai dung DB test:
+Test phải dùng DB test:
 
 ```text
 postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test
 ```
 
-Trong PowerShell, override `DATABASE_URL` truoc khi chay migration/test:
+Trong PowerShell, override `DATABASE_URL` trước khi chạy migration/test:
 
 ```powershell
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
 ```
 
-Ghi chu:
+Ghi chú:
 
 ```text
 load_dotenv() mac dinh khong override env var da co san.
 Vi vay bien $env:DATABASE_URL trong PowerShell se uu tien hon gia tri trong .env.
 ```
 
-Khong chay test file truc tiep bang:
+Không chạy test file trực tiếp bằng:
 
 ```powershell
 python test/databases/test_database_models.py
 ```
 
-Lenh do se dat import root thanh `test/databases`, nen Python co the khong thay package `app`.
+Lệnh đó sẽ đặt import root thành `test/databases`, nên Python có thể không thấy package `app`.
 
-Hay chay bang pytest tu thu muc `chatbot/backend`, vi repo da co `pytest.ini`:
+Hãy chạy bằng pytest từ thư mục `chatbot/backend`, vì repo đã có `pytest.ini`:
 
 ```ini
 [pytest]
@@ -89,49 +89,49 @@ pythonpath = .
 testpaths = test
 ```
 
-## Buoc 1: Tao Database Test
+## Bước 1: Tạo Database Test
 
-Chay tai:
+Chạy tại:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot
 ```
 
-Tao DB test:
+Tạo DB test:
 
 ```powershell
 docker compose exec postgres createdb -U ct239h ctu_student_service_test
 ```
 
-Neu bao database da ton tai thi khong sao. Co the kiem tra danh sach DB:
+Nếu báo database đã tồn tại thì không sao. Có thể kiểm tra danh sách DB:
 
 ```powershell
 docker compose exec postgres psql -U ct239h -d postgres -c "\l"
 ```
 
-## Buoc 2: Tao Schema `css` Trong DB Test
+## Bước 2: Tạo Schema `css` Trong DB Test
 
-Chay:
+Chạy:
 
 ```powershell
 docker compose exec postgres psql -U ct239h -d ctu_student_service_test -c "CREATE SCHEMA IF NOT EXISTS css AUTHORIZATION ct239h;"
 ```
 
-Kiem tra:
+Kiểm tra:
 
 ```powershell
 docker compose exec postgres psql -U ct239h -d ctu_student_service_test -c "\dn"
 ```
 
-Mong doi thay:
+Mong đợi thấy:
 
 ```text
 css
 ```
 
-## Buoc 3: Chay Migration Vao DB Test
+## Bước 3: Chạy Migration Vào DB Test
 
-Chay tai:
+Chạy tại:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
@@ -143,46 +143,46 @@ Set `DATABASE_URL` sang DB test:
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
 ```
 
-Chay migration:
+Chạy migration:
 
 ```powershell
 ..\..\.venv\Scripts\alembic.exe upgrade head
 ```
 
-Kiem tra revision:
+Kiểm tra revision:
 
 ```powershell
 ..\..\.venv\Scripts\alembic.exe current
 ```
 
-Mong doi thay revision moi nhat, vi du:
+Mong đợi thấy revision mới nhất, ví dụ:
 
 ```text
 42bc821c519a
 ```
 
-Kiem tra bang:
+Kiểm tra bảng:
 
 ```powershell
 cd ..
 docker compose exec postgres psql -U ct239h -d ctu_student_service_test -c "\dt css.*"
 ```
 
-## Buoc 4: Chuan Bi Test File
+## Bước 4: Chuẩn Bị Test File
 
-File nen tao:
+File nên tạo:
 
 ```text
 chatbot/backend/test/databases/test_database_models.py
 ```
 
-Muc tieu cua test:
+Mục tiêu của test:
 
 ```text
 insert Department
 insert DocumentType
 insert Document
-insert DocumentVersion (status fields nam truc tiep tren version)
+insert DocumentVersion (status fields nam truc tiep tren version, khong co bang DocumentVersionStatus rieng)
 insert DocumentRecipient
 insert Asset
 insert DocumentAsset
@@ -194,9 +194,9 @@ query lai duoc
 cleanup duoc
 ```
 
-Guide nay dung `commit + cleanup` tren DB test. Sau nay co the nang cap sang fixture transaction rollback.
+Guide này dùng `commit + cleanup` trên DB test. Sau này có thể nâng cấp sang fixture transaction rollback.
 
-## Buoc 5: Pattern Test Toi Thieu
+## Bước 5: Pattern Test Tối Thiểu
 
 Suggested pattern:
 
@@ -296,7 +296,7 @@ async def test_insert_core_database_models():
                 file_type="md",
                 language="vi",
                 issuing_authority="Phong Test",
-                signer="",
+                signer_name="",
                 checksum="test-checksum",
                 accessed_date=date(2026, 6, 19),
                 ocr_status="done",
@@ -319,7 +319,6 @@ async def test_insert_core_database_models():
                 asset_type="form",
                 url="",
                 checksum=None,
-                validity_status="valid",
             )
 
             session.add_all([recipient, asset])
@@ -387,13 +386,13 @@ async def test_insert_core_database_models():
             await cleanup_test_data(session)
 ```
 
-## Buoc 6: Cleanup Du Lieu Test
+## Bước 6: Cleanup Dữ Liệu Test
 
-Neu dung DB test rieng, co 2 cach cleanup.
+Nếu dùng DB test riêng, có 2 cách cleanup.
 
-### Cach A: Drop/Recreate DB Test Khi Can
+### Cách A: Drop/Recreate DB Test Khi Cần
 
-Dung khi test DB bi ban:
+Dùng khi test DB bị bẩn:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot
@@ -405,9 +404,9 @@ $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_s
 ..\..\.venv\Scripts\alembic.exe upgrade head
 ```
 
-### Cach B: Xoa Du Lieu Theo Test Key
+### Cách B: Xóa Dữ Liệu Theo Test Key
 
-Dung khi chi can xoa du lieu smoke test:
+Dùng khi chỉ cần xóa dữ liệu smoke test:
 
 ```sql
 DELETE FROM css.documents WHERE document_key = 'test-document';
@@ -416,11 +415,11 @@ DELETE FROM css.departments WHERE code = 'TEST';
 DELETE FROM css.document_types WHERE code = 'guide';
 ```
 
-Neu FK co `ON DELETE CASCADE`, xoa `documents` se keo theo versions/chunks/recipients/jobs lien quan. Status nam truc tiep tren `document_versions`.
+Nếu FK có `ON DELETE CASCADE`, xóa `documents` sẽ kéo theo versions/chunks/recipients/jobs liên quan. Status nằm trực tiếp trên `document_versions`.
 
-## Buoc 7: Chay Test
+## Bước 7: Chạy Test
 
-Chay tai:
+Chạy tại:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
@@ -432,13 +431,13 @@ Set DB test:
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
 ```
 
-Chay pytest:
+Chạy pytest:
 
 ```powershell
 ..\..\.venv\Scripts\python.exe -m pytest test/databases/test_database_models.py
 ```
 
-Neu test pass, co nghia:
+Nếu test pass, có nghĩa:
 
 ```text
 SQLAlchemy session dung duoc
@@ -448,23 +447,23 @@ relationship toi thieu dung duoc
 migration tao schema du de insert du lieu core
 ```
 
-## Loi Thuong Gap
+## Lỗi Thường Gặp
 
-### 1. Test van ghi vao DB dev
+### 1. Test vẫn ghi vào DB dev
 
-Trieu chung:
+Triệu chứng:
 
 ```text
 du lieu test xuat hien trong ctu_student_service
 ```
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 chua set $env:DATABASE_URL truoc khi chay pytest
 ```
 
-Kiem tra nhanh:
+Kiểm tra nhanh:
 
 ```powershell
 echo $env:DATABASE_URL
@@ -472,13 +471,13 @@ echo $env:DATABASE_URL
 
 ### 2. Relation does not exist
 
-Vi du:
+Ví dụ:
 
 ```text
 relation "css.documents" does not exist
 ```
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 DB test chua chay alembic upgrade head
@@ -487,19 +486,19 @@ hoac DATABASE_URL dang tro sai database
 
 ### 3. UniqueViolation
 
-Vi du:
+Ví dụ:
 
 ```text
 duplicate key value violates unique constraint
 ```
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 test truoc da commit du lieu va chua cleanup
 ```
 
-Cach xu ly:
+Cách xử lý:
 
 ```text
 xoa data theo test key
@@ -509,18 +508,18 @@ hoac doi sang transaction rollback fixture
 
 ### 4. MissingGreenlet
 
-Nguyen nhan thuong gap:
+Nguyên nhân thường gặp:
 
 ```text
 lazy-load relationship sai ngu canh async
 truy cap relationship sau khi session da dong
 ```
 
-Trong smoke test dau tien, uu tien query truc tiep bang `select(...)` thay vi dua vao lazy relationship.
+Trong smoke test đầu tiên, ưu tiên query trực tiếp bằng `select(...)` thay vì dựa vào lazy relationship.
 
-## Khi Nao Dung Rollback Fixture
+## Khi Nào Dùng Rollback Fixture
 
-Sau khi smoke test dau tien chay duoc, nen refactor test sang fixture rollback:
+Sau khi smoke test đầu tiên chạy được, nên refactor test sang fixture rollback:
 
 ```text
 moi test mo transaction
@@ -529,7 +528,7 @@ assert ket qua
 rollback cuoi test
 ```
 
-Loi ich:
+Lợi ích:
 
 ```text
 DB test luon sach
@@ -537,11 +536,11 @@ khong can cleanup bang tay
 test chay lai nhieu lan khong bi duplicate key
 ```
 
-Nhung o buoc dau, `commit + cleanup` de debug de hon vi co the mo DB ra xem du lieu that.
+Nhưng ở bước đầu, `commit + cleanup` dễ debug dễ hơn vì có thể mở DB ra xem dữ liệu thật.
 
 ## Definition Of Done
 
-Hoan thanh guide 05 khi:
+Hoàn thành guide 05 khi:
 
 ```text
 ctu_student_service_test ton tai

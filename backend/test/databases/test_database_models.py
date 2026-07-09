@@ -1,5 +1,6 @@
 import os
-from datetime import date, datetime, timezone
+from datetime import date
+from datetime import datetime, timezone
 
 import pytest
 from dotenv import load_dotenv
@@ -11,10 +12,9 @@ from app.databases.models import (
     Document,
     DocumentAsset,
     DocumentChunk,
+    DocumentRecipient,
     DocumentType,
     DocumentVersion,
-    DocumentVersionRelationship,
-    DocumentVersionStatus,
     IngestionJob,
 )
 
@@ -23,9 +23,9 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if not DATABASE_URL.endswith("/ctu_student_service_test"):
-    pytest.skip(
-        "Database smoke tests require DATABASE_URL ending with /ctu_student_service_test",
-        allow_module_level=True,
+    raise RuntimeError(
+        "Refusing to run database smoke tests unless DATABASE_URL points to "
+        "ctu_student_service_test"
     )
 
 from app.databases.session import AsyncSessionLocal  # noqa: E402
@@ -50,19 +50,16 @@ async def cleanup_test_data(session):
 async def test_insert_core_database_models():
     async with AsyncSessionLocal() as session:
         await cleanup_test_data(session)
-        now = datetime.now(timezone.utc)
 
         department = Department(
             code="TEST",
             name="Phong Test",
             description="Only for database smoke test",
-            updated_at=now,
         )
         document_type = DocumentType(
             code="guide",
             name="Huong dan test",
             description="Only for database smoke test",
-            updated_at=now,
         )
 
         try:
@@ -72,78 +69,77 @@ async def test_insert_core_database_models():
             document = Document(
                 document_key="test-document",
                 title="Test Document",
-                department_id=department.id,
                 document_type_id=document_type.id,
                 domain="test",
                 audience=["student"],
-                updated_at=now,
             )
             session.add(document)
             await session.flush()
 
+            # Status fields (ocr/review/rag) nam truc tiep tren document_versions.
             version = DocumentVersion(
                 document_id=document.id,
+                version_key="test-document-v1",
                 title="Test Document V1",
                 code="TEST-001",
                 issued_date=date(2026, 6, 19),
-                effective_date=date(2026, 6, 19),
-                expiry_date=date(2026, 12, 31),
                 is_latest=True,
-                version_key="test-document-v1",
-                version_label="v1",
-                version_role="base",
                 source_url="",
-                source_file="test.md",
                 source_path="test/test.md",
-                file_type="md",
                 canonical_markdown_path="test/test.md",
+                file_type="md",
                 language="vi",
-                citation_type="section",
+                issuing_authority="Phong Test",
+                signer_name="",
                 checksum="test-checksum",
-                updated_at=now,
-            )
-            session.add(version)
-            await session.flush()
-
-            status = DocumentVersionStatus(
-                document_version_id=version.id,
-                validity_status="valid",
-                collection_status="collected",
+                accessed_date=date(2026, 6, 19),
                 ocr_status="done",
                 review_status="approved",
                 rag_status="published",
-                updated_at=now,
+            )
+            session.add(version)
+            await session.flush()
+            await session.refresh(version)
+            assert version.updated_at is not None
+            initial_updated_at = version.updated_at
+
+            version.title = "Test Document V1 Updated"
+            await session.flush()
+            await session.refresh(version)
+            assert version.updated_at is not None
+            assert version.updated_at >= initial_updated_at
+
+            recipient = DocumentRecipient(
+                document_version_id=version.id,
+                department_id=department.id,
+                effective_date=date(2026, 6, 19),
             )
 
             asset = Asset(
                 asset_key="test-asset",
-                asset_type="form",
                 title="Test Asset",
-                file_path="",
-                file_type="pdf",
-                download_url="",
-                validity_status="valid",
-                is_latest=True,
-                review_status="approved",
-                rag_status="published",
+                asset_type="form",
+                url="",
+                checksum=None,
             )
 
-            session.add_all([status, asset])
+            session.add_all([recipient, asset])
             await session.flush()
 
             document_asset = DocumentAsset(
                 document_version_id=version.id,
                 asset_id=asset.id,
                 relation_type="reference",
-                required=False,
+                required_when=None,
                 display_order=0,
             )
 
             parent_chunk = DocumentChunk(
                 document_version_id=version.id,
+                chunk_key="test-document-v1::p::0001",
                 chunk_index=0,
-                chunk_level="parent",
-                heading_path=["Root"],
+                chunk_type="parent",
+                heading_path="Root",
                 section_title="Root",
                 content="Parent content",
                 page_start=1,
@@ -157,10 +153,11 @@ async def test_insert_core_database_models():
 
             child_chunk = DocumentChunk(
                 document_version_id=version.id,
-                parent_id=parent_chunk.id,
+                parent_chunk_id=parent_chunk.id,
+                chunk_key="test-document-v1::c::0001",
                 chunk_index=1,
-                chunk_level="child",
-                heading_path=["Root", "Child"],
+                chunk_type="child",
+                heading_path="Root > Child",
                 section_title="Child",
                 content="Child content",
                 page_start=1,
@@ -170,23 +167,16 @@ async def test_insert_core_database_models():
                 index_status="not_indexed",
             )
 
-            relationship = DocumentVersionRelationship(
-                source_version_id=version.id,
-                target_version_id=version.id,
-                relation_type="self_test",
-            )
-
             job = IngestionJob(
                 document_version_id=version.id,
                 job_type="smoke_test",
                 status="done",
-                current_stage="database",
-                tool_name="pytest",
+                current_step="database",
                 processed_chunks=1,
                 created_by="pytest",
             )
 
-            session.add_all([child_chunk, relationship, job])
+            session.add_all([child_chunk, job])
             await session.commit()
 
             result = await session.execute(

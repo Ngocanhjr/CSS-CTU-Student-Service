@@ -1,13 +1,13 @@
-# 01. Huong Dan Implement Schema RAG Theo Module
+# 01. Hướng Dẫn Implement Schema RAG Theo Module
 
 **Last Updated:** 2026-07-04
 
 Source of truth cho field YAML metadata: `chatbot/.docs/spec/ctu-service/07_RAG_SPEC.md`.
 Source of truth cho schema DB: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md`.
 
-File nay huong dan cach tach schema thay vi dua tat ca vao `app/schemas/rag.py`.
+File này hướng dẫn cách tách schema thay vì dồn tất cả vào `app/schemas/rag.py`.
 
-Huong tach da chot:
+Hướng tách đã chốt:
 
 ```text
 documents.py = metadata tai lieu, version, status, publish rule
@@ -16,29 +16,29 @@ chunks.py    = noi dung da chia chunk
 rag.py       = public import layer neu can import gom
 ```
 
-## Muc Tieu
+## Mục Tiêu
 
-Schema trong `app/schemas` phuc vu 4 viec:
+Schema trong `app/schemas` phục vụ 4 việc:
 
-- validate YAML/frontmatter metadata truoc khi chunk/index;
-- validate asset/form/link lien quan den tai lieu;
+- validate YAML/frontmatter metadata trước khi chunk/index;
+- validate asset/form/link liên quan đến tài liệu;
 - validate parent/child chunk contract;
-- export class de backend import gon.
+- export class để backend import gọn.
 
-Khong nhoi toan bo database schema vao mot file `rag.py`.
+Không nhồi toàn bộ database schema vào một file `rag.py`.
 
-## Quyet Dinh Da Chot
+## Quyết Định Đã Chốt
 
-1. Khong tao `Priority` enum.
-2. Khong tao `ChunkingStrategy` enum.
-3. Khong dung `ocr_status = "not_required"`.
-4. File Markdown da parser/review van dung `ocr_status = "done"`.
-5. `is_latest` chi la ranking preference, khong phai hard filter retrieval.
-6. Status workflow (`ocr_status`, `review_status`, `rag_status`, `status_note`) nam truc tiep
-   trong `document_versions`, khong co bang `document_version_status` rieng.
-7. `validity_status` chi ap dung cho `assets`, khong dua vao version metadata.
-8. Khong dua relationship fields (`replaces`, `amends`, `supplements`...) hoac `chunking_strategy`
-   vao YAML metadata.
+1. Không tạo `Priority` enum.
+2. Không tạo `ChunkingStrategy` enum.
+3. Không dùng `ocr_status = "not_required"`.
+4. File Markdown đã parser/review vẫn dùng `ocr_status = "done"`.
+5. `is_latest` chỉ là ranking preference, không phải hard filter retrieval.
+6. Status workflow (`ocr_status`, `review_status`, `rag_status`, `status_note`) nằm trực tiếp
+   trong `document_versions`, không có bảng `document_version_status` riêng.
+7. Không dùng `validity_status` trong DB hoặc YAML metadata.
+8. Không đưa relationship fields (`replaces`, `amends`, `supplements`...) hoặc `chunking_strategy`
+   vào YAML metadata.
 9. Index eligibility:
 
 ```text
@@ -53,9 +53,9 @@ review_status = approved
 AND rag_status = published
 ```
 
-## Quy Uoc Key Va ID
+## Quy Ước Key Và ID
 
-Dung thong nhat:
+Dùng thống nhất:
 
 ```text
 id           = khoa ky thuat noi bo database
@@ -64,11 +64,11 @@ version_key  = ma on dinh cua version trong YAML/RAG
 asset_key    = ma on dinh cua asset trong YAML/RAG
 ```
 
-Trong schema metadata/chunk/asset relation, dung `document_key`, `version_key`, `asset_key`.
+Trong schema metadata/chunk/asset relation, dùng `document_key`, `version_key`, `asset_key`.
 
-Khong dung `document_id`/`version_id` trong YAML/RAG schema neu da chon quy uoc `*_key`.
+Không dùng `document_id`/`version_id` trong YAML/RAG schema nếu đã chọn quy ước `*_key`.
 
-## File Can Tao/Sua
+## File Cần Tạo/Sửa
 
 Trong:
 
@@ -76,7 +76,7 @@ Trong:
 chatbot/backend/app/schemas/
 ```
 
-nen co:
+nên có:
 
 ```text
 enums.py
@@ -87,32 +87,31 @@ rag.py
 __init__.py
 ```
 
-Neu muon tranh lap `StrictSchema`, co the tao them `base.py`.
+Nếu muốn tránh lặp `StrictSchema`, có thể tạo thêm `base.py`.
 
-## Thu Tu Implement
+## Thứ Tự Implement
 
-1. Kiem tra `enums.py`.
-2. Tao `base.py` neu dung base chung.
-3. Tao `documents.py`.
-4. Tao `assets.py`.
-5. Tao `chunks.py`.
-6. Doi `rag.py` thanh file re-export.
-7. Cap nhat `__init__.py` neu can.
-8. Chay import test.
-9. Chay validation test.
+1. Kiểm tra `enums.py`.
+2. Tạo `base.py` nếu dùng base chung.
+3. Tạo `documents.py`.
+4. Tạo `assets.py`.
+5. Tạo `chunks.py`.
+6. Đổi `rag.py` thành file re-export.
+7. Cập nhật `__init__.py` nếu cần.
+8. Chạy import test.
+9. Chạy validation test.
 
-## `enums.py` Can Co
+## `enums.py` Cần Có
 
-Khong them `Priority`, `ChunkingStrategy`, hoac `"not_required"`.
+Không thêm `Priority`, `ChunkingStrategy`, hoặc `"not_required"`.
 
-Can co cac type (khop `05_DATABASE_SPEC.md` phan Status Enums):
+Cần có các type (khớp `05_DATABASE_SPEC.md` phần Status Enums):
 
 ```python
 OcrStatus
 ReviewStatus
 RagStatus
 IndexStatus
-ValidityStatus      # chi dung cho assets
 DocumentType
 FileType
 ChunkType
@@ -121,7 +120,7 @@ DocumentAssetRelationType
 Domain
 ```
 
-Cac enum status khop spec 05:
+Các enum status khớp spec 05:
 
 ```python
 OcrStatus = Literal[
@@ -136,10 +135,9 @@ RagStatus = Literal[
 IndexStatus = Literal[
     "not_indexed", "indexed", "deactivated", "failed",
 ]
-ValidityStatus = Literal["valid", "invalid", "expired"]
 ```
 
-Khong con `CollectionStatus`, `VersionRole`, `Confidentiality`, `CitationType`.
+Không còn `CollectionStatus`, `VersionRole`, `Confidentiality`, `CitationType`, `ValidityStatus`.
 
 ## Optional: `base.py`
 
@@ -149,7 +147,7 @@ File:
 app/schemas/base.py
 ```
 
-Noi dung:
+Nội dung:
 
 ```python
 from pydantic import BaseModel, ConfigDict
@@ -159,11 +157,11 @@ class StrictSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 ```
 
-Ly do dung `extra="forbid"`:
+Lý do dùng `extra="forbid"`:
 
-- bat loi typo nhu `is_lasted` thay vi `is_latest`;
-- tranh chunk/asset/status nhan field la;
-- chi class tong hop `DocumentMetadata` moi cho phep metadata phu bang `extra="allow"`.
+- bắt lỗi typo như `is_lasted` thay vì `is_latest`;
+- tránh chunk/asset/status nhận field lạ;
+- chỉ class tổng hợp `DocumentMetadata` mới cho phép metadata phụ bằng `extra="allow"`.
 
 ---
 
@@ -175,9 +173,9 @@ File:
 app/schemas/documents.py
 ```
 
-## Trach Nhiem
+## Trách Nhiệm
 
-`documents.py` chua:
+`documents.py` chứa:
 
 ```text
 DocumentBaseMetadata
@@ -186,7 +184,7 @@ DocumentVersionMetadata
 DocumentMetadata
 ```
 
-Khong dua asset detail, chunk detail, ingestion job detail vao file nay.
+Không đưa asset detail, chunk detail, ingestion job detail vào file này.
 
 ## Import
 
@@ -209,27 +207,32 @@ from app.schemas.enums import (
 
 ## `DocumentBaseMetadata`
 
-Khop `documents` trong spec 05: chi `document_key`, `title`, `document_type`, `domain`,
-`audience`. Khong co `department`, khong co `tags`.
+Khớp YAML metadata: `document_key`, `title`, `responsible_department`, `document_type`,
+`domain`, `audience`. DB `documents` không có cột `responsible_department`; field này
+được ingest sang bảng `document_recipients`.
 
 ```python
 class DocumentBaseMetadata(StrictSchema):
     document_key: str = Field(min_length=1)
     title: str = ""
+    responsible_department: list[str] = Field(default_factory=list)
     document_type: DocumentType
     domain: str = ""
     audience: list[str] = Field(default_factory=list)
 
-    @field_validator("audience")
+    @field_validator("audience", "responsible_department")
     @classmethod
     def clean_string_list(cls, value: list[str]) -> list[str]:
         return [item.strip() for item in value if item and item.strip()]
 ```
 
+`responsible_department` chứa danh sách `departments.code` từ YAML, ví dụ `["PDT", "PCTSV"]`.
+Repository phải map từng code sang `document_recipients(document_version_id, department_id, effective_date)`.
+
 ## `DocumentVersionStatus`
 
-Chi giu status workflow nam truc tiep tren `document_versions`. Khong co `validity_status`,
-khong co `collection_status`.
+Chỉ giữ status workflow nằm trực tiếp trên `document_versions`. Không có `validity_status`,
+không có `collection_status`.
 
 ```python
 class DocumentVersionStatus(StrictSchema):
@@ -249,7 +252,7 @@ Publish (student-facing): review_status = approved AND rag_status = published.
 
 ## `DocumentVersionMetadata`
 
-Khop optional fields trong spec 07 + cot `document_versions` spec 05. Khong co
+Khớp optional fields trong spec 07 + cột `document_versions` spec 05. Không có
 `version_label`, `version_role`, `effective_date`, `expiry_date`, relationship arrays,
 `confidentiality`, `citation_type`, `related_asset_keys`, `validity_status`.
 
@@ -268,16 +271,18 @@ class DocumentVersionMetadata(DocumentVersionStatus):
     file_type: FileType = "md"
     language: str = "vi"
     issuing_authority: str = ""
-    signer: str = ""
+    signer_name: str = ""
     accessed_date: date | None = None
 
     checksum: str | None = None
 ```
 
-Ghi nho:
+Ghi nhớ:
 
 ```text
 Dung is_latest, khong dung is_lasted.
+Khong dung version_label. Neu can phan biet version, dung version_key/code/issued_date.
+title chi la tieu de chinh thuc cua van ban, khong gop nhan file/OCR batch vao title.
 source_path la path file goc.
 canonical_markdown_path la path Markdown da clean/review.
 Dung path tuong doi trong repo/vault, khong dung absolute Windows path.
@@ -285,7 +290,7 @@ Dung path tuong doi trong repo/vault, khong dung absolute Windows path.
 
 ## Validator Trong `DocumentVersionMetadata`
 
-Validate publish/index rule (khong con validity_status/confidentiality):
+Validate publish/index rule (không còn validity_status/confidentiality):
 
 ```python
     @model_validator(mode="after")
@@ -303,18 +308,18 @@ Validate publish/index rule (khong con validity_status/confidentiality):
 
 ## `DocumentMetadata`
 
-Class tong hop de validate YAML/frontmatter:
+Class tổng hợp để validate YAML/frontmatter:
 
 ```python
 class DocumentMetadata(DocumentBaseMetadata, DocumentVersionMetadata):
     model_config = ConfigDict(extra="allow")
 ```
 
-Ly do `extra="allow"`:
+Lý do `extra="allow"`:
 
-- YAML/frontmatter co the co field phu chua map vao schema;
-- ingestion co the dua field phu vao DB `extra_metadata`;
-- nhung schema con van strict de bat typo.
+- YAML/frontmatter có thể có field phụ chưa map vào schema;
+- ingestion có thể đưa field phụ vào DB `extra_metadata`;
+- nhưng schema con vẫn strict để bắt typo.
 
 ---
 
@@ -326,9 +331,9 @@ File:
 app/schemas/assets.py
 ```
 
-## Trach Nhiem
+## Trách Nhiệm
 
-`assets.py` chua schema cho:
+`assets.py` chứa schema cho:
 
 ```text
 AssetMetadata
@@ -346,14 +351,13 @@ from app.schemas.base import StrictSchema
 from app.schemas.enums import (
     AssetType,
     DocumentAssetRelationType,
-    ValidityStatus,
 )
 ```
 
 ## `AssetMetadata`
 
-Khop `assets` trong spec 05: `asset_key`, `title`, `asset_type`, `url`, `checksum`,
-`validity_status`. Khong co `file_path`, `file_type`, `download_url`, `is_latest`,
+Khớp `assets` trong spec 05: `asset_key`, `title`, `asset_type`, `url`, `checksum`.
+Không có `validity_status`, `file_path`, `file_type`, `download_url`, `is_latest`,
 `review_status`, `rag_status`.
 
 ```python
@@ -363,22 +367,21 @@ class AssetMetadata(StrictSchema):
     asset_type: AssetType
     url: str = ""
     checksum: str | None = None
-    validity_status: ValidityStatus = "valid"
 ```
 
-Khong can dua vao schema metadata giai doan dau:
+Không cần đưa vào schema metadata giai đoạn đầu:
 
 ```text
 id
 created_at
 ```
 
-Nhung field do thuoc DB/API response.
+Những field đó thuộc DB/API response.
 
 ## `DocumentAssetRelation`
 
-Khop `document_assets` trong spec 05: `relation_type`, `required_when`, `display_order`.
-Khong co cot `required` boolean.
+Khớp `document_assets` trong spec 05: `relation_type`, `required_when`, `display_order`.
+Không có cột `required` boolean.
 
 ```python
 class DocumentAssetRelation(StrictSchema):
@@ -390,7 +393,7 @@ class DocumentAssetRelation(StrictSchema):
     display_order: int = Field(default=0, ge=0)
 ```
 
-Dung class nay khi can validate quan he document version -> asset.
+Dùng class này khi cần validate quan hệ document version -> asset.
 
 ---
 
@@ -402,9 +405,9 @@ File:
 app/schemas/chunks.py
 ```
 
-## Trach Nhiem
+## Trách Nhiệm
 
-`chunks.py` chi chua schema va validator cho chunk.
+`chunks.py` chỉ chứa schema và validator cho chunk.
 
 ## Import
 
@@ -421,8 +424,8 @@ from app.schemas.enums import ChunkType
 
 ## `Chunk`
 
-Chunk dung `parent_chunk_key` trong payload/RAG contract (DB dung `parent_chunk_id`).
-`chunk_type` la `parent` hoac `child`.
+Chunk dùng `parent_chunk_key` trong payload/RAG contract (DB dùng `parent_chunk_id`).
+`chunk_type` là `parent` hoặc `child`.
 
 ```python
 class Chunk(StrictSchema):
@@ -473,15 +476,15 @@ File:
 app/schemas/rag.py
 ```
 
-## Trach Nhiem
+## Trách Nhiệm
 
-Sau khi da tach module, `rag.py` chi nen la public import layer:
+Sau khi đã tách module, `rag.py` chỉ nên là public import layer:
 
 ```python
 from app.schemas.rag import DocumentMetadata, AssetMetadata, Chunk
 ```
 
-## Noi Dung De Xuat
+## Nội Dung Đề Xuất
 
 ```python
 from app.schemas.assets import AssetMetadata, DocumentAssetRelation
@@ -514,7 +517,7 @@ File:
 app/schemas/__init__.py
 ```
 
-Co the export cac class on dinh:
+Có thể export các class ổn định:
 
 ```python
 from app.schemas.assets import AssetMetadata, DocumentAssetRelation
@@ -537,13 +540,13 @@ __all__ = [
 ]
 ```
 
-Khong export wildcard.
+Không export wildcard.
 
 ---
 
-# 6. Field Khong Nen Dua Vao Cac Schema Nay
+# 6. Field Không Nên Đưa Vào Các Schema Này
 
-Khong dua cac group sau vao `documents.py`, `assets.py`, `chunks.py`:
+Không đưa các group sau vào `documents.py`, `assets.py`, `chunks.py`:
 
 ```text
 database id auto-increment
@@ -555,36 +558,36 @@ index_status
 extra_metadata
 ```
 
-Nhung field tren nen nam o DB model, repository schema, hoac ingestion job schema rieng.
+Những field trên nên nằm ở DB model, repository schema, hoặc ingestion job schema riêng.
 
-Rieng `source_path` va `canonical_markdown_path` co the nam trong `DocumentVersionMetadata` vi chung giup audit nguon file.
+Riêng `source_path` và `canonical_markdown_path` có thể nằm trong `DocumentVersionMetadata` vì chúng giúp audit nguồn file.
 
 ---
 
-# 7. Common Mistakes Can Tranh
+# 7. Common Mistakes Cần Tránh
 
-- Sai: `is_lasted`. Dung: `is_latest`.
-- Sai: import `Priority`, `ChunkingStrategy`. Khong dung 2 type nay.
-- Sai: them `"not_required"` vao `OcrStatus`. Khong dung.
-- Sai: them `collection_status` / `CollectionStatus`. Da loai khoi schema.
-- Sai: them `validity_status` vao version metadata. Chi `assets` co `validity_status`.
-- Sai: them relationship fields (`replaces`, `amends`...) vao YAML. Khong dung.
-- Sai: dua chunk validator vao `documents.py`. De trong `chunks.py`.
-- Sai: bat buoc `is_latest = true` moi retrieve. `is_latest` chi la ranking preference.
-- Sai: child chunk khong co `parent_chunk_key`. Phai validate.
-- Sai: parent chunk co `parent_chunk_key`. Phai validate.
+- Sai: `is_lasted`. Đúng: `is_latest`.
+- Sai: import `Priority`, `ChunkingStrategy`. Không dùng 2 type này.
+- Sai: thêm `"not_required"` vào `OcrStatus`. Không dùng.
+- Sai: thêm `collection_status` / `CollectionStatus`. Đã loại khỏi schema.
+- Sai: thêm `validity_status` vào document/version/asset metadata. Field này đã bỏ khỏi DB.
+- Sai: thêm relationship fields (`replaces`, `amends`...) vào YAML. Không dùng.
+- Sai: đưa chunk validator vào `documents.py`. Để trong `chunks.py`.
+- Sai: bắt buộc `is_latest = true` mỗi retrieve. `is_latest` chỉ là ranking preference.
+- Sai: child chunk không có `parent_chunk_key`. Phải validate.
+- Sai: parent chunk có `parent_chunk_key`. Phải validate.
 
 ---
 
 # 8. Test Sau Khi Code
 
-Chay trong PowerShell tai:
+Chạy trong PowerShell tại:
 
 ```text
 chatbot/backend
 ```
 
-## Import tung module
+## Import từng module
 
 ```powershell
 python -c "from app.schemas.documents import DocumentMetadata, DocumentVersionStatus; print('documents ok')"
@@ -598,7 +601,7 @@ python -c "from app.schemas.chunks import Chunk; print('chunks ok')"
 python -c "from app.schemas.rag import DocumentMetadata, AssetMetadata, Chunk; print('rag public import ok')"
 ```
 
-## Test published hop le
+## Test published hợp lệ
 
 ```powershell
 @'
@@ -618,7 +621,7 @@ print(doc.model_dump())
 '@ | python -
 ```
 
-## Test published bi chan khi chua approved
+## Test published bị chặn khi chưa approved
 
 ```powershell
 @'
@@ -649,7 +652,6 @@ asset = AssetMetadata(
     asset_key="form-cap-bang-diem",
     asset_type="form",
     title="Don xin cap bang diem",
-    validity_status="valid",
 )
 
 print(asset.model_dump())
@@ -687,7 +689,7 @@ print(parent.chunk_key, child.parent_chunk_key)
 
 ---
 
-# 9. Ket Qua Mong Doi
+# 9. Kết Quả Mong Đợi
 
 Sau khi implement xong:
 

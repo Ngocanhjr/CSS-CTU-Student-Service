@@ -1,33 +1,33 @@
-# 07. Huong Dan Chi Tiet Implement Markdown Ingestion, Chunking, Embedding, Qdrant
+# 07. Hướng Dẫn Chi Tiết Implement Markdown Ingestion, Chunking, Embedding, Qdrant
 
 **Last Updated:** 2026-06-20
 
-File nay noi tiep sau:
+File này nối tiếp sau:
 
 ```text
 06_GiaiDoanTiepTheo.md
 ```
 
-Guide 06 mo ta buc tranh tong quat. Guide 07 di vao tung phan can implement trong backend de co mot vertical slice RAG chay duoc:
+Guide 06 mô tả bức tranh tổng quát. Guide 07 đi vào từng phần cần implement trong backend để có một vertical slice RAG chạy được:
 
 ```text
 Markdown canonical
 -> validate YAML metadata
--> tao parent/child chunks
+-> tạo parent/child chunks
 -> preview chunks
--> luu PostgreSQL
+-> lưu PostgreSQL
 -> embed child chunks
 -> upsert Qdrant
--> retrieval co citation
+-> retrieval có citation
 ```
 
-Khong lam frontend, HNSW tuning, reranking nang cao, hoac prompt QA phuc tap trong guide nay.
+Không làm frontend, HNSW tuning, reranking nâng cao, hoặc prompt QA phức tạp trong guide này.
 
 ---
 
-## 0. Trang Thai Hien Tai
+## 0. Trạng Thái Hiện Tại
 
-Da co:
+Đã có:
 
 ```text
 chatbot/backend/app/schemas/documents.py
@@ -39,7 +39,7 @@ chatbot/backend/test/schemas/
 chatbot/backend/test/databases/test_database_models.py
 ```
 
-Dang con trong hoac chua co logic:
+Đang còn trống hoặc chưa có logic:
 
 ```text
 chatbot/backend/app/ingestion/pipeline.py
@@ -50,38 +50,38 @@ chatbot/backend/app/vectorstore/models.py
 chatbot/backend/app/embedding/embeder.py
 ```
 
-Ghi chu:
+Ghi chú:
 
 ```text
-app/embedding/embeder.py dang bi dat ten thieu "d".
-Khi implement nen tao app/embedding/embedder.py cho ten dung.
-Neu can giu backward compatibility, de embeder.py re-export tu embedder.py sau.
+app/embedding/embeder.py đang bị đặt tên thiếu "d".
+Khi implement nên tạo app/embedding/embedder.py cho tên đúng.
+Nếu cần giữ backward compatibility, để embeder.py re-export từ embedder.py sau.
 ```
 
 ---
 
-## 1. Muc Tieu Cua Guide 07
+## 1. Mục Tiêu Của Guide 07
 
-Sau guide nay can dat duoc:
+Sau guide này cần đạt được:
 
 ```text
-1. Metadata Markdown doc duoc validate bang DocumentMetadata.
-2. Chunker tao duoc Chunk schema hop le.
-3. Co preview chunk truoc khi ghi database.
-4. Ingest duoc mot file Markdown vao PostgreSQL.
-5. Embed duoc child chunks bang BAAI/bge-m3.
-6. Upsert duoc vectors vao Qdrant.
-7. Search tra ve content + payload + citation.
-8. Test khong cho student retrieval lay tai lieu chua publish.
+1. Metadata Markdown đọc được validate bằng DocumentMetadata.
+2. Chunker tạo được Chunk schema hợp lệ.
+3. Có preview chunk trước khi ghi database.
+4. Ingest được một file Markdown vào PostgreSQL.
+5. Embed được child chunks bằng BAAI/bge-m3.
+6. Upsert được vectors vào Qdrant.
+7. Search trả về content + payload + citation.
+8. Test không cho student retrieval lấy tài liệu chưa publish.
 ```
 
-MVP chi can chay tot voi 1-2 file that trong:
+MVP chỉ cần chạy tốt với 1-2 file thật trong:
 
 ```text
 nlcs/06_Processing/03_Markdown_Cleaning/
 ```
 
-Sau do moi mo rong sang:
+Sau đó mới mở rộng sang:
 
 ```text
 nlcs/01_Dataset/
@@ -89,45 +89,45 @@ nlcs/01_Dataset/
 
 ---
 
-## 2. Nguyen Tac Bat Buoc
+## 2. Nguyên Tắc Bắt Buộc
 
-### 2.1. PostgreSQL la metadata source of truth
+### 2.1. PostgreSQL là metadata source of truth
 
 ```text
-PostgreSQL luu document/version/status/chunks/job.
-Qdrant chi luu vector + payload de search nhanh.
+PostgreSQL lưu document/version/status/chunks/job.
+Qdrant chỉ lưu vector + payload để search nhanh.
 ```
 
-Khong dung Qdrant de thay the PostgreSQL.
+Không dùng Qdrant để thay thế PostgreSQL.
 
-### 2.2. Qdrant point phai trace nguoc duoc PostgreSQL
+### 2.2. Qdrant point phải trace ngược được PostgreSQL
 
-Payload Qdrant toi thieu phai co:
+Payload Qdrant tối thiểu phải có:
 
 ```text
 document_key
 version_key
 chunk_key              # stable schema/vector key
-parent_chunk_key       # stable parent key neu co
-postgres_chunk_id     # int DocumentChunk.id de hydrate tu PostgreSQL
+parent_chunk_key       # stable parent key nếu có
+postgres_chunk_id     # int DocumentChunk.id để hydrate từ PostgreSQL
 title
 page_start
 page_end
 source_file
 ```
 
-### 2.3. Chi embed child chunk trong MVP
+### 2.3. Chỉ embed child chunk trong MVP
 
-Parent chunk dung de giu ngu canh va quan he section.
+Parent chunk dùng để giữ ngữ cảnh và quan hệ section.
 
 MVP:
 
 ```text
-parent chunk: luu PostgreSQL, khong embed
-child chunk: luu PostgreSQL, embed, upsert Qdrant
+parent chunk: lưu PostgreSQL, không embed
+child chunk: lưu PostgreSQL, embed, upsert Qdrant
 ```
 
-### 2.4. Student retrieval phai filter cung
+### 2.4. Student retrieval phải filter cùng
 
 Filter student:
 
@@ -137,11 +137,11 @@ rag_status = published
 audience contains student
 ```
 
-Khong chi dua vao viec ingestion da loc. Retriever van phai loc lai.
+Không chỉ dựa vào việc ingestion đã lọc. Retriever vẫn phải lọc lại.
 
 ---
 
-## 3. Dependency Can Co
+## 3. Dependency Cần Có
 
 File:
 
@@ -149,7 +149,7 @@ File:
 chatbot/backend/requirements.txt
 ```
 
-Nen bo sung khi bat dau implement:
+Nên bổ sung khi bắt đầu implement:
 
 ```text
 PyYAML>=6.0
@@ -166,15 +166,15 @@ cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
 ..\..\.venv\Scripts\python.exe -c "import yaml, qdrant_client, numpy; import langchain_text_splitters; print('deps ok')"
 ```
 
-Neu chua dung Qdrant/embedding that trong unit test, co the mock de test logic ingestion truoc.
+Nếu chưa dùng Qdrant/embedding thật trong unit test, có thể mock để test logic ingestion trước.
 
 ---
 
-## 4. Phan A - Chot Lai Contract DB/Schema Truoc Khi Ingest
+## 4. Phần A - Chốt Lại Contract DB/Schema Trước Khi Ingest
 
-Lam phan nay truoc khi viet reader/chunker.
+Làm phần này trước khi viết reader/chunker.
 
-### 4.1. File can kiem tra
+### 4.1. File Cần Kiểm Tra
 
 ```text
 chatbot/backend/app/schemas/chunks.py
@@ -183,9 +183,9 @@ chatbot/backend/alembic/versions/
 chatbot/backend/test/databases/test_database_models.py
 ```
 
-### 4.2. Van de can xu ly som
+### 4.2. Vấn Đề Cần Xử Lý Sớm
 
-Pydantic `Chunk` dang co:
+Pydantic `Chunk` đang có:
 
 ```text
 chunk_key
@@ -193,7 +193,7 @@ parent_chunk_key
 chunk_type
 ```
 
-DB `document_chunks` phai co cot stable `chunk_key`. Contract toi thieu:
+DB `document_chunks` phải có cột stable `chunk_key`. Contract tối thiểu:
 
 ```text
 id  
@@ -206,19 +206,19 @@ chunk_type
 qdrant_point_id
 ```
 
-Quyet dinh:
+Quyết định:
 
 ```text
-Dung Chunk.chunk_key lam stable key tu schema/preview/toi Qdrant.
-Luu chunk_key trong document_chunks.
-Dung DocumentChunk.id rieng lam postgres_chunk_id/internal id.
+Dùng Chunk.chunk_key làm stable key từ schema/preview/tới Qdrant.
+Lưu chunk_key trong document_chunks.
+Dùng DocumentChunk.id riêng làm postgres_chunk_id/internal id.
 ```
 
-### 4.3. Quyet dinh de xuat
+### 4.3. Quyết Định Đề Xuất
 
-Them cot `chunk_key` vao `DocumentChunk`.
+Thêm cột `chunk_key` vào `DocumentChunk`.
 
-Dung mapping trong repository:
+Dùng mapping trong repository:
 
 ```text
 Chunk.chunk_key -> DocumentChunk.chunk_key
@@ -233,19 +233,19 @@ DocumentChunk.chunk_key      = stable chunk key
 DocumentChunk.parent_chunk_id = internal FK resolved from parent_chunk_key
 ```
 
-Ly do:
+Lý do:
 
 ```text
-PostgreSQL la source of truth.
-chunk_key giup idempotent ingest va trace on dinh.
-postgres_chunk_id giup hydrate nhanh tu PostgreSQL khi retrieve.
+PostgreSQL là source of truth.
+chunk_key giúp idempotent ingest và trace ổn định.
+postgres_chunk_id giúp hydrate nhanh từ PostgreSQL khi retrieve.
 ```
 
-Khong dung `qdrant_point_id` thay cho `chunk_key`, vi point id la chi tiet cua vector store.
+Không dùng `qdrant_point_id` thay cho `chunk_key`, vì point id là chi tiết của vector store.
 
-### 4.4. Nullable can dong bo
+### 4.4. Nullable Cần Đồng Bộ
 
-Neu schema Pydantic cho phep `None`, DB/migration cung nen cho phep nullable:
+Nếu schema Pydantic cho phép `None`, DB/migration cũng nên cho phép nullable:
 
 ```text
 DocumentVersion.issued_date
@@ -255,10 +255,10 @@ DocumentChunk.page_end
 DocumentChunk.token_count
 ```
 
-Neu DB bat buoc non-null, chunker phai luon gan gia tri fallback. Khuyen nghi MVP:
+Nếu DB bắt buộc non-null, chunker phải luôn gán giá trị fallback. Khuyến nghị MVP:
 
 ```text
-Cho phep NULL, log warning neu khong co page marker.
+Cho phép NULL, log warning nếu không có page marker.
 ```
 
 ### 4.5. Done khi
@@ -267,31 +267,31 @@ Cho phep NULL, log warning neu khong co page marker.
 pytest test/schemas test/databases
 ```
 
-pass, va migration test database chay sach.
+pass, và migration test database chạy sạch.
 
 ---
 
-## 5. Phan B - Markdown Reader
+## 5. Phần B - Markdown Reader
 
-### 5.1. File nen tao
+### 5.1. File Nên Tạo
 
 ```text
 chatbot/backend/app/ingestion/markdown_reader.py
 chatbot/backend/test/ingestion/test_markdown_reader.py
 ```
 
-### 5.2. Trach nhiem
+### 5.2. Trách Nhiệm
 
-Markdown reader chi lam 4 viec:
+Markdown reader chỉ làm 4 việc:
 
 ```text
-1. Doc file .md.
-2. Tach YAML frontmatter va Markdown body.
-3. Parse YAML bang yaml.safe_load.
-4. Validate metadata bang DocumentMetadata.
+1. Đọc file .md.
+2. Tách YAML frontmatter và Markdown body.
+3. Parse YAML bằng yaml.safe_load.
+4. Validate metadata bằng DocumentMetadata.
 ```
 
-Khong chunk, khong ghi DB, khong embed trong reader.
+Không chunk, không ghi DB, không embed trong reader.
 
 ### 5.3. Contract output
 
@@ -312,7 +312,7 @@ class MarkdownDocument:
     raw_frontmatter: dict
 ```
 
-### 5.4. Tach frontmatter
+### 5.4. Tách Frontmatter
 
 Accepted format:
 
@@ -322,15 +322,15 @@ document_key: "..."
 version_key: "..."
 ---
 
-# Noi dung
+# Nội dung
 ```
 
 Rule:
 
 ```text
-File phai bat dau bang ---
-Frontmatter ket thuc bang dong ---
-Body khong duoc rong
+File phải bắt đầu bằng ---
+Frontmatter kết thúc bằng dòng ---
+Body không được rỗng
 YAML parse ra dict
 ```
 
@@ -356,7 +356,7 @@ def split_frontmatter(text: str) -> tuple[dict, str]:
     return data, body.strip()
 ```
 
-Neu file dung CRLF, normalize truoc:
+Nếu file dùng CRLF, normalize trước:
 
 ```python
 text = text.replace("\r\n", "\n")
@@ -364,28 +364,28 @@ text = text.replace("\r\n", "\n")
 
 ### 5.5. Check checksum
 
-Co 2 cach:
+Có 2 cách:
 
 ```text
-Cach A: checksum la metadata bat buoc do nguoi tao file dien.
-Cach B: pipeline tinh checksum body va compare voi metadata neu co.
+Cách A: checksum là metadata bắt buộc do người tạo file điền.
+Cách B: pipeline tính checksum body và compare với metadata nếu có.
 ```
 
-MVP nen lam:
+MVP nên làm:
 
 ```text
-Neu checksum rong -> reject, vi DocumentMetadata dang bat buoc checksum.
-Chua can compare content hash trong buoc dau.
+Nếu checksum rỗng -> reject, vì DocumentMetadata đang bắt buộc checksum.
+Chưa cần compare content hash trong bước đầu.
 ```
 
-Sau MVP co the them:
+Sau MVP có thể thêm:
 
 ```text
 metadata_hash = sha256(frontmatter normalized)
 content_checksum = sha256(body)
 ```
 
-### 5.6. Test can co
+### 5.6. Test Cần Có
 
 ```text
 test_read_markdown_with_valid_frontmatter
@@ -397,16 +397,16 @@ test_reader_rejects_published_invalid_status
 
 ---
 
-## 6. Phan C - Heading-Aware Chunker
+## 6. Phần C - Heading-Aware Chunker
 
-### 6.1. File nen tao
+### 6.1. File Nên Tạo
 
 ```text
 chatbot/backend/app/ingestion/chunker.py
 chatbot/backend/test/ingestion/test_chunker.py
 ```
 
-### 6.2. Input va output
+### 6.2. Input Và Output
 
 Input:
 
@@ -421,13 +421,13 @@ Output:
 list[Chunk]
 ```
 
-Dung schema hien co:
+Dùng schema hiện có:
 
 ```python
 from app.schemas.chunks import Chunk
 ```
 
-### 6.3. Markdown pattern can nhan dien
+### 6.3. Markdown Pattern Cần Nhận Diện
 
 Page marker:
 
@@ -444,7 +444,7 @@ Heading:
 #### Khoan 1
 ```
 
-Bang Markdown:
+Bảng Markdown:
 
 ```markdown
 | Cot A | Cot B |
@@ -452,9 +452,9 @@ Bang Markdown:
 | A | B |
 ```
 
-### 6.4. Quy tac heading_path
+### 6.4. Quy Tắc heading_path
 
-Khi gap heading:
+Khi gặp heading:
 
 ```text
 #      -> level 1
@@ -463,13 +463,13 @@ Khi gap heading:
 ####   -> level 4
 ```
 
-Cap nhat stack:
+Cập nhật stack:
 
 ```text
-current_heading_path = headings tu level 1 den level hien tai
+current_heading_path = headings từ level 1 đến level hiện tại
 ```
 
-Vi du:
+Ví dụ:
 
 ```text
 # Quy dinh hoc vu
@@ -477,19 +477,19 @@ Vi du:
 ### Dieu 5
 ```
 
-Chunk ben trong `Dieu 5` co:
+Chunk bên trong `Dieu 5` có:
 
 ```python
 heading_path = ["Quy dinh hoc vu", "Chuong II", "Dieu 5"]
 ```
 
-### 6.5. Quy tac parent chunk
+### 6.5. Quy Tắc Parent Chunk
 
-MVP de xuat:
+MVP đề xuất:
 
 ```text
-Moi section tu heading level 2 hoac 3 tao mot parent chunk.
-Neu tai lieu khong co heading, tao parent "Document".
+Mỗi section từ heading level 2 hoặc 3 tạo một parent chunk.
+Nếu tài liệu không có heading, tạo parent "Document".
 ```
 
 Parent chunk:
@@ -497,29 +497,43 @@ Parent chunk:
 ```text
 chunk_type = "parent"
 parent_chunk_key = None
-content = toan bo section hoac summary raw cua section
+content = toàn bộ section hoặc summary raw của section
 ```
 
-Neu parent qua dai, van co the luu content day du trong PostgreSQL. Khong embed parent trong MVP.
+Nếu parent quá dài, vẫn có thể lưu content đầy đủ trong PostgreSQL. Không embed parent trong MVP.
 
-### 6.6. Quy tac child chunk
+### 6.6. Quy Tắc Child Chunk
 
-Child chunk duoc cat tu content cua parent.
+Child chunk được tạo từ structural blocks trong parent.
 
-MVP dung `RecursiveCharacterTextSplitter` tu `langchain-text-splitters`:
+MVP dùng item boundary trước:
+
+```text
+numbered_item
+lettered_item
+bullet_item
+table
+code
+paragraph ro rang doc lap
+```
+
+`RecursiveCharacterTextSplitter` chỉ dùng khi một item/paragraph/table/code quá dài:
 
 ```text
 child_chunk_size = 1800 characters
 child_chunk_overlap = 200 characters
 ```
 
-Khong nen dua raw LangChain Document ra ngoai chunker. Output public van la `list[Chunk]`.
+Hai giá trị này lấy từ runtime settings (xem `21_RUNTIME_SETTINGS_GUIDE.md`). Default nằm trong settings model, không dùng fallback kiểu `settings.value or 1800`.
 
-Voi bang Markdown:
+Không nên đưa raw LangChain Document ra ngoài chunker. Output public vẫn là `list[Chunk]`.
+
+Với bảng Markdown:
 
 ```text
-MVP uu tien child_chunk_size du lon de table nho khong bi cat.
-Neu table lon bi cat, them table-protection sau khi co test rieng.
+Table phai duoc detect truoc item regex.
+Table nho giu nguyen.
+Table lon split theo row group va lap lai header.
 ```
 
 ### 6.7. LangChain structural parser
@@ -527,22 +541,23 @@ Neu table lon bi cat, them table-protection sau khi co test rieng.
 Suggested design:
 
 ```text
-1. Dung MarkdownHeaderTextSplitter de tach body thanh parent sections.
-2. Dung strip_headers=False de giu heading trong content.
-3. Rebuild heading_path tu metadata h1/h2/h3.
-4. Lay page_start/page_end bang regex tu page marker trong section text.
-5. Tu section tao parent Chunk voi stable chunk_key.
-6. Dung RecursiveCharacterTextSplitter cat section thanh child texts.
-7. Tu child text tao child Chunk voi parent_chunk_key la stable key cua parent.
+1. split_body_by_page_markers() de co PageBlock.
+2. parse_structural_blocks() theo thu tu: code, table, heading, item, paragraph.
+3. Dùng Markdown heading blocks để tạo parent sections.
+4. Rebuild heading_path từ heading blocks.
+5. Từ section tạo parent Chunk với stable chunk_key.
+6. Từ structural item/table/code/paragraph tạo ChildUnit.
+7. Nếu ChildUnit quá dài, dùng RecursiveCharacterTextSplitter bên trong chính unit đó.
+8. Từ ChildUnit tạo child Chunk với parent_chunk_key là stable key của parent.
 ```
 
-Import dung:
+Import dùng:
 
 ```python
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 ```
 
-### 6.8. chunk_key de xuat
+### 6.8. chunk_key Đề Xuất
 
 Stable format:
 
@@ -551,34 +566,34 @@ Stable format:
 <version_key>::c::<child_index>
 ```
 
-Vi du:
+Ví dụ:
 
 ```text
 qd3266-2024::p::0001
 qd3266-2024::c::0001
 ```
 
-Dung zero padding de sort de doc.
+Dùng zero padding để sort dễ đọc.
 
-Luu y:
+Lưu ý:
 
 ```text
-Day la stable key trong memory/preview/DB/Qdrant.
-Sau khi repository insert DB, DocumentChunk.id chi dung lam postgres_chunk_id noi bo.
-chunk_index trong DB phai tang global cho ca parent va child chunks, khong reset theo tung loai.
+Đây là stable key trong memory/preview/DB/Qdrant.
+Sau khi repository insert DB, DocumentChunk.id chỉ dùng làm postgres_chunk_id nội bộ.
+chunk_index trong DB phải tăng global cho cả parent và child chunks, không reset theo từng loại.
 ```
 
 ### 6.9. token_count MVP
 
-Neu chua co tokenizer:
+Nếu chưa có tokenizer:
 
 ```python
 token_count = len(content.split())
 ```
 
-Day la word count gan dung, du cho MVP preview. Sau nay moi doi sang tokenizer theo model embedding.
+Đây là word count gần đúng, đủ cho MVP preview. Sau này mới đổi sang tokenizer theo model embedding.
 
-### 6.10. Test can co
+### 6.10. Test Cần Có
 
 ```text
 test_chunker_creates_parent_and_child
@@ -591,29 +606,29 @@ test_chunker_does_not_split_simple_table
 
 ---
 
-## 7. Phan D - Chunk Preview
+## 7. Phần D - Chunk Preview
 
-### 7.1. File nen tao
+### 7.1. File Nên Tạo
 
 ```text
 chatbot/backend/app/ingestion/preview.py
 chatbot/backend/test/ingestion/test_preview.py
 ```
 
-### 7.2. Muc tieu
+### 7.2. Mục Tiêu
 
-Preview giup kiem tra chunk truoc khi ghi database:
+Preview giúp kiểm tra chunk trước khi ghi database:
 
 ```text
 metadata ok?
-so chunk hop ly?
-heading_path dung?
-page_start/page_end dung?
-content co bi mat khong?
-table co bi vo khong?
+số chunk hợp lý?
+heading_path đúng?
+page_start/page_end đúng?
+content có bị mất không?
+table có bị vỡ không?
 ```
 
-### 7.3. Output preview de xuat
+### 7.3. Output Preview Đề Xuất
 
 JSON:
 
@@ -639,16 +654,16 @@ JSON:
 }
 ```
 
-### 7.4. CLI de xuat
+### 7.4. CLI Đề Xuất
 
-Co the them command tam thoi:
+Có thể thêm command tạm thời:
 
 ```powershell
 cd chatbot/backend
 ..\..\.venv\Scripts\python.exe -m app.ingestion.preview "..\..\nlcs\06_Processing\03_Markdown_Cleaning\PDFs_CTSV\Noi_quy_KTX_nam_2016_structured.md"
 ```
 
-Neu chua muon lam CLI, chi can function:
+Nếu chưa muốn làm CLI, chỉ cần function:
 
 ```python
 def build_chunk_preview(markdown_path: Path) -> dict:
@@ -658,71 +673,73 @@ def build_chunk_preview(markdown_path: Path) -> dict:
 ### 7.5. Done khi
 
 ```text
-Preview duoc 1 file CTSV.
-Preview duoc 1 file PDT.
-Khong co chunk rong.
-Khong co child thieu parent.
-Khong co page_start > page_end.
+Preview được 1 file CTSV.
+Preview được 1 file PDT.
+Không có chunk rỗng.
+Không có child thiếu parent.
+Không có page_start > page_end.
 ```
 
 ---
 
-## 8. Phan E - PostgreSQL Ingestion Repository
+## 8. Phần E - PostgreSQL Ingestion Repository
 
-### 8.1. File nen tao
+### 8.1. File Nên Tạo
 
 ```text
 chatbot/backend/app/ingestion/repository.py
 chatbot/backend/test/ingestion/test_ingestion_repository.py
 ```
 
-### 8.2. Trach nhiem
+### 8.2. Trách Nhiệm
 
-Repository chi lam viec voi DB:
+Repository chỉ làm việc với DB:
 
 ```text
 upsert department
 upsert document_type
 upsert document
-upsert document_version (status fields nam truc tiep tren version)
+upsert document_version (status fields nằm trực tiếp trên version)
 insert/update document_chunks
 insert ingestion_job
 ```
 
-Khong parse Markdown, khong chunk, khong embed trong repository.
+Không parse Markdown, không chunk, không embed trong repository.
 
 ### 8.3. Department mapping
 
-Metadata hien co co:
+Metadata YAML/schema có:
 
 ```text
-department: str
+responsible_department: list[str]
 ```
 
-DB can:
+DB cần:
 
 ```text
 departments.code
 departments.name
+document_recipients(document_version_id, department_id, effective_date)
 ```
 
 MVP mapping:
 
 ```text
-Neu department = "CTSV" hoac "Phong Cong tac Sinh vien":
+Với từng item trong `responsible_department`:
+
+Nếu item = "CTSV" hoặc "Phong Cong tac Sinh vien":
   code = "CTSV"
-  name = original department or "Phong Cong tac Sinh vien"
+  name = original item or "Phong Cong tac Sinh vien"
 
-Neu department = "PDT" hoac "Phong Dao tao":
+Nếu item = "PDT" hoặc "Phong Dao tao":
   code = "PDT"
-  name = original department or "Phong Dao tao"
+  name = original item or "Phong Dao tao"
 
-Neu rong:
-  code = "UNKNOWN"
-  name = "Unknown"
+Nếu rỗng:
+  bỏ qua hoặc dùng fallback "UNKNOWN" theo policy ingestion
 ```
 
-Khong de `code` dai hon 20 ky tu vi model dang `String(20)`.
+Không để `code` dài hơn 20 ký tự vì model đang `String(20)`.
 
 ### 8.4. Document type mapping
 
@@ -736,10 +753,10 @@ DB:
 
 ```text
 document_types.code = document_type
-document_types.name = label de doc
+document_types.name = label dễ đọc
 ```
 
-Vi du:
+Ví dụ:
 
 ```text
 code = "quy_trinh"
@@ -754,16 +771,16 @@ Key:
 documents.document_key
 ```
 
-Neu ton tai:
+Nếu tồn tại:
 
 ```text
-update title/domain/audience/department_id/document_type_id neu can
+update title/domain/audience/department_id/document_type_id nếu cần
 ```
 
-Neu chua ton tai:
+Nếu chưa tồn tại:
 
 ```text
-insert moi
+insert mới
 ```
 
 ### 8.6. Upsert document_version
@@ -774,29 +791,29 @@ Key:
 document_versions.version_key
 ```
 
-Neu ton tai:
+Nếu tồn tại:
 
 ```text
-update metadata version neu checksum/metadata_hash thay doi
+update metadata version nếu checksum/metadata_hash thay đổi
 ```
 
-Neu chua ton tai:
+Nếu chưa tồn tại:
 
 ```text
-insert moi
+insert mới
 ```
 
-Can canh bao neu:
+Cần cảnh báo nếu:
 
 ```text
-version_key ton tai nhung document_key khac
+version_key tồn tại nhưng document_key khác
 ```
 
-Day la loi nghiem trong, nen raise.
+Đây là lỗi nghiêm trọng, nên raise.
 
 ### 8.7. Status update
 
-Khong nen set `published` vao DB truoc khi Qdrant upsert thanh cong.
+Không nên set `published` vào DB trước khi Qdrant upsert thành công.
 
 Suggested workflow:
 
@@ -816,7 +833,7 @@ On failure:
   rag_status = failed
 ```
 
-Neu dang ingest expired/internal:
+Nếu đang ingest expired/internal:
 
 ```text
 final rag_status = indexed
@@ -824,45 +841,45 @@ final rag_status = indexed
 
 ### 8.8. Insert chunks
 
-Thu tu:
+Thứ tự:
 
 ```text
-1. Delete old chunks cua document_version hoac mark inactive.
-2. Insert parent chunks truoc.
+1. Delete old chunks của document_version hoặc mark inactive.
+2. Insert parent chunks trước.
 3. Build map chunk_key -> database id.
-4. Insert child chunks voi parent_chunk_id tu map.
+4. Insert child chunks với parent_chunk_id từ map.
 ```
 
-MVP co the delete old chunks truoc khi insert lai, vi document version la snapshot.
+MVP có thể delete old chunks trước khi insert lại, vì document version là snapshot.
 
-Luu y:
+Lưu ý:
 
 ```text
-Neu Qdrant da co old vectors, can delete/deactivate Qdrant points truoc khi replace chunks.
-Neu chua implement delete Qdrant, chua nen ingest lai cung version vao data that.
+Nếu Qdrant đã có old vectors, cần delete/deactivate Qdrant points trước khi replace chunks.
+Nếu chưa implement delete Qdrant, chưa nên ingest lại cùng version vào data thật.
 ```
 
 ### 8.9. Done khi
 
 ```text
-Mot MarkdownDocument + list[Chunk] ghi duoc vao PostgreSQL.
-Query lai thay document/version/status/chunks.
-Child chunk co parent_chunk_id dung.
+Một MarkdownDocument + list[Chunk] ghi được vào PostgreSQL.
+Query lại thấy document/version/status/chunks.
+Child chunk có parent_chunk_id đúng.
 ```
 
 ---
 
-## 9. Phan F - Pipeline Orchestration
+## 9. Phần F - Pipeline Orchestration
 
-### 9.1. File nen sua
+### 9.1. File Nên Sửa
 
 ```text
 chatbot/backend/app/ingestion/pipeline.py
 ```
 
-### 9.2. Pipeline khong nen phinh to
+### 9.2. Pipeline Không Nên Phình To
 
-`pipeline.py` chi dieu phoi:
+`pipeline.py` chỉ điều phối:
 
 ```text
 read markdown
@@ -873,7 +890,7 @@ upsert qdrant
 update status/job
 ```
 
-Logic tung phan nam o module rieng:
+Logic từng phần nằm ở module riêng:
 
 ```text
 markdown_reader.py
@@ -890,11 +907,11 @@ async def ingest_markdown_file(path: Path, *, publish: bool = False) -> Ingestio
     ...
 ```
 
-Trong do:
+Trong đó:
 
 ```text
-publish=False: chi validate + chunk + save DB, khong upsert Qdrant
-publish=True: chay embed + upsert Qdrant neu metadata cho phep
+publish=False: chỉ validate + chunk + save DB, không upsert Qdrant
+publish=True: chạy embed + upsert Qdrant nếu metadata cho phép
 ```
 
 ### 9.4. IngestionResult
@@ -916,22 +933,22 @@ class IngestionResult:
 
 ### 9.5. Error handling
 
-Neu loi o bat ky stage nao:
+Nếu lỗi ở bất kỳ stage nào:
 
 ```text
 ingestion_jobs.status = failed
-ingestion_jobs.current_step = step dang loi
-ingestion_jobs.error_message = message ngan
+ingestion_jobs.current_step = step đang lỗi
+ingestion_jobs.error_message = message ngắn
 document_versions.rag_status = failed
 ```
 
-Khong swallow exception trong MVP. Log roi raise de test thay loi.
+Không swallow exception trong MVP. Log rồi raise để test thấy lỗi.
 
 ---
 
-## 10. Phan G - Embedding
+## 10. Phần G - Embedding
 
-### 10.1. File nen tao/sua
+### 10.1. File Nên Tạo/Sửa
 
 ```text
 chatbot/backend/app/embedding/embedder.py
@@ -939,13 +956,13 @@ chatbot/backend/app/embedding/__init__.py
 chatbot/backend/test/embedding/test_embedder.py
 ```
 
-Co the giu file cu:
+Có thể giữ file cũ:
 
 ```text
 chatbot/backend/app/embedding/embeder.py
 ```
 
-voi noi dung wrapper:
+với nội dung wrapper:
 
 ```python
 from app.embedding.embedder import *  # noqa: F401,F403
@@ -953,23 +970,23 @@ from app.embedding.embedder import *  # noqa: F401,F403
 
 ### 10.2. Model
 
-Quyet dinh hien tai:
+Quyết định hiện tại:
 
 ```text
 BAAI/bge-m3
 ```
 
-Vector dimension thuong dung:
+Vector dimension thường dùng:
 
 ```text
 1024
 ```
 
-Neu dung model khac, Qdrant collection dimension phai doi theo.
+Nếu dùng model khác, Qdrant collection dimension phải đổi theo.
 
 ### 10.3. Input text cho embedding
 
-Khong embed raw content moi. Nen them context ngan:
+Không embed raw content mới. Nên thêm context ngắn:
 
 ```text
 Tai lieu: <title>
@@ -981,14 +998,14 @@ Trang: <page_start>-<page_end>
 <chunk content>
 ```
 
-Ly do:
+Lý do:
 
 ```text
-Chunk ngan co them context se search tot hon.
-Citation van lay tu payload, khong dua vao text embed.
+Chunk ngắn có thêm context sẽ search tốt hơn.
+Citation vẫn lấy từ payload, không dựa vào text embed.
 ```
 
-### 10.4. API de xuat
+### 10.4. API Đề Xuất
 
 ```python
 class Embedder:
@@ -1003,9 +1020,9 @@ class Embedder:
 
 ### 10.5. Test
 
-Unit test khong nen tai model that vi cham.
+Unit test không nên tải model thật vì chậm.
 
-Dung fake embedder:
+Dùng fake embedder:
 
 ```python
 class FakeEmbedder:
@@ -1013,7 +1030,7 @@ class FakeEmbedder:
         return [[0.1, 0.2, 0.3] for _ in texts]
 ```
 
-Integration embedding that co the de rieng va skip mac dinh:
+Integration embedding thật có thể để riêng và skip mặc định:
 
 ```python
 @pytest.mark.integration
@@ -1021,9 +1038,9 @@ Integration embedding that co the de rieng va skip mac dinh:
 
 ---
 
-## 11. Phan H - Qdrant Client Va Repository
+## 11. Phần H - Qdrant Client Và Repository
 
-### 11.1. File nen tao/sua
+### 11.1. File Nên Tạo/Sửa
 
 ```text
 chatbot/backend/app/vectorstore/qdrant_client.py
@@ -1034,10 +1051,10 @@ chatbot/backend/test/vectorstore/test_qdrant_repository.py
 
 ### 11.2. Collection
 
-Ten collection de xuat:
+Tên collection đề xuất:
 
 ```text
-ctu_student_service_chunks
+css_qdrant
 ```
 
 Config:
@@ -1049,22 +1066,22 @@ distance = cosine
 
 ### 11.3. Point ID
 
-Qdrant point ID nen on dinh.
+Qdrant point ID nên ổn định.
 
-Khuyen nghi:
+Khuyến nghị:
 
 ```text
 point_id = uuid5(NAMESPACE_URL, str(document_chunks.id))
 ```
 
-Ly do:
+Lý do:
 
 ```text
-Qdrant chap nhan UUID string.
-Upsert cung DB chunk id se de dang idempotent.
+Qdrant chấp nhận UUID string.
+Upsert cùng DB chunk id sẽ dễ dàng idempotent.
 ```
 
-Khong dung random UUID vi ingest lai se tao duplicate point.
+Không dùng random UUID vì ingest lại sẽ tạo duplicate point.
 
 ### 11.4. Payload model
 
@@ -1092,16 +1109,16 @@ class VectorPayload(TypedDict):
 
 ```text
 1. Ensure collection exists.
-2. Build points tu child chunks da embed.
+2. Build points từ child chunks đã embed.
 3. Upsert points.
 4. Update document_chunks.qdrant_point_id.
 5. Update document_chunks.index_status = indexed.
-6. Update document_versions.rag_status = published hoac indexed.
+6. Update document_versions.rag_status = published hoặc indexed.
 ```
 
 ### 11.6. Filter cho student search
 
-Qdrant filter bat buoc:
+Qdrant filter bắt buộc:
 
 ```text
 review_status = approved
@@ -1109,13 +1126,13 @@ rag_status = published
 audience contains student
 ```
 
-Neu Qdrant filter array contains phuc tap luc dau, co the them payload:
+Nếu Qdrant filter array contains phức tạp lúc đầu, có thể thêm payload:
 
 ```text
 audience_student = true
 ```
 
-Nhung van giu `audience` list de trace.
+Nhưng vẫn giữ `audience` list để trace.
 
 ### 11.7. Test
 
@@ -1133,28 +1150,30 @@ Integration test Qdrant:
 test_upsert_and_search_test_collection
 ```
 
-Chi chay khi Qdrant container dang chay.
+Chỉ chạy khi Qdrant container đang chạy.
 
 ---
 
-## 12. Phan I - Retrieval Toi Thieu
+## 12. Phần I - Retrieval Tối Thiểu
 
-### 12.1. File nen sua
+### 12.1. File Nên Sửa
 
 ```text
 chatbot/backend/app/retrieval/retriever.py
 chatbot/backend/test/retrieval/test_retriever.py
 ```
 
-### 12.2. Input va output
+### 12.2. Input Và Output
 
 Input:
 
 ```text
 query: str
 audience: "student"
-top_k: int = 5
+top_k: int | None = None  # None => settings.retrieval.top_k
 ```
+
+`top_k` lấy từ runtime settings (default `retrieval.top_k = 5`). Không dùng fallback kiểu `settings.retrieval.top_k or 5`.
 
 Output:
 
@@ -1175,19 +1194,19 @@ class RetrievalResult:
 
 ```text
 1. Embed query.
-2. Search Qdrant voi student filter.
-3. Lay content tu payload neu payload co content preview/full content.
-4. Tot hon: lay postgres_chunk_id tu payload, query PostgreSQL de lay full content.
-5. Return result co citation.
+2. Search Qdrant với student filter.
+3. Lấy content từ payload nếu payload có content preview/full content.
+4. Tốt hơn: lấy postgres_chunk_id từ payload, query PostgreSQL để lấy full content.
+5. Return result có citation.
 ```
 
-MVP co the de content trong payload de search smoke test nhanh.
+MVP có thể để content trong payload để search smoke test nhanh.
 
-Nhung ve lau dai:
+Nhưng về lâu dài:
 
 ```text
-Qdrant payload khong nen la noi luu full content chinh.
-PostgreSQL document_chunks.content moi la canonical chunk content.
+Qdrant payload không nên là nơi lưu full content chính.
+PostgreSQL document_chunks.content mới là canonical chunk content.
 ```
 
 ### 12.4. Citation format
@@ -1198,13 +1217,13 @@ MVP:
 <source_file>, trang <page_start>-<page_end>
 ```
 
-Neu `page_start` rong:
+Nếu `page_start` rỗng:
 
 ```text
-<source_file>, muc <heading_path last item>
+<source_file>, mục <heading_path last item>
 ```
 
-### 12.5. Test quan trong
+### 12.5. Test Quan Trọng
 
 ```text
 test_student_retriever_filters_unpublished_documents
@@ -1215,9 +1234,9 @@ test_retriever_returns_empty_list_for_blank_query
 
 ---
 
-## 13. Phan J - Test Va Smoke Test End-To-End
+## 13. Phần J - Test Và Smoke Test End-To-End
 
-### 13.1. Test tree de xuat
+### 13.1. Test tree đề xuất
 
 ```text
 chatbot/backend/test/ingestion/
@@ -1237,9 +1256,9 @@ chatbot/backend/test/retrieval/
   test_retriever.py
 ```
 
-### 13.2. Unit tests khong can service ngoai
+### 13.2. Không Cần Service Ngoài
 
-Nen chay nhanh:
+Nên chạy nhanh:
 
 ```powershell
 cd chatbot/backend
@@ -1248,7 +1267,7 @@ cd chatbot/backend
 
 ### 13.3. DB integration tests
 
-Chi chay khi `DATABASE_URL` tro vao DB test:
+Chỉ chạy khi `DATABASE_URL` trỏ vào DB test:
 
 ```powershell
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
@@ -1257,190 +1276,190 @@ $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_s
 
 ### 13.4. Qdrant integration tests
 
-Chi chay khi Qdrant dang chay:
+Chỉ chạy khi Qdrant đang chạy:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot
 docker compose up -d qdrant
 ```
 
-Sau do:
+Sau đó:
 
 ```powershell
 cd backend
 ..\..\.venv\Scripts\python.exe -m pytest test/vectorstore -m integration
 ```
 
-### 13.5. Smoke test thu cong
+### 13.5. Thủ Công
 
 ```text
-1. Start PostgreSQL va Qdrant.
-2. Set DATABASE_URL sang DB test hoac dev tuy muc dich.
-3. Chay migration.
-4. Preview chunk mot Markdown file.
-5. Ingest file vao PostgreSQL.
+1. Start PostgreSQL và Qdrant.
+2. Set DATABASE_URL sang DB test hoặc dev tùy mục đích.
+3. Chạy migration.
+4. Preview chunk một Markdown file.
+5. Ingest file vào PostgreSQL.
 6. Embed child chunks.
 7. Upsert Qdrant.
-8. Search query thu.
-9. Kiem tra citation.
+8. Search query thử.
+9. Kiểm tra citation.
 ```
 
-Query test nen gan voi noi dung tai lieu that, vi du:
+Query test nên gần với nội dung tài liệu thật, ví dụ:
 
 ```text
-"sinh vien can lam gi de cap bang diem"
-"noi quy ky tuc xa quy dinh ve thoi gian nao"
-"vay von sinh vien STEM can dieu kien gi"
+"sinh viên cần làm gì để cấp bằng điểm"
+"nội quy ký túc xá quy định về thời gian nào"
+"vay vốn sinh viên STEM cần điều kiện gì"
 ```
 
 ---
 
-## 14. Thu Tu Implement Khuyen Nghi
+## 14. Thứ Tự Implement Khuyến Nghị
 
-Khong code tat ca cung luc. Lam theo thu tu:
+Không code tất cả cùng lúc. Làm theo thứ tự:
 
 ```text
 1. Fix DB/schema contract: stable chunk_key, parent_chunk_id FK, nullable, updated_at.
-2. Add dependencies toi thieu: PyYAML.
+2. Add dependencies tối thiểu: PyYAML.
 3. Implement markdown_reader.py + tests.
 4. Implement chunker.py + tests.
 5. Implement preview.py.
 6. Implement ingestion repository save metadata/chunks.
-7. Implement pipeline.py voi mode publish=False.
+7. Implement pipeline.py với mode publish=False.
 8. Add embedder.py + fake embedder tests.
 9. Add qdrant repository + mocked tests.
 10. Implement pipeline publish=True.
 11. Implement retriever.py.
-12. Chay smoke test end-to-end.
+12. Chạy smoke test end-to-end.
 ```
 
-Neu buoc 3 hoac 4 chua pass, khong nen bat dau embedding/Qdrant.
+Nếu bước 3 hoặc 4 chưa pass, không nên bắt đầu embedding/Qdrant.
 
 ---
 
-## 15. Checklist Hoan Thanh Guide 07
+## 15. Checklist Hoàn Thành Guide 07
 
-- [ ] `DocumentChunk.chunk_key` duoc chot lam stable chunk key.
-- [ ] Migration va DB smoke test pass.
-- [ ] Markdown reader validate duoc frontmatter.
-- [ ] Chunker tao parent/child chunks hop le.
-- [ ] Preview hien chunk ro rang truoc khi ghi DB.
+- [ ] `DocumentChunk.chunk_key` được chốt làm stable chunk key.
+- [ ] Migration và DB smoke test pass.
+- [ ] Markdown reader validate được frontmatter.
+- [ ] Chunker tạo parent/child chunks hợp lệ.
+- [ ] Preview hiện chunk rõ ràng trước khi ghi DB.
 - [ ] Ingestion repository upsert document/version/status/chunks.
-- [ ] Pipeline `publish=False` chay duoc.
-- [ ] Embedder co fake test va integration path cho BGE-M3.
-- [ ] Qdrant repository co stable point id.
-- [ ] Pipeline `publish=True` upsert duoc Qdrant.
-- [ ] Retriever student filter dung status.
-- [ ] Smoke test tra ve citation dung file/trang.
+- [ ] Pipeline `publish=False` chạy được.
+- [ ] Embedder có fake test và integration path cho BGE-M3.
+- [ ] Qdrant repository có stable point id.
+- [ ] Pipeline `publish=True` upsert được Qdrant.
+- [ ] Retriever student filter đúng status.
+- [ ] Smoke test trả về citation đúng file/trang.
 
 ---
 
-## 16. Cac Loi De Gap
+## 16. Các Lỗi Dễ Gặp
 
-### Loi 1: YAML field dung ten cu
+### Lỗi 1: YAML field dùng tên cũ
 
-Trieu chung:
+Triệu chứng:
 
 ```text
 ValidationError: document_key field required
 ```
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
-File Markdown van dung document_id/version_id.
+File Markdown vẫn dùng document_id/version_id.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
-Chuan hoa sang document_key/version_key.
-Khong them alias ngam neu chua can migration metadata cu.
+Chuẩn hóa sang document_key/version_key.
+Không thêm alias ngầm nếu chưa cần migration metadata cũ.
 ```
 
-### Loi 2: Child chunk khong co parent
+### Lỗi 2: Child chunk không có parent
 
-Trieu chung:
+Triệu chứng:
 
 ```text
 ValidationError: child chunk requires parent_chunk_key
 ```
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
-Chunker tao child truoc parent hoac section parser khong tao default parent.
+Chunker tạo child trước parent hoặc section parser không tạo default parent.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
-Neu tai lieu khong co heading, tao parent "Document" truoc.
+Nếu tài liệu không có heading, tạo parent "Document" trước.
 ```
 
-### Loi 3: Duplicate chunks khi ingest lai
+### Lỗi 3: Duplicate chunks khi ingest lại
 
-Trieu chung:
+Triệu chứng:
 
 ```text
 UniqueConstraint document_version_id/chunk_index
 ```
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
-Ingest lai cung version nhung khong xoa/update chunks cu.
+Ingest lại cùng version nhưng không xóa/update chunks cũ.
 ```
 
-Xu ly MVP:
+Xử lý MVP:
 
 ```text
-Trong transaction, delete chunks cu cua document_version truoc khi insert chunks moi.
+Trong transaction, delete chunks cũ của document_version trước khi insert chunks mới.
 ```
 
 Sau MVP:
 
 ```text
-So sanh checksum va update diff.
+So sánh checksum và update diff.
 ```
 
-### Loi 4: Qdrant duplicate points
+### Lỗi 4: Qdrant duplicate points
 
-Trieu chung:
+Triệu chứng:
 
 ```text
-Search tra ve nhieu ket qua trung noi dung.
+Search trả về nhiều kết quả trùng nội dung.
 ```
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
-Point ID random moi lan ingest.
+Point ID random mỗi lần ingest.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
-Dung uuid5 tu DocumentChunk.id de point ID on dinh.
+Dùng uuid5 từ DocumentChunk.id để point ID ổn định.
 ```
 
-### Loi 5: Student retrieval lay tai lieu expired
+### Lỗi 5: Student retrieval lấy tài liệu expired
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
-Chi filter luc ingestion, khong filter luc retrieval.
+Chỉ filter lúc ingestion, không filter lúc retrieval.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
-Them hard filter trong retriever.py va test rieng.
+Thêm hard filter trong retriever.py và test riêng.
 ```
 
 ---
 
-## 17. File Nen Doc Lai Truoc Khi Code
+## 17. File Nên Đọc Lại Trước Khi Code
 
 ```text
 chatbot/.docs/guild_implement/01_RAG_SCHEMA_IMPLEMENTATION_GUIDE.md
@@ -1454,4 +1473,4 @@ chatbot/backend/app/databases/models/chunks.py
 chatbot/backend/test/databases/test_database_models.py
 ```
 
-Guide 07 khong thay the cac guide truoc. No chi bien muc tieu cua guide 06 thanh cac phan implementation co the code va test lan luot.
+Guide 07 không thay thế các guide trước. Nó chỉ biến mục tiêu của guide 06 thành các phần implementation có thể code và test lần lượt.

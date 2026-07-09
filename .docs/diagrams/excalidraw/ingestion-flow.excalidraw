@@ -899,12 +899,12 @@
       "strokeStyle": "solid",
       "roughness": 2,
       "opacity": 100,
-      "text": "Index when ALL are true:\nocr_status = done\nreview_status = approved\nvalidity_status = valid\nconfidentiality = public\neffective_date <= today\nexpiry_date is null OR expiry_date >= today\n\nQdrant collection: ctu_chunks_bge_m3\nvector_size: 1024, distance: cosine\nPostgreSQL: document_chunks.qdrant_point_id",
+      "text": "Index when ALL are true:\nocr_status = done\nreview_status = approved\nvalidity_status = valid\nconfidentiality = public\neffective_date <= today\nexpiry_date is null OR expiry_date >= today\n\nQdrant collection: css_qdrant\nvector_size: 1024, distance: cosine\nPostgreSQL: document_chunks.qdrant_point_id",
       "fontSize": 14,
       "fontFamily": 3,
       "textAlign": "left",
       "verticalAlign": "top",
-      "originalText": "Index when ALL are true:\nocr_status = done\nreview_status = approved\nvalidity_status = valid\nconfidentiality = public\neffective_date <= today\nexpiry_date is null OR expiry_date >= today\n\nQdrant collection: ctu_chunks_bge_m3\nvector_size: 1024, distance: cosine\nPostgreSQL: document_chunks.qdrant_point_id"
+      "originalText": "Index when ALL are true:\nocr_status = done\nreview_status = approved\nvalidity_status = valid\nconfidentiality = public\neffective_date <= today\nexpiry_date is null OR expiry_date >= today\n\nQdrant collection: css_qdrant\nvector_size: 1024, distance: cosine\nPostgreSQL: document_chunks.qdrant_point_id"
     },
     {
       "id": "line_api_to_job",

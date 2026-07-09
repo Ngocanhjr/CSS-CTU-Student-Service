@@ -994,7 +994,7 @@
 
       </div>
 
-      <p class="subtitle">Canonical Markdown → Validate → Chunk → Embed → Qdrant → Published</p>
+      <p class="subtitle">Canonical Markdown → Validate → Normalize → Chunk → Embed → Qdrant → Published</p>
 
     </div>
 
@@ -1004,7 +1004,7 @@
 
     <div class="diagram-container">
 
-      <svg viewBox="0 0 1080 720" role="img" aria-label="CTU Student Service — Ingestion Pipeline — Canonical Markdown → Validate → Chunk → Embed → Qdrant → Published (data-flow diagram)">
+      <svg viewBox="0 0 1080 720" role="img" aria-label="CTU Student Service — Ingestion Pipeline — Canonical Markdown → Validate → Normalize → Chunk → Embed → Qdrant → Published (data-flow diagram)">
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -1082,9 +1082,10 @@
 
         <rect x="474" y="128" width="112" height="58" rx="6" class="c-mask"/>
         <rect x="474" y="128" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="530" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">MD Chunker</text>
-        <text x="530" y="165" class="t-muted" font-size="7" text-anchor="middle">langchain heading-aware</text>
-        <text x="530" y="175" class="t-backend" font-size="7" text-anchor="middle">parent + child</text>
+        <text x="530" y="146" class="t-primary" font-size="9" font-weight="600" text-anchor="middle">Pre-chunk Parser</text>
+        <text x="530" y="158" class="t-primary" font-size="9" font-weight="600" text-anchor="middle">+ Chunker</text>
+        <text x="530" y="171" class="t-muted" font-size="7" text-anchor="middle">09A normalize → heading-aware</text>
+        <text x="530" y="181" class="t-backend" font-size="7" text-anchor="middle">page + heading</text>
 
         <rect x="474" y="356" width="112" height="58" rx="6" class="c-mask"/>
         <rect x="474" y="356" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
@@ -1122,9 +1123,9 @@
         <text x="207.5" y="272" class="t-dim" font-size="7" text-anchor="middle">YAML payload</text>
         <rect x="374.85" y="136" width="95.30000000000001" height="27" rx="4" class="c-mask"/>
         <text x="422.5" y="147" class="t-backend" font-size="8" text-anchor="middle">approved Markdown</text>
-        <text x="422.5" y="158" class="t-dim" font-size="7" text-anchor="middle">clean text</text>
+        <text x="422.5" y="158" class="t-dim" font-size="7" text-anchor="middle">normalize before chunk</text>
         <rect x="272.25" y="250" width="85.5" height="27" rx="4" class="c-mask"/>
-        <text x="315" y="261" class="t-messagebus" font-size="8" text-anchor="middle">step = chunking</text>
+        <text x="315" y="261" class="t-messagebus" font-size="8" text-anchor="middle">step = normalize/chunk</text>
         <text x="315" y="272" class="t-dim" font-size="7" text-anchor="middle">status update</text>
         <rect x="472.55" y="250" width="114.9" height="27" rx="4" class="c-mask"/>
         <text x="530" y="261" class="t-backend" font-size="8" text-anchor="middle">parent + child chunks</text>
@@ -1175,12 +1176,12 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>Chunking</h3>
+          <h3>Normalize + Chunk</h3>
         </div>
         <ul>
+          <li>&bull; Guide 09A normalize page markers và heading trước chunk</li>
           <li>&bull; Heading-aware parent chunks theo section lớn</li>
-          <li>&bull; Child chunks 300–600 tokens kế thừa metadata</li>
-          <li>&bull; Chunk key format: version_key::p::0001 / ::c::0001</li>
+          <li>&bull; Child chunks kế thừa heading_path/page_start/page_end</li>
         </ul>
       </div>
 

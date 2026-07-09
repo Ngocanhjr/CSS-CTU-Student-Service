@@ -1,10 +1,10 @@
-# 08. Part A - Huong Dan Chot Contract DB/Schema Truoc Khi Ingest
+# 08. Part A - Hướng Dẫn Chốt Contract DB/Schema Trước Khi Ingest
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu `07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md`, phan A.
+File này tách chi tiết từ `07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md`, phần A.
 
-Muc tieu cua part A la chot lai contract giua:
+Mục tiêu của part A là chốt lại contract giữa:
 
 ```text
 Pydantic schema Chunk
@@ -13,7 +13,7 @@ Alembic migration
 Qdrant payload
 ```
 
-Quyet dinh sau khi review:
+Quyết định sau khi review:
 
 ```text
 Schema/API/chunker dung chunk_key va parent_chunk_key.
@@ -25,11 +25,11 @@ Source of truth cho schema DB: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.
 
 ---
 
-## 1. Ket Luan Thiet Ke
+## 1. Kết Luận Thiết Kế
 
-### 1.1. ID nao dung o dau
+### 1.1. ID nào dùng ở đâu
 
-Dung thong nhat:
+Dùng thống nhất:
 
 ```text
 Chunk.chunk_key          = stable key trong schema/API/preview/Qdrant
@@ -40,7 +40,7 @@ DocumentChunk.parent_chunk_id = internal FK resolved from parent_chunk_key
 qdrant_point_id              = ID point trong Qdrant
 ```
 
-Ly do:
+Lý do:
 
 ```text
 PostgreSQL la source of truth.
@@ -50,7 +50,7 @@ chunk_key la dinh danh on dinh de idempotent ingest, upsert vector, va trace qua
 
 ### 1.2. Trade-off
 
-Luu `document_chunks.chunk_key` co loi:
+Lưu `document_chunks.chunk_key` có lợi:
 
 ```text
 idempotent re-ingest
@@ -58,7 +58,7 @@ payload Qdrant on dinh theo version_key + chunk_key
 khong phu thuoc vao sequence id cua PostgreSQL
 ```
 
-Nhung co diem can nho:
+Nhưng có điểm cần nhớ:
 
 ```text
 can migration them cot chunk_key
@@ -66,7 +66,7 @@ repository phai validate parent_chunk_key ton tai trong cung document_version_id
 van can postgres_chunk_id trong payload de hydrate nhanh tu DB
 ```
 
-Vi vay pipeline phai co 2 giai doan:
+Vì vậy pipeline phải có 2 giai đoạn:
 
 ```text
 1. Chunker tao Chunk voi stable chunk_key.
@@ -76,7 +76,7 @@ Vi vay pipeline phai co 2 giai doan:
 
 ---
 
-## 2. File Can Sua/Kiem Tra
+## 2. File Cần Sửa/Kiểm Tra
 
 ```text
 chatbot/backend/app/schemas/chunks.py
@@ -87,11 +87,11 @@ chatbot/backend/test/schemas/chunks_test.py
 chatbot/backend/test/databases/test_database_models.py
 ```
 
-Neu sua model, can tao migration moi hoac sua migration dau tien neu database chua chot.
+Nếu sửa model, cần tạo migration mới hoặc sửa migration đầu tiên nếu database chưa chốt.
 
 ---
 
-## 3. Sua `schemas/chunks.py`
+## 3. Sửa `schemas/chunks.py`
 
 File:
 
@@ -99,9 +99,9 @@ File:
 chatbot/backend/app/schemas/chunks.py
 ```
 
-Hien tai field nullable dang khai bao kieu `int` nhung default `None`.
+Hiện tại field nullable đang khai báo kiểu `int` nhưng default `None`.
 
-Nen sua thanh:
+Nên sửa thành:
 
 ```python
 class Chunk(StrictSchema):
@@ -123,14 +123,14 @@ class Chunk(StrictSchema):
     metadata: dict[str, Any] = Field(default_factory=dict)
 ```
 
-Ly do:
+Lý do:
 
 ```text
 Field(default=None) phai di voi type int | None.
 Neu khong, code van co the chay nhung contract khong ro.
 ```
 
-Khong doi validator parent-child:
+Không đổi validator parent-child:
 
 ```python
 if self.chunk_type == "parent" and self.parent_chunk_key is not None:
@@ -142,7 +142,7 @@ if self.chunk_type == "child" and not self.parent_chunk_key:
 
 ---
 
-## 4. Sua `models/chunks.py`
+## 4. Sửa `models/chunks.py`
 
 File:
 
@@ -150,9 +150,9 @@ File:
 chatbot/backend/app/databases/models/chunks.py
 ```
 
-Bat buoc them cot `chunk_key`.
+Bắt buộc thêm cột `chunk_key`.
 
-Can sua nullable cho cac field co the khong co page/token:
+Cần sửa nullable cho các field có thể không có page/token:
 
 ```python
 class DocumentChunk(Base):
@@ -190,7 +190,7 @@ class DocumentChunk(Base):
     )
 ```
 
-Giu constraints:
+Giữ constraints:
 
 ```python
 __table_args__ = (
@@ -199,7 +199,7 @@ __table_args__ = (
 )
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Spec 05 dung ca UNIQUE(document_version_id, chunk_key) va UNIQUE(document_version_id, chunk_index).
@@ -209,7 +209,7 @@ chunk_type nhan gia tri 'parent' hoac 'child'.
 
 ---
 
-## 5. Sua `models/documents.py`
+## 5. Sửa `models/documents.py`
 
 File:
 
@@ -217,24 +217,24 @@ File:
 chatbot/backend/app/databases/models/documents.py
 ```
 
-Kiem tra cac field ngay (theo spec 05, document_versions chi co issued_date va accessed_date;
-khong co effective_date/expiry_date):
+Kiểm tra các field ngày (theo spec 05, document_versions chỉ có issued_date và accessed_date;
+không có effective_date/expiry_date):
 
 ```python
 issued_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 accessed_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 ```
 
-Ly do:
+Lý do:
 
 ```text
 Pydantic DocumentVersionMetadata cho phep None.
 Nhieu tai lieu hanh chinh khong co issued_date/accessed_date ro rang.
 ```
 
-Kiem tra `updated_at`.
+Kiểm tra `updated_at`.
 
-Neu model can insert smoke test ma khong truyen `updated_at`, nen co server_default:
+Nếu model cần insert smoke test mà không truyền `updated_at`, nên có server_default:
 
 ```python
 updated_at: Mapped[datetime] = mapped_column(
@@ -245,11 +245,11 @@ updated_at: Mapped[datetime] = mapped_column(
 )
 ```
 
-Ap dung cho cac table co `updated_at`.
+Áp dụng cho các table có `updated_at`.
 
 ---
 
-## 6. Sua Alembic Migration
+## 6. Sửa Alembic Migration
 
 File:
 
@@ -257,9 +257,9 @@ File:
 chatbot/backend/alembic/versions/42bc821c519a_create_core_rag_tables.py
 ```
 
-Neu database chua co data quan trong, co the sua migration dau tien cho nhanh.
+Nếu database chưa có data quan trọng, có thể sửa migration đầu tiên cho nhanh.
 
-Can kiem tra:
+Cần kiểm tra:
 
 ```python
 sa.Column('issued_date', sa.Date(), nullable=True)
@@ -269,20 +269,20 @@ sa.Column('page_end', sa.Integer(), nullable=True)
 sa.Column('token_count', sa.Integer(), nullable=True)
 ```
 
-Va cac cot `updated_at` nen co:
+Và các cột `updated_at` nên có:
 
 ```python
 server_default=sa.text('now()')
 ```
 
-Neu database da chay migration va co data, khong sua migration cu. Tao migration moi:
+Nếu database đã chạy migration và có data, không sửa migration cũ. Tạo migration mới:
 
 ```powershell
 cd chatbot/backend
 ..\..\.venv\Scripts\alembic.exe revision -m "relax nullable chunk fields"
 ```
 
-Trong migration moi dung:
+Trong migration mới dùng:
 
 ```python
 op.alter_column("document_chunks", "page_start", nullable=True, schema="css")
@@ -320,7 +320,7 @@ for chunk in parent_chunks:
     draft_to_db_id[chunk.chunk_key] = row.id
 ```
 
-Sau do insert child:
+Sau đó insert child:
 
 ```python
 for chunk in child_chunks:
@@ -351,7 +351,7 @@ stable key: row.chunk_key
 internal DB id: row.id
 ```
 
-Qdrant payload dung:
+Qdrant payload dùng:
 
 ```json
 {
@@ -361,11 +361,11 @@ Qdrant payload dung:
 }
 ```
 
-Khong dung PostgreSQL id lam `chunk_key` trong payload student-facing.
+Không dùng PostgreSQL id làm `chunk_key` trong payload student-facing.
 
 ---
 
-## 8. Test Can Sua/Them
+## 8. Test Cần Sửa/Thêm
 
 ### 8.1. Schema test
 
@@ -375,7 +375,7 @@ File:
 chatbot/backend/test/schemas/chunks_test.py
 ```
 
-Them test:
+Thêm test:
 
 ```python
 def test_chunk_accepts_unknown_page_and_token_count():
@@ -401,7 +401,7 @@ File:
 chatbot/backend/test/databases/test_database_models.py
 ```
 
-Them hoac sua mot child chunk cho phep null:
+Thêm hoặc sửa một child chunk cho phép null:
 
 ```python
 child_chunk_without_page = DocumentChunk(
@@ -422,16 +422,16 @@ child_chunk_without_page = DocumentChunk(
 
 ---
 
-## 9. Lenh Kiem Tra
+## 9. Lệnh Kiểm Tra
 
-Chay schema tests:
+Chạy schema tests:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
 ..\..\.venv\Scripts\python.exe -m pytest test/schemas
 ```
 
-Chay DB test voi database test:
+Chạy DB test với database test:
 
 ```powershell
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
@@ -442,56 +442,56 @@ $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_s
 
 ## 10. Done Khi
 
-- [ ] `Chunk.page_start`, `Chunk.page_end`, `Chunk.token_count` dung type `int | None`.
-- [ ] `DocumentChunk.page_start`, `page_end`, `token_count` nullable trong model va migration.
-- [ ] `DocumentVersion.issued_date`, `accessed_date` nullable neu schema cho phep.
-- [ ] Them cot stable `chunk_key` trong DB va unique `(document_version_id, chunk_key)`.
-- [ ] `DocumentChunk` dung `chunk_type` va `parent_chunk_id` (khong dung chunk_level/parent_id).
-- [ ] Repository co mapping parent_chunk_key -> parent_chunk_id.
-- [ ] Qdrant payload dung stable `chunk_key` va `postgres_chunk_id` rieng.
-- [ ] Test schema va DB smoke test pass.
+- [ ] `Chunk.page_start`, `Chunk.page_end`, `Chunk.token_count` dùng type `int | None`.
+- [ ] `DocumentChunk.page_start`, `page_end`, `token_count` nullable trong model và migration.
+- [ ] `DocumentVersion.issued_date`, `accessed_date` nullable nếu schema cho phép.
+- [ ] Thêm cột stable `chunk_key` trong DB và unique `(document_version_id, chunk_key)`.
+- [ ] `DocumentChunk` dùng `chunk_type` và `parent_chunk_id` (không dùng chunk_level/parent_id).
+- [ ] Repository có mapping parent_chunk_key -> parent_chunk_id.
+- [ ] Qdrant payload dùng stable `chunk_key` và `postgres_chunk_id` riêng.
+- [ ] Test schema và DB smoke test pass.
 
 ---
 
-## 11. Loi De Gap
+## 11. Lỗi Dễ Gặp
 
-### Loi: `page_start` null nhung DB bao not-null
+### Lỗi: `page_start` null nhưng DB báo not-null
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Migration van nullable=False.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Sua migration hoac tao migration moi alter column nullable.
 ```
 
-### Loi: khong map duoc child sang parent
+### Lỗi: không map được child sang parent
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Chunker tao parent_chunk_key khong khop voi chunk_key cua parent draft.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 In ra draft_to_db_id va danh sach child parent_chunk_key trong preview.
 ```
 
-### Loi: Qdrant payload dung draft id
+### Lỗi: Qdrant payload dùng draft id
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Upsert Qdrant truoc khi insert DB.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Luon insert PostgreSQL truoc, lay DocumentChunk.id, roi moi embed/upsert.

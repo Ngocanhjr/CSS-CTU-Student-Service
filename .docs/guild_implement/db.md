@@ -1,27 +1,27 @@
 # Database and Schema Sync Rules
 
-Tai lieu nay quy dinh cach dong bo giua:
+Tài liệu này quy định cách đồng bộ giữa:
 
 - Pydantic schemas: `chatbot/backend/app/schemas`
 - SQLAlchemy database models: `chatbot/backend/app/databases/models`
 - Alembic migrations: `chatbot/backend/alembic/versions`
 
-Muc tieu la giu API/ingestion dung stable key de de trace, con database dung primary key va foreign key noi bo de bao toan toan ven du lieu.
+Mục tiêu là giữ API/ingestion dùng stable key để dễ trace, còn database dùng primary key và foreign key nội bộ để bảo toàn toàn vẹn dữ liệu.
 
-## 1. Nguyen tac chinh
+## 1. Nguyên tắc chính
 
-Schema khong nen phu thuoc vao database id sinh tu dong.
+Schema không nên phụ thuộc vào database id sinh tự động.
 
-- Schema/input/output dung stable business keys: `document_key`, `version_key`, `asset_key`, `chunk_key`, `parent_chunk_key`.
-- Database dung `id` lam primary key noi bo.
-- Database dung cac cot FK noi bo nhu `document_id`, `document_version_id`, `asset_id`, `parent_chunk_id`.
-- Service/repository layer chiu trach nhiem resolve stable key sang database id khi ghi DB.
+- Schema/input/output dùng stable business keys: `document_key`, `version_key`, `asset_key`, `chunk_key`, `parent_chunk_key`.
+- Database dùng `id` làm primary key nội bộ.
+- Database dùng các cột FK nội bộ như `document_id`, `document_version_id`, `asset_id`, `parent_chunk_id`.
+- Service/repository layer chịu trách nhiệm resolve stable key sang database id khi ghi DB.
 
-Khong dua `id` noi bo vao metadata ingestion neu khong can thiet. Metadata nen uu tien key on dinh de co the trace, re-ingest, upsert, va debug qua nhieu moi truong DB.
+Không đưa `id` nội bộ vào metadata ingestion nếu không cần thiết. Metadata nên ưu tiên key ổn định để có thể trace, re-ingest, upsert, và debug qua nhiều môi trường DB.
 
-## 2. Quy uoc dat ten
+## 2. Quy ước đặt tên
 
-Dung `_key` cho dinh danh on dinh ngoai DB:
+Dùng `_key` cho định danh ổn định ngoài DB:
 
 ```text
 document_key
@@ -31,7 +31,7 @@ chunk_key
 parent_chunk_key
 ```
 
-Dung `_id` cho khoa noi bo trong DB:
+Dùng `_id` cho khóa nội bộ trong DB:
 
 ```text
 id
@@ -41,11 +41,11 @@ asset_id
 parent_chunk_id
 ```
 
-Neu mot truong la FK toi bang khac trong SQLAlchemy model, ten nen la `_id`. Neu mot truong xuat hien trong schema ingestion/API va duoc tao truoc khi insert DB, ten nen la `_key`.
+Nếu một trường là FK tới bảng khác trong SQLAlchemy model, tên nên là `_id`. Nếu một trường xuất hiện trong schema ingestion/API và được tạo trước khi insert DB, tên nên là `_key`.
 
-## 3. Rule dong bo schema va DB
+## 3. Rule đồng bộ schema và DB
 
-Moi entity co stable key phai co constraint duy nhat trong DB:
+Mỗi entity có stable key phải có constraint duy nhất trong DB:
 
 | Entity | Schema key | DB internal id | DB unique rule |
 | --- | --- | --- | --- |
@@ -54,79 +54,79 @@ Moi entity co stable key phai co constraint duy nhat trong DB:
 | Asset | `asset_key` | `assets.id` | `assets.asset_key` unique |
 | Chunk | `chunk_key` | `document_chunks.id` | unique theo version |
 
-Moi schema field bat buoc phai co cot tuong ung trong DB, tru cac field chi dung de resolve quan he.
+Mỗi schema field bắt buộc phải có cột tương ứng trong DB, trừ các field chỉ dùng để resolve quan hệ.
 
-Vi du:
+Ví dụ:
 
-- `document_key` trong schema dung de tim `documents.id`.
-- `version_key` trong schema dung de tim `document_versions.id`.
-- `parent_chunk_key` trong schema dung de tim parent `document_chunks.id`.
-- Cac field resolve-only nay co the khong luu truc tiep trong bang con neu FK noi bo da du de join nguoc.
+- `document_key` trong schema dùng để tìm `documents.id`.
+- `version_key` trong schema dùng để tìm `document_versions.id`.
+- `parent_chunk_key` trong schema dùng để tìm parent `document_chunks.id`.
+- Các field resolve-only này có thể không lưu trực tiếp trong bảng con nếu FK nội bộ đã đủ để join ngược.
 
 ## 4. Document rules
 
-Schema document dung `document_key` lam dinh danh nghiep vu on dinh.
+Schema document dùng `document_key` làm định danh nghiệp vụ ổn định.
 
 Database:
 
-- `documents.id` la primary key.
-- `documents.document_key` la unique, indexed, nullable false.
-- Cac bang con khong can lap lai `document_key` neu da join duoc qua `document_versions.document_id`.
+- `documents.id` là primary key.
+- `documents.document_key` là unique, indexed, nullable false.
+- Các bảng con không cần lặp lại `document_key` nếu đã join được qua `document_versions.document_id`.
 
 Khi ingest:
 
-1. Nhan `document_key` tu metadata/schema.
-2. Upsert hoac tim `documents` bang `document_key`.
-3. Dung `documents.id` cho cac FK noi bo.
+1. Nhận `document_key` từ metadata/schema.
+2. Upsert hoặc tìm `documents` bằng `document_key`.
+3. Dùng `documents.id` cho các FK nội bộ.
 
 ## 5. Document version rules
 
-Schema version dung `version_key` de dai dien cho mot phien ban tai lieu.
+Schema version dùng `version_key` để đại diện cho một phiên bản tài liệu.
 
 Database:
 
-- `document_versions.id` la primary key.
-- `document_versions.document_id` FK toi `documents.id`.
+- `document_versions.id` là primary key.
+- `document_versions.document_id` FK tới `documents.id`.
 - `document_versions.version_key` unique, indexed, nullable false.
 
 Khi ingest:
 
-1. Resolve `document_key` thanh `document_id`.
-2. Upsert hoac tim `document_versions` bang `version_key`.
-3. Dam bao `version_key` thuoc dung `document_id`.
+1. Resolve `document_key` thành `document_id`.
+2. Upsert hoặc tìm `document_versions` bằng `version_key`.
+3. Đảm bảo `version_key` thuộc đúng `document_id`.
 
-Khong gan chunk truc tiep vao `document_key` neu khong co `version_key`, vi chunk phu thuoc vao noi dung cua tung version.
+Không gán chunk trực tiếp vào `document_key` nếu không có `version_key`, vì chunk phụ thuộc vào nội dung của từng version.
 
 ## 6. Asset rules
 
-Schema asset dung `asset_key`.
+Schema asset dùng `asset_key`.
 
 Database:
 
-- `assets.id` la primary key.
+- `assets.id` là primary key.
 - `assets.asset_key` unique, indexed, nullable false.
-- Bang lien ket `document_assets` dung `document_version_id` va `asset_id`.
+- Bảng liên kết `document_assets` dùng `document_version_id` và `asset_id`.
 
 Khi ingest relation asset:
 
-1. Resolve `document_key` va `version_key` thanh `document_version_id`.
-2. Resolve `asset_key` thanh `asset_id`.
-3. Ghi relation bang FK noi bo.
+1. Resolve `document_key` và `version_key` thành `document_version_id`.
+2. Resolve `asset_key` thành `asset_id`.
+3. Ghi relation bằng FK nội bộ.
 
-Neu schema relation chi co `document_key` ma khong co `version_key`, can co rule ro rang de chon version, vi asset relation trong DB dang gan vao document version.
+Nếu schema relation chỉ có `document_key` mà không có `version_key`, cần có rule rõ ràng để chọn version, vì asset relation trong DB đang gắn vào document version.
 
 ## 7. Chunk rules
 
-Chunk parent va child deu la record trong cung bang `document_chunks`.
+Chunk parent và child đều là record trong cùng bảng `document_chunks`.
 
-Database dung self-FK:
+Database dùng self-FK:
 
 ```text
 document_chunks.id
 document_chunks.parent_chunk_id -> document_chunks.id
 ```
 
-Schema khong nen dung `parent_chunk_id`, vi client/chunker chua biet DB id. Schema nen dung:
+Schema không nên dùng `parent_chunk_id`, vì client/chunker chưa biết DB id. Schema nên dùng:
 
 ```text
 chunk_key: str
@@ -134,44 +134,44 @@ parent_chunk_key: str | None
 chunk_type: parent | child
 ```
 
-Rule bat buoc:
+Rule bắt buộc:
 
-- Parent chunk: `parent_chunk_key` phai null.
-- Child chunk: `parent_chunk_key` phai co gia tri.
-- Parent va child cung nam trong `document_chunks`.
-- `parent_chunk_id` trong DB phai tro toi mot chunk cung `document_version_id`.
-- `chunk_key` phai on dinh trong pham vi mot `document_version`.
+- Parent chunk: `parent_chunk_key` phải null.
+- Child chunk: `parent_chunk_key` phải có giá trị.
+- Parent và child cùng nằm trong `document_chunks`.
+- `parent_chunk_id` trong DB phải trỏ tới một chunk cùng `document_version_id`.
+- `chunk_key` phải ổn định trong phạm vi một `document_version`.
 
-Nen co cot DB:
+Nên có cột DB:
 
 ```text
 document_chunks.chunk_key
 ```
 
-Va constraint:
+Và constraint:
 
 ```text
 UNIQUE(document_version_id, chunk_key)
 ```
 
-Khong nen chi dua vao `chunk_index`, vi `chunk_index` tot cho thu tu, nhung khong phai dinh danh on dinh de resolve parent-child hay sync voi vector store.
+Không nên chỉ dựa vào `chunk_index`, vì `chunk_index` tốt cho thứ tự, nhưng không phải định danh ổn định để resolve parent-child hay sync với vector store.
 
 ## 8. Chunk insert flow
 
-Flow khuyen nghi khi ghi chunks:
+Flow khuyến nghị khi ghi chunks:
 
 1. Validate schema `Chunk`.
-2. Resolve `version_key` thanh `document_version_id`.
-3. Insert hoac upsert tat ca parent chunks truoc, theo `chunk_key`.
-4. Tao map `{chunk_key: id}` cho parent chunks trong cung `document_version_id`.
-5. Insert child chunks, resolve `parent_chunk_key` thanh `parent_chunk_id`.
-6. Luu `chunk_key` trong DB de ho tro re-ingest, upsert, audit, va Qdrant payload.
+2. Resolve `version_key` thành `document_version_id`.
+3. Insert hoặc upsert tất cả parent chunks trước, theo `chunk_key`.
+4. Tạo map `{chunk_key: id}` cho parent chunks trong cùng `document_version_id`.
+5. Insert child chunks, resolve `parent_chunk_key` thành `parent_chunk_id`.
+6. Lưu `chunk_key` trong DB để hỗ trợ re-ingest, upsert, audit, và Qdrant payload.
 
-Neu child chunk tham chieu parent khong ton tai, ingestion phai fail som thay vi tao record mo coi.
+Nếu child chunk tham chiếu parent không tồn tại, ingestion phải fail sớm thay vì tạo record mồ côi.
 
 ## 9. Qdrant/vector payload rule
 
-Vector payload nen dung stable keys:
+Vector payload nên dùng stable keys:
 
 ```text
 document_key
@@ -184,37 +184,37 @@ page_end
 heading_path
 ```
 
-Co the them DB id cho debug noi bo, nhung khong duoc xem DB id la dinh danh chinh cua vector payload.
+Có thể thêm DB id cho debug nội bộ, nhưng không được xem DB id là định danh chính của vector payload.
 
-`qdrant_point_id` nen co tinh on dinh, vi du sinh tu `version_key + chunk_key`, de upsert khong tao duplicate vectors.
+`qdrant_point_id` nên có tính ổn định, ví dụ sinh từ `version_key + chunk_key`, để upsert không tạo duplicate vectors.
 
 ## 10. Alembic migration rule
 
-Moi thay doi SQLAlchemy model lien quan den cot, FK, index, constraint phai co Alembic migration tuong ung.
+Mọi thay đổi SQLAlchemy model liên quan đến cột, FK, index, constraint phải có Alembic migration tương ứng.
 
-Checklist khi them/sua field:
+Checklist khi thêm/sửa field:
 
-- Cap nhat Pydantic schema neu field di qua API/ingestion.
-- Cap nhat SQLAlchemy model neu field can luu DB.
-- Cap nhat Alembic migration.
-- Cap nhat tests schema validation.
-- Cap nhat tests database model/constraint neu field anh huong FK, unique, hoac check constraint.
+- Cập nhật Pydantic schema nếu field đi qua API/ingestion.
+- Cập nhật SQLAlchemy model nếu field cần lưu DB.
+- Cập nhật Alembic migration.
+- Cập nhật tests schema validation.
+- Cập nhật tests database model/constraint nếu field ảnh hưởng FK, unique, hoặc check constraint.
 
-Khong chi sua model ma bo qua migration.
+Không chỉ sửa model mà bỏ qua migration.
 
-## 11. Contract hien tai can canh giac
+## 11. Contract hiện tại cần cảnh giác
 
-Tai thoi diem viet rule nay, can dac biet dong bo cac diem sau:
+Tại thời điểm viết rule này, cần đặc biệt đồng bộ các điểm sau:
 
-- `schemas/chunks.py` dang dung `chunk_key` va `parent_chunk_key`.
-- `databases/models/chunks.py` dang dung `parent_chunk_id` self-FK, dung huong.
-- `databases/models/chunks.py` nen bo sung `chunk_key` va unique `(document_version_id, chunk_key)`.
-- Tests cu co the con dung `chunk_key` hoac `parent_chunk_key`; nen doi sang `chunk_key` va `parent_chunk_key` o schema layer.
-- `DocumentAssetRelation` nen co `version_key` neu relation trong DB tiep tuc gan vao `document_version_id`.
+- `schemas/chunks.py` đang dùng `chunk_key` và `parent_chunk_key`.
+- `databases/models/chunks.py` đang dùng `parent_chunk_id` self-FK, đúng hướng.
+- `databases/models/chunks.py` nên bổ sung `chunk_key` và unique `(document_version_id, chunk_key)`.
+- Tests cũ có thể còn dùng `chunk_key` hoặc `parent_chunk_key`; nên đổi sang `chunk_key` và `parent_chunk_key` ở schema layer.
+- `DocumentAssetRelation` nên có `version_key` nếu relation trong DB tiếp tục gắn vào `document_version_id`.
 
-## 12. Quyet dinh thiet ke
+## 12. Quyết định thiết kế
 
-Thiet ke duoc chap nhan:
+Thiết kế được chấp nhận:
 
 ```text
 Schema boundary:
@@ -227,9 +227,9 @@ document_chunks.id
 document_chunks.parent_chunk_id
 ```
 
-Ket luan:
+Kết luận:
 
-- Parent hay child deu la chunk, nen luu chung bang `document_chunks`.
-- `parent_chunk_id` la FK noi bo dung de bao toan quan he trong DB.
-- `parent_chunk_key` la contract dung o schema/API/ingestion.
-- Can luu `chunk_key` trong DB de resolve, upsert, va trace on dinh.
+- Parent hay child đều là chunk, nên lưu chung bảng `document_chunks`.
+- `parent_chunk_id` là FK nội bộ dùng để bảo toàn quan hệ trong DB.
+- `parent_chunk_key` là contract dùng ở schema/API/ingestion.
+- Cần lưu `chunk_key` trong DB để resolve, upsert, và trace ổn định.

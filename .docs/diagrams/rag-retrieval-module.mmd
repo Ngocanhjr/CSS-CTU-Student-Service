@@ -1,0 +1,65 @@
+%% CTU Student Service - RAG Retrieval Module
+%% Source of truth: chatbot/.docs/spec/ctu-service/07_RAG_SPEC.md, 05_DATABASE_SPEC.md, 06_API_SPEC.md
+%% Paired Archify diagram: rag-retrieval-module.html / rag-retrieval-module.json
+flowchart LR
+    subgraph S1["01 Request"]
+        flutter["Flutter Chat UI<br/>student query"]
+        rag_endpoint["FastAPI Endpoint<br/>POST /api/v1/rag/answer"]
+        normalize_query["Query Normalize<br/>Vietnamese text"]
+    end
+
+    subgraph S2["02 Filter"]
+        filter_builder["Metadata Filter Builder<br/>review_status=approved<br/>rag_status=published<br/>doc validity_status: TBD from spec"]
+    end
+
+    subgraph S3["03 PostgreSQL Sparse Branch"]
+        pg_metadata[("PostgreSQL Metadata<br/>document_versions + document_recipients<br/>department / effective_date")]
+        pg_sparse[("PostgreSQL FTS/BM25<br/>sparse keyword search<br/>approved + published only")]
+    end
+
+    subgraph S4["04 Qdrant Dense Branch"]
+        query_embedding["Query Embedding<br/>BAAI/bge-m3<br/>1024d normalized"]
+        qdrant_dense[("Qdrant Dense Search<br/>vector + payload filter<br/>retrieval index only")]
+    end
+
+    subgraph S5["05 Fusion + Context"]
+        rrf["RRF Fusion<br/>dense + sparse ranks<br/>MVP required, hybrid mandatory"]
+        parent_expand["Parent Expansion<br/>document_chunks.parent_chunk_id<br/>context window"]
+        context_pack["Context Assembly<br/>dedupe + token budget<br/>ranked chunks"]
+        llm_module["LLM Module Input<br/>context + citations<br/>(next module)"]
+    end
+
+    subgraph S6["06 Trace + Sources"]
+        retrieval_trace[("Retrieval Trace<br/>trace_id for debug<br/>schema TBD from spec")]
+        source_metadata[("Source Metadata<br/>document/version/page<br/>citation inputs")]
+    end
+
+    flutter -->|query JSON| rag_endpoint
+    rag_endpoint --> normalize_query
+    normalize_query --> filter_builder
+    filter_builder -->|dept/type/date| pg_metadata
+    pg_metadata --> pg_sparse
+    filter_builder -->|payload filter| query_embedding
+    query_embedding --> qdrant_dense
+    pg_sparse -->|sparse rank| rrf
+    qdrant_dense -->|dense rank| rrf
+    filter_builder -.->|filters used| retrieval_trace
+    pg_metadata -.-> source_metadata
+    source_metadata -->|chunk ids| rrf
+    rrf --> parent_expand
+    parent_expand --> context_pack
+    context_pack --> llm_module
+    context_pack -.->|selected context| retrieval_trace
+    retrieval_trace -.->|trace_id| llm_module
+
+    classDef frontend fill:#083344,stroke:#22d3ee,color:#e2e8f0;
+    classDef security fill:#881337,stroke:#fb7185,color:#e2e8f0;
+    classDef database fill:#4c1d95,stroke:#a78bfa,color:#e2e8f0;
+    classDef backend fill:#064e3b,stroke:#34d399,color:#e2e8f0;
+    classDef external fill:#1e293b,stroke:#94a3b8,color:#e2e8f0;
+
+    class flutter frontend;
+    class filter_builder security;
+    class pg_metadata,pg_sparse,qdrant_dense,retrieval_trace,source_metadata database;
+    class rag_endpoint,normalize_query,query_embedding,rrf,parent_expand,context_pack backend;
+    class llm_module external;

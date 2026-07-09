@@ -1,27 +1,27 @@
-# 13. Part F - Huong Dan Implement Ingestion Pipeline Orchestration
+# 13. Part F - Hướng Dẫn Implement Ingestion Pipeline Orchestration
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu guide 07, phan F.
+File này tách chi tiết từ guide 07, phần F.
 
-Muc tieu:
+Mục tiêu:
 
 ```text
 Dieu phoi reader -> chunker -> repository -> embedding -> qdrant
 ```
 
-Pipeline khong nen chua logic chi tiet cua tung phan. No chi goi cac module da tach.
+Pipeline không nên chứa logic chi tiết của từng phần. Nó chỉ gọi các module đã tách.
 
 ---
 
-## 1. File Can Sua
+## 1. File Cần Sửa
 
 ```text
 chatbot/backend/app/ingestion/pipeline.py
 chatbot/backend/test/ingestion/test_pipeline.py
 ```
 
-Pipeline phu thuoc vao:
+Pipeline phụ thuộc vào:
 
 ```text
 app.ingestion.markdown_reader
@@ -32,7 +32,7 @@ app.vectorstore.repository
 app.databases.session
 ```
 
-Chunker hien tai da tach module:
+Chunker hiện tại đã tách module:
 
 ```text
 chunking/chunker.py chi orchestration chunk.
@@ -43,9 +43,9 @@ Pipeline chi goi chunk_markdown_document(document).
 
 ---
 
-## 2. Mode Chay
+## 2. Mode Chạy
 
-Pipeline nen co 2 mode:
+Pipeline nên có 2 mode:
 
 ```text
 publish=False
@@ -62,7 +62,7 @@ publish=True
   update status final
 ```
 
-Lam `publish=False` truoc de test DB/chunking khong can model embedding/Qdrant.
+Làm `publish=False` trước để test DB/chunking không cần model embedding/Qdrant.
 
 ---
 
@@ -94,7 +94,7 @@ class IngestionResult:
 
 ---
 
-## 4. Helper Dem Chunk
+## 4. Helper Đếm Chunk
 
 ```python
 from app.schemas.chunks import Chunk
@@ -149,13 +149,13 @@ async def ingest_markdown_file(path: str | Path, *, publish: bool = False) -> In
     return await publish_saved_document(result)
 ```
 
-`publish_saved_document` se lam trong guide 14-15 sau khi co embedder va qdrant repository.
+`publish_saved_document` sẽ làm trong guide 14-15 sau khi có embedder và qdrant repository.
 
 ---
 
 ## 6. Publish Guard
 
-Truoc khi embed/upsert, can check:
+Trước khi embed/upsert, cần check:
 
 ```python
 def ensure_publish_allowed(metadata) -> None:
@@ -168,17 +168,17 @@ def ensure_publish_allowed(metadata) -> None:
 ```
 
 Index eligibility theo spec: `ocr_status = done AND review_status = approved`. Student filter:
-`review_status = approved AND rag_status = published`. Khong dung `validity_status` cho version.
+`review_status = approved AND rag_status = published`. Không dùng `validity_status` trong DB.
 
-MVP chi can student publish.
+MVP chỉ cần student publish.
 
 ---
 
 ## 7. Error Handling
 
-Khi pipeline loi, can ghi ingestion job neu da co document_version.
+Khi pipeline lỗi, cần ghi ingestion job nếu đã có document_version.
 
-MVP don gian:
+MVP đơn giản:
 
 ```text
 Neu loi truoc khi save DB: raise.
@@ -188,16 +188,19 @@ Neu loi sau khi save DB: update status failed.
 Suggested helper:
 
 ```python
+from app.databases.models import DocumentVersion
+
+
 async def mark_ingestion_failed(document_version_id: int, stage: str, error: Exception) -> None:
     async with AsyncSessionLocal() as session:
         async with session.begin():
-            status = await session.get(DocumentVersionStatus, document_version_id)
-            if status:
-                status.rag_status = "failed"
-                status.status_note = f"{stage}: {error}"
+            version = await session.get(DocumentVersion, document_version_id)
+            if version:
+                version.rag_status = "failed"
+                version.status_note = f"{stage}: {error}"
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Khong swallow exception. Mark failed xong van raise.
@@ -205,9 +208,9 @@ Khong swallow exception. Mark failed xong van raise.
 
 ---
 
-## 8. CLI Tam Thoi
+## 8. CLI Tạm Thời
 
-Them vao `pipeline.py`:
+Thêm vào `pipeline.py`:
 
 ```python
 def main() -> None:
@@ -231,7 +234,7 @@ if __name__ == "__main__":
 Run:
 
 ```powershell
-cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
+cd E:\RHNA\1Visual\NLCS\CTU-Service\chatbot\backend
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
 ..\..\.venv\Scripts\python.exe -m app.ingestion.pipeline path\to\sample.md
 ```
@@ -263,49 +266,49 @@ async def test_ingest_markdown_file_without_publish(tmp_path):
     assert result.indexed_chunks == 0
 ```
 
-Guard DB test nhu guide 12.
+Guard DB test như guide 12.
 
 ---
 
 ## 10. Done Khi
 
-- [ ] `ingest_markdown_file(..., publish=False)` doc/chunk/save DB duoc.
-- [ ] Pipeline khong chua logic chunking chi tiet.
-- [ ] Pipeline khong chua SQL upsert chi tiet.
-- [ ] Error sau DB save co the mark failed.
-- [ ] CLI tam thoi chay duoc.
+- [ ] `ingest_markdown_file(..., publish=False)` đọc/chunk/save DB được.
+- [ ] Pipeline không chứa logic chunking chi tiết.
+- [ ] Pipeline không chứa SQL upsert chi tiết.
+- [ ] Error sau DB save có thể mark failed.
+- [ ] CLI tạm thời chạy được.
 - [ ] Test pipeline publish=False pass.
 
 ---
 
-## 11. Loi De Gap
+## 11. Lỗi Dễ Gặp
 
-### Loi: circular import
+### Lỗi: circular import
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 repository import pipeline, pipeline import repository.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 repository khong duoc import pipeline.
 Pipeline la layer tren cung cua ingestion.
 ```
 
-### Loi: publish=True nhung chua co Qdrant
+### Lỗi: publish=True nhưng chưa có Qdrant
 
-Xu ly:
+Xử lý:
 
 ```text
 Cho publish=True raise NotImplementedError cho den khi xong guide 14-15.
 ```
 
-### Loi: test pipeline ghi DB dev
+### Lỗi: test pipeline ghi DB dev
 
-Xu ly:
+Xử lý:
 
 ```text
 Dung guard DATABASE_URL.endswith("/ctu_student_service_test").

@@ -5,34 +5,35 @@
     "title": "CTU Student Service - RAG LLM Answer Generation Module",
     "subtitle": "Retrieved context -> prompt builder -> LLM provider -> grounded answer -> citation validation -> API response",
     "output": ".docs/diagrams/rag-llm-generation-module.html",
-    "viewBox": [1880, 900]
+    "viewBox": [2020, 900]
   },
   "components": [
-    { "id": "context_pack", "type": "external", "label": "Context Pack", "sublabel": "ranked chunks + trace", "tag": "from retrieval", "pos": [58, 300], "size": [190, 64] },
-    { "id": "source_metadata", "type": "database", "label": "Source Metadata", "sublabel": "document/version/chunk", "tag": "page + section", "pos": [58, 470], "size": [190, 64] },
+    { "id": "context_pack", "type": "external", "label": "Context Pack", "sublabel": "ranked chunks + trace", "tag": "from retrieval", "pos": [40, 260], "size": [200, 64] },
+    { "id": "source_metadata", "type": "database", "label": "Source Metadata", "sublabel": "document/version/chunk", "tag": "page + section", "pos": [40, 460], "size": [200, 64] },
 
-    { "id": "prompt_builder", "type": "backend", "label": "Prompt Builder", "sublabel": "system + question + context", "tag": "grounded only", "pos": [324, 300], "size": [200, 64] },
-    { "id": "citation_rules", "type": "security", "label": "Citation Rules", "sublabel": "claim needs evidence", "tag": "no source -> refuse", "pos": [324, 470], "size": [200, 64] },
+    { "id": "prompt_builder", "type": "backend", "label": "Prompt Builder", "sublabel": "system + question + context", "tag": "grounded only", "pos": [340, 260], "size": [210, 64] },
+    { "id": "citation_rules", "type": "security", "label": "Citation Rules", "sublabel": "claim needs evidence", "tag": "no source -> refuse", "pos": [340, 460], "size": [210, 64] },
 
-    { "id": "llm_provider", "type": "external", "label": "LLM Provider", "sublabel": "provider TBD from spec", "tag": "not hard-coded", "pos": [602, 300], "size": [190, 64] },
-    { "id": "draft_answer", "type": "backend", "label": "Draft Answer", "sublabel": "uses retrieved context", "tag": "not model memory", "pos": [856, 300], "size": [190, 64] },
-    { "id": "trace_logger", "type": "database", "label": "Trace Logging", "sublabel": "trace_id for debug", "tag": "fields TBD", "pos": [856, 570], "size": [190, 64] },
+    { "id": "llm_provider", "type": "external", "label": "LLM Provider", "sublabel": "provider TBD from spec", "tag": "not hard-coded", "pos": [650, 260], "size": [200, 64] },
+    { "id": "draft_answer", "type": "backend", "label": "Draft Answer", "sublabel": "uses retrieved context", "tag": "not model memory", "pos": [950, 260], "size": [200, 64] },
 
-    { "id": "citation_builder", "type": "backend", "label": "Citation Builder", "sublabel": "map claims to chunks", "tag": "document_key/version_key", "pos": [1110, 300], "size": [210, 64] },
-    { "id": "related_assets", "type": "database", "label": "Related Assets", "sublabel": "document_assets + assets", "tag": "asset validity_status", "pos": [1110, 500], "size": [210, 64] },
+    { "id": "citation_builder", "type": "backend", "label": "Citation Builder", "sublabel": "map claims to chunks", "tag": "document_key/version_key", "pos": [1250, 260], "size": [220, 64] },
+    { "id": "related_assets", "type": "database", "label": "Related Assets", "sublabel": "document_assets + assets", "tag": "asset validity_status", "pos": [1250, 460], "size": [220, 64] },
 
-    { "id": "grounding_check", "type": "security", "label": "Grounding Check", "sublabel": "citation validation", "tag": "block weak claims", "pos": [1390, 300], "size": [190, 64] },
-    { "id": "postprocess", "type": "backend", "label": "Post-process", "sublabel": "format answer JSON", "tag": "citations required", "pos": [1390, 470], "size": [190, 64] },
+    { "id": "grounding_check", "type": "security", "label": "Grounding Check", "sublabel": "citation validation", "tag": "block weak claims", "pos": [1570, 260], "size": [200, 64] },
+    { "id": "postprocess", "type": "backend", "label": "Post-process", "sublabel": "format answer JSON", "tag": "citations required", "pos": [1570, 460], "size": [200, 64] },
 
-    { "id": "api_response", "type": "backend", "label": "API Response", "sublabel": "answer/citations/assets", "tag": "trace_id", "pos": [1618, 300], "size": [190, 64] },
-    { "id": "flutter_ui", "type": "frontend", "label": "Flutter UI", "sublabel": "chat + citation drawer", "tag": "student-facing", "pos": [1618, 470], "size": [190, 64] }
+    { "id": "api_response", "type": "backend", "label": "API Response", "sublabel": "answer/citations/assets", "tag": "trace_id", "pos": [1780, 660], "size": [200, 64] },
+    { "id": "flutter_ui", "type": "frontend", "label": "Flutter UI", "sublabel": "chat + citation drawer", "tag": "student-facing", "pos": [1780, 780], "size": [200, 64] },
+
+    { "id": "trace_logger", "type": "database", "label": "Trace Logging", "sublabel": "trace_id for debug", "tag": "fields TBD", "pos": [650, 660], "size": [200, 64] }
   ],
   "boundaries": [
     { "kind": "region", "label": "01 Retrieval Input", "wraps": ["context_pack", "source_metadata"], "pad": 24 },
     { "kind": "security-group", "label": "02 Prompt + Citation Policy", "wraps": ["prompt_builder", "citation_rules"], "pad": 24 },
     { "kind": "region", "label": "03 Generate", "wraps": ["llm_provider", "draft_answer"], "pad": 24 },
-    { "kind": "security-group", "label": "04 Ground + Cite", "wraps": ["citation_builder", "grounding_check", "postprocess"], "pad": 24 },
-    { "kind": "region", "label": "05 Trace + Assets", "wraps": ["trace_logger", "related_assets"], "pad": 24 },
+    { "kind": "security-group", "label": "04 Ground + Cite", "wraps": ["citation_builder", "related_assets", "grounding_check", "postprocess"], "pad": 24 },
+    { "kind": "region", "label": "05 Trace", "wraps": ["trace_logger"], "pad": 24 },
     { "kind": "region", "label": "06 Response", "wraps": ["api_response", "flutter_ui"], "pad": 24 }
   ],
   "connections": [
@@ -42,16 +43,17 @@
     { "from": "prompt_builder", "to": "llm_provider", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
     { "from": "llm_provider", "to": "draft_answer", "label": "draft", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
     { "from": "draft_answer", "to": "citation_builder", "label": "claims", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
-    { "from": "source_metadata", "to": "citation_builder", "label": "doc/title/page", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1080, 502], [1080, 332]], "labelAt": [918, 492] },
+    { "from": "source_metadata", "to": "citation_builder", "label": "doc/title/page", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v", "via": [[140, 400], [1360, 400]], "labelAt": [750, 390] },
     { "from": "citation_builder", "to": "grounding_check", "variant": "security", "fromSide": "right", "toSide": "left", "route": "straight" },
+    { "from": "related_assets", "to": "grounding_check", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v", "via": [[1360, 430], [1670, 430]] },
     { "from": "grounding_check", "to": "postprocess", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
-    { "from": "postprocess", "to": "api_response", "label": "answer JSON", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1602, 502], [1602, 332]], "labelAt": [1588, 422] },
-    { "from": "related_assets", "to": "api_response", "label": "public assets", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1590, 532], [1590, 354]], "labelAt": [1498, 544] },
+    { "from": "postprocess", "to": "api_response", "label": "answer JSON", "variant": "emphasis", "fromSide": "bottom", "toSide": "left", "route": "orthogonal-v", "via": [[1670, 600], [1780, 692]], "labelAt": [1700, 610] },
+    { "from": "related_assets", "to": "api_response", "label": "public assets", "variant": "dashed", "fromSide": "bottom", "toSide": "left", "route": "orthogonal-v", "via": [[1360, 600], [1780, 660]], "labelAt": [1450, 610] },
     { "from": "api_response", "to": "flutter_ui", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
-    { "from": "context_pack", "to": "trace_logger", "label": "retrieved chunks", "variant": "dashed", "fromSide": "bottom", "toSide": "left", "route": "orthogonal-h", "via": [[260, 646], [840, 602]], "labelAt": [520, 636] },
-    { "from": "prompt_builder", "to": "trace_logger", "label": "prompt trace", "variant": "dashed", "fromSide": "bottom", "toSide": "left", "route": "orthogonal-h", "via": [[540, 646], [840, 602]], "labelAt": [674, 636] },
-    { "from": "draft_answer", "to": "trace_logger", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "straight" },
-    { "from": "trace_logger", "to": "api_response", "label": "trace_id", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1600, 602], [1600, 332]], "labelAt": [1470, 622] }
+    { "from": "context_pack", "to": "trace_logger", "label": "retrieved chunks", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "orthogonal-v", "via": [[140, 590], [700, 630]], "labelAt": [380, 580] },
+    { "from": "prompt_builder", "to": "trace_logger", "label": "prompt trace", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "orthogonal-v", "via": [[445, 590], [800, 630]], "labelAt": [560, 610] },
+    { "from": "draft_answer", "to": "trace_logger", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "orthogonal-v", "via": [[1050, 590], [850, 630]] },
+    { "from": "trace_logger", "to": "api_response", "label": "trace_id", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1400, 692], [1400, 692]], "labelAt": [1500, 700] }
   ],
   "cards": [
     {

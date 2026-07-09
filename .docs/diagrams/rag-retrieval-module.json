@@ -5,27 +5,27 @@
     "title": "CTU Student Service - RAG Retrieval Module",
     "subtitle": "Flutter query -> FastAPI -> metadata filters -> PostgreSQL FTS/BM25 + Qdrant dense search -> RRF -> context pack",
     "output": ".docs/diagrams/rag-retrieval-module.html",
-    "viewBox": [1900, 960]
+    "viewBox": [2020, 1020]
   },
   "components": [
-    { "id": "flutter", "type": "frontend", "label": "Flutter Chat UI", "sublabel": "student query", "tag": "prefer_current", "pos": [52, 404], "size": [170, 64] },
-    { "id": "rag_endpoint", "type": "backend", "label": "FastAPI Endpoint", "sublabel": "POST /api/v1/rag/answer", "tag": "typed DTO", "pos": [282, 404], "size": [190, 64] },
-    { "id": "normalize_query", "type": "backend", "label": "Query Normalize", "sublabel": "Vietnamese text", "tag": "input validation", "pos": [532, 404], "size": [180, 64] },
-    { "id": "filter_builder", "type": "security", "label": "Metadata Filter Builder", "sublabel": "status + scope + dates", "tag": "doc validity TBD", "pos": [772, 404], "size": [210, 64] },
+    { "id": "flutter", "type": "frontend", "label": "Flutter Chat UI", "sublabel": "student query", "tag": "prefer_current", "pos": [40, 430], "size": [190, 64] },
+    { "id": "rag_endpoint", "type": "backend", "label": "FastAPI Endpoint", "sublabel": "POST /api/v1/rag/answer", "tag": "typed DTO", "pos": [300, 430], "size": [210, 64] },
+    { "id": "normalize_query", "type": "backend", "label": "Query Normalize", "sublabel": "Vietnamese text", "tag": "input validation", "pos": [580, 430], "size": [200, 64] },
+    { "id": "filter_builder", "type": "security", "label": "Metadata Filter Builder", "sublabel": "status + scope + dates", "tag": "doc validity TBD", "pos": [850, 430], "size": [220, 64] },
 
-    { "id": "pg_metadata", "type": "database", "label": "PostgreSQL Metadata", "sublabel": "versions + recipients", "tag": "department/effective_date", "pos": [1042, 206], "size": [210, 64] },
-    { "id": "pg_sparse", "type": "database", "label": "PostgreSQL FTS/BM25", "sublabel": "sparse keyword search", "tag": "approved + published", "pos": [1302, 206], "size": [210, 64] },
+    { "id": "pg_metadata", "type": "database", "label": "PostgreSQL Metadata", "sublabel": "versions + recipients", "tag": "department/effective_date", "pos": [1140, 180], "size": [220, 64] },
+    { "id": "pg_sparse", "type": "database", "label": "PostgreSQL FTS/BM25", "sublabel": "sparse keyword search", "tag": "approved + published", "pos": [1420, 180], "size": [220, 64] },
 
-    { "id": "query_embedding", "type": "backend", "label": "Query Embedding", "sublabel": "BAAI/bge-m3", "tag": "1024d normalized", "pos": [1042, 602], "size": [210, 64] },
-    { "id": "qdrant_dense", "type": "database", "label": "Qdrant Dense Search", "sublabel": "vector + payload filter", "tag": "retrieval index only", "pos": [1302, 602], "size": [210, 64] },
+    { "id": "query_embedding", "type": "backend", "label": "Query Embedding", "sublabel": "BAAI/bge-m3", "tag": "1024d normalized", "pos": [1140, 680], "size": [220, 64] },
+    { "id": "qdrant_dense", "type": "database", "label": "Qdrant Dense Search", "sublabel": "vector + payload filter", "tag": "retrieval index only", "pos": [1420, 680], "size": [220, 64] },
 
-    { "id": "rrf", "type": "backend", "label": "RRF Fusion", "sublabel": "dense + sparse ranks", "tag": "MVP required", "pos": [1572, 404], "size": [190, 64] },
-    { "id": "parent_expand", "type": "backend", "label": "Parent Expansion", "sublabel": "parent_chunk_id", "tag": "context window", "pos": [1572, 552], "size": [190, 64] },
-    { "id": "context_pack", "type": "backend", "label": "Context Assembly", "sublabel": "dedupe + token budget", "tag": "ranked chunks", "pos": [1572, 700], "size": [190, 64] },
+    { "id": "rrf", "type": "backend", "label": "RRF Fusion", "sublabel": "dense + sparse ranks", "tag": "MVP required", "pos": [1720, 430], "size": [200, 64] },
+    { "id": "parent_expand", "type": "backend", "label": "Parent Expansion", "sublabel": "parent_chunk_id", "tag": "context window", "pos": [1720, 580], "size": [200, 64] },
+    { "id": "context_pack", "type": "backend", "label": "Context Assembly", "sublabel": "dedupe + token budget", "tag": "ranked chunks", "pos": [1720, 730], "size": [200, 64] },
+    { "id": "llm_module", "type": "external", "label": "LLM Module Input", "sublabel": "context + citations", "tag": "next module", "pos": [1720, 880], "size": [200, 64] },
 
-    { "id": "source_metadata", "type": "database", "label": "Source Metadata", "sublabel": "document/version/page", "tag": "citation inputs", "pos": [1302, 404], "size": [210, 64] },
-    { "id": "retrieval_trace", "type": "database", "label": "Retrieval Trace", "sublabel": "trace_id for debug", "tag": "schema TBD", "pos": [1042, 404], "size": [210, 64] },
-    { "id": "llm_module", "type": "external", "label": "LLM Module Input", "sublabel": "context + citations", "tag": "next module", "pos": [1572, 820], "size": [190, 64] }
+    { "id": "source_metadata", "type": "database", "label": "Source Metadata", "sublabel": "document/version/page", "tag": "citation inputs", "pos": [40, 730], "size": [220, 64] },
+    { "id": "retrieval_trace", "type": "database", "label": "Retrieval Trace", "sublabel": "trace_id for debug", "tag": "schema TBD", "pos": [40, 880], "size": [220, 64] }
   ],
   "boundaries": [
     { "kind": "region", "label": "01 Request", "wraps": ["flutter", "rag_endpoint", "normalize_query"], "pad": 24 },
@@ -33,26 +33,26 @@
     { "kind": "region", "label": "03 PostgreSQL Sparse Branch", "wraps": ["pg_metadata", "pg_sparse"], "pad": 24 },
     { "kind": "region", "label": "04 Qdrant Dense Branch", "wraps": ["query_embedding", "qdrant_dense"], "pad": 24 },
     { "kind": "security-group", "label": "05 Fusion + Context", "wraps": ["rrf", "parent_expand", "context_pack", "llm_module"], "pad": 24 },
-    { "kind": "region", "label": "06 Trace + Sources", "wraps": ["retrieval_trace", "source_metadata"], "pad": 24 }
+    { "kind": "region", "label": "06 Trace + Sources", "wraps": ["source_metadata", "retrieval_trace"], "pad": 24 }
   ],
   "connections": [
     { "from": "flutter", "to": "rag_endpoint", "label": "query JSON", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
     { "from": "rag_endpoint", "to": "normalize_query", "fromSide": "right", "toSide": "left", "route": "straight" },
     { "from": "normalize_query", "to": "filter_builder", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
-    { "from": "filter_builder", "to": "pg_metadata", "label": "dept/type/date", "variant": "security", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1010, 436], [1010, 238]], "labelAt": [998, 320] },
+    { "from": "filter_builder", "to": "pg_metadata", "label": "dept/type/date", "variant": "security", "fromSide": "top", "toSide": "left", "route": "orthogonal-v", "via": [[960, 300], [960, 212]], "labelAt": [1020, 260] },
     { "from": "pg_metadata", "to": "pg_sparse", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
-    { "from": "filter_builder", "to": "query_embedding", "label": "payload filter", "variant": "security", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1010, 436], [1010, 634]], "labelAt": [996, 555] },
+    { "from": "filter_builder", "to": "query_embedding", "label": "payload filter", "variant": "security", "fromSide": "bottom", "toSide": "left", "route": "orthogonal-v", "via": [[960, 560], [960, 712]], "labelAt": [1020, 610] },
     { "from": "query_embedding", "to": "qdrant_dense", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
-    { "from": "pg_sparse", "to": "rrf", "label": "sparse rank", "variant": "emphasis", "fromSide": "right", "toSide": "top", "route": "orthogonal-v", "via": [[1536, 238], [1667, 356]], "labelAt": [1550, 286] },
-    { "from": "qdrant_dense", "to": "rrf", "variant": "emphasis", "fromSide": "right", "toSide": "bottom", "route": "orthogonal-v", "via": [[1536, 634], [1667, 516]] },
-    { "from": "filter_builder", "to": "retrieval_trace", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "straight" },
-    { "from": "pg_metadata", "to": "source_metadata", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "straight" },
-    { "from": "source_metadata", "to": "rrf", "label": "chunk ids", "fromSide": "right", "toSide": "left", "route": "straight" },
+    { "from": "pg_sparse", "to": "rrf", "label": "sparse rank", "variant": "emphasis", "fromSide": "right", "toSide": "top", "route": "orthogonal-h", "via": [[1780, 212], [1780, 398]], "labelAt": [1660, 300] },
+    { "from": "qdrant_dense", "to": "rrf", "label": "dense rank", "variant": "emphasis", "fromSide": "right", "toSide": "right", "route": "orthogonal-h", "via": [[1980, 712], [1980, 462]], "labelAt": [1985, 600] },
+    { "from": "filter_builder", "to": "retrieval_trace", "label": "filters used", "variant": "dashed", "fromSide": "left", "toSide": "left", "route": "orthogonal-h", "via": [[20, 494], [20, 880]], "labelAt": [50, 620] },
+    { "from": "pg_metadata", "to": "source_metadata", "variant": "dashed", "fromSide": "left", "toSide": "top", "route": "orthogonal-v", "via": [[1090, 212], [1090, 300], [280, 300], [280, 730]], "labelAt": [700, 290] },
+    { "from": "source_metadata", "to": "rrf", "label": "chunk ids", "variant": "emphasis", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v", "via": [[150, 550], [1820, 550], [1820, 494]], "labelAt": [980, 540] },
     { "from": "rrf", "to": "parent_expand", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
     { "from": "parent_expand", "to": "context_pack", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
     { "from": "context_pack", "to": "llm_module", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
-    { "from": "context_pack", "to": "retrieval_trace", "label": "selected context", "variant": "dashed", "fromSide": "left", "toSide": "right", "route": "orthogonal-h", "via": [[1450, 732], [1450, 500]], "labelAt": [1320, 690] },
-    { "from": "retrieval_trace", "to": "llm_module", "label": "trace_id", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1538, 436], [1538, 852]], "labelAt": [1428, 846] }
+    { "from": "context_pack", "to": "retrieval_trace", "label": "selected context", "variant": "dashed", "fromSide": "left", "toSide": "right", "route": "orthogonal-h", "via": [[1660, 762], [340, 912]], "labelAt": [1000, 800] },
+    { "from": "retrieval_trace", "to": "llm_module", "label": "trace_id", "variant": "dashed", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[500, 912], [1660, 912]], "labelAt": [1000, 902] }
   ],
   "cards": [
     {

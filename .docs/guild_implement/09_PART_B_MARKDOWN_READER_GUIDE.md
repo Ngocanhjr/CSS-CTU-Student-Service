@@ -1,10 +1,10 @@
-# 09. Part B - Huong Dan Implement Markdown Reader Va Metadata Validation
+# 09. Part B - Hướng Dẫn Implement Markdown Reader Và Metadata Validation
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu `07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md`, phan B.
+File này tách chi tiết từ `07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md`, phần B.
 
-Muc tieu cua part B:
+Mục tiêu của part B:
 
 ```text
 Doc mot file Markdown canonical
@@ -13,24 +13,24 @@ validate bang DocumentMetadata
 tra ve body Markdown sach cho chunker
 ```
 
-Reader khong chunk, khong ghi DB, khong embed.
+Reader không chunk, không ghi DB, không embed.
 
 ---
 
-## 1. File Can Tao
+## 1. File Cần Tạo
 
 ```text
 chatbot/backend/app/ingestion/markdown_reader.py
 chatbot/backend/test/ingestion/test_markdown_reader.py
 ```
 
-Neu thu muc test chua co:
+Nếu thư mục test chưa có:
 
 ```text
 chatbot/backend/test/ingestion/
 ```
 
-thi tao them.
+thì tạo thêm.
 
 ---
 
@@ -42,7 +42,7 @@ File:
 chatbot/backend/requirements.txt
 ```
 
-Can co:
+Cần có:
 
 ```text
 PyYAML>=6.0
@@ -51,7 +51,7 @@ PyYAML>=6.0
 Test:
 
 ```powershell
-cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
+cd E:\RHNA\1Visual\NLCS\CTU-Service\chatbot\backend
 ..\..\.venv\Scripts\python.exe -c "import yaml; print('yaml ok')"
 ```
 
@@ -59,7 +59,7 @@ cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
 
 ## 3. Contract Output
 
-Trong `markdown_reader.py`, tao dataclass:
+Trong `markdown_reader.py`, tạo dataclass:
 
 ```python
 from __future__ import annotations
@@ -79,7 +79,7 @@ class MarkdownDocument:
     raw_frontmatter: dict[str, Any]
 ```
 
-Ly do giu `raw_frontmatter`:
+Lý do giữ `raw_frontmatter`:
 
 ```text
 debug metadata
@@ -89,7 +89,7 @@ kiem tra field phu neu DocumentMetadata extra allow
 
 ---
 
-## 4. Ham `read_markdown_document`
+## 4. Hàm `read_markdown_document`
 
 Suggested pattern:
 
@@ -111,7 +111,7 @@ def read_markdown_document(path: str | Path) -> MarkdownDocument:
     )
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Dung encoding="utf-8".
@@ -121,7 +121,7 @@ Neu metadata sai, raise ValidationError de test/debug thay ngay.
 
 ---
 
-## 5. Ham `split_frontmatter`
+## 5. Hàm `split_frontmatter`
 
 Accepted format:
 
@@ -129,8 +129,10 @@ Accepted format:
 ---
 document_key: "doc-key"
 version_key: "doc-v1"
-checksum: "abc"
+checksum: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 document_type: "quy_trinh"
+responsible_department:
+  - PDT
 ---
 
 # Noi dung
@@ -168,7 +170,7 @@ def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     return frontmatter, body.strip()
 ```
 
-Vi sao khong dung `text.split("---\n", 2)`:
+Vì sao không dùng `text.split("---\n", 2)`:
 
 ```text
 Body co the chua dong --- trong noi dung hoac code fence.
@@ -177,9 +179,9 @@ Tim closing marker sau dong dau an toan hon cho MVP.
 
 ---
 
-## 6. Metadata Toi Thieu De Test
+## 6. Metadata Tối Thiểu Để Test
 
-Test fixture nen co day du field bat buoc theo schema hien tai:
+Test fixture nên có đầy đủ field bắt buộc theo schema hiện tại:
 
 ```python
 VALID_MARKDOWN = """---
@@ -190,13 +192,16 @@ document_type: "quy_trinh"
 domain: "test"
 audience:
   - "student"
+responsible_department:
+  - PDT
 is_latest: true
 source_path: "test.md"
 canonical_markdown_path: "test.md"
 file_type: "md"
 language: "vi"
-issuing_authority: "PDT"
-checksum: "test-checksum"
+issuing_authority: "Trường Đại học Cần Thơ"
+signer_name: "Nguyen Van A"
+checksum: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 ocr_status: "done"
 review_status: "approved"
 rag_status: "published"
@@ -208,12 +213,24 @@ Noi dung test.
 """
 ```
 
-Neu `rag_status: "published"` thi schema bat buoc:
+Nếu `rag_status: "published"` thì schema bắt buộc:
 
 ```text
 ocr_status = done
 review_status = approved
 ```
+
+Metadata rules theo schema hiện tại:
+
+```text
+responsible_department luôn là list: [], [PDT], hoặc dạng nhiều dòng.
+checksum bắt buộc, dùng SHA-256 hex 64 ký tự.
+Không dùng version_label.
+Không dùng validity_status.
+Không dùng signer, dùng signer_name.
+```
+
+Nếu tài liệu chỉ ghi hiệu lực dạng kỳ/năm như `Học kỳ 2, năm học 2024-2025`, reader chỉ giữ trong metadata/extra field nếu YAML có. Không convert thành DB date, vì `document_versions` không có cột `effective_date`.
 
 ---
 
@@ -280,30 +297,30 @@ def test_reader_rejects_invalid_publish_status(tmp_path: Path):
 
 ---
 
-## 8. Luu Y Ve File Path
+## 8. Lưu Ý Về File Path
 
-Reader khong nen convert relative path thanh absolute trong metadata.
+Reader không nên convert relative path thành absolute trong metadata.
 
-Ly do:
+Lý do:
 
 ```text
 canonical_markdown_path trong YAML nen la path portable trong repo/vault.
 Path object cua MarkdownDocument dung cho runtime doc file.
 ```
 
-Neu can absolute path cho logging:
+Nếu cần absolute path cho logging:
 
 ```python
 markdown_path.resolve()
 ```
 
-nhung khong ghi nguoc vao metadata.
+nhưng không ghi ngược vào metadata.
 
 ---
 
-## 9. Khong Lam Trong Reader
+## 9. Không Làm Trong Reader
 
-Khong lam cac viec nay trong `markdown_reader.py`:
+Không làm các việc này trong `markdown_reader.py`:
 
 ```text
 khong tinh chunk
@@ -314,26 +331,26 @@ khong goi embedding
 khong goi Qdrant
 ```
 
-Reader chi doc va validate.
+Reader chỉ đọc và validate.
 
 ---
 
-## 10. Lenh Test
+## 10. Lệnh Test
 
-Chay:
+Chạy:
 
 ```powershell
-cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
+cd E:\RHNA\1Visual\NLCS\CTU-Service\chatbot\backend
 ..\..\.venv\Scripts\python.exe -m pytest test/ingestion/test_markdown_reader.py
 ```
 
-Neu import `app` loi, kiem tra:
+Nếu import `app` lỗi, kiểm tra:
 
 ```text
 chatbot/backend/pytest.ini
 ```
 
-can co:
+cần có:
 
 ```ini
 [pytest]
@@ -345,51 +362,57 @@ testpaths = test
 
 ## 11. Done Khi
 
-- [ ] `markdown_reader.py` co `MarkdownDocument`.
-- [ ] `split_frontmatter` xu ly LF va CRLF.
-- [ ] `read_markdown_document` validate bang `DocumentMetadata`.
-- [ ] File thieu frontmatter bi reject.
-- [ ] File body rong bi reject.
-- [ ] Published metadata sai status bi reject.
-- [ ] Test `test_markdown_reader.py` pass.
+- [x] `markdown_reader.py` có `MarkdownDocument`.
+
+- [x] `split_frontmatter` xử lý LF và CRLF.
+
+- [x] `read_markdown_document` validate bằng `DocumentMetadata`.
+
+- [x] File thiếu frontmatter bị reject.
+
+- [x] File body rỗng bị reject.
+
+- [x] Published metadata sai status bị reject.
+
+- [x] Test `test_markdown_reader.py` pass.
 
 ---
 
-## 12. Loi De Gap
+## 12. Lỗi Dễ Gặp
 
-### Loi: `ModuleNotFoundError: No module named 'yaml'`
+### Lỗi: `ModuleNotFoundError: No module named 'yaml'`
 
-Xu ly:
+Xử lý:
 
 ```powershell
 ..\..\.venv\Scripts\python.exe -m pip install PyYAML
 ```
 
-Va them `PyYAML>=6.0` vao requirements.
+Và thêm `PyYAML>=6.0` vào requirements.
 
-### Loi: YAML parse ra string/list
+### Lỗi: YAML parse ra string/list
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Frontmatter khong phai mapping key-value.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Raise ValueError "YAML frontmatter must be a mapping".
 ```
 
-### Loi: `document_key field required`
+### Lỗi: `document_key field required`
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 File Markdown dang dung metadata cu document_id/version_id.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Sua file Markdown sang document_key/version_key hoac viet migration metadata rieng.

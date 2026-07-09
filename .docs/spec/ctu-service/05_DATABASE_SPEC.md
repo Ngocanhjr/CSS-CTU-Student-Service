@@ -87,7 +87,7 @@ CREATE TABLE document_versions (
     file_type VARCHAR(50),
     language VARCHAR(10) DEFAULT 'vi',
     issuing_authority VARCHAR(255),
-    signer VARCHAR(255),
+    signer_name VARCHAR(255),
     checksum VARCHAR(64),
     extra_metadata JSONB,
     accessed_date DATE,
@@ -176,7 +176,6 @@ CREATE TABLE assets (
     asset_type VARCHAR(50) NOT NULL,
     url TEXT,
     checksum VARCHAR(64),
-    validity_status VARCHAR(50) DEFAULT 'valid',
     created_at TIMESTAMP DEFAULT NOW()
 );
 ```
@@ -201,7 +200,6 @@ ocr_status:    not_started | processing | need_review | failed | done
 review_status: not_reviewed | reviewing | need_fix | approved | rejected
 rag_status:    not_indexed | chunked | embedded | indexed | published | deactivated | failed
 index_status:  not_indexed | indexed | deactivated | failed
-asset validity_status: valid | invalid | expired
 ```
 
 ## 4. Domain Values

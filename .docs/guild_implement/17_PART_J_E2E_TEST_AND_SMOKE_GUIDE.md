@@ -1,22 +1,22 @@
-# 17. Part J - Huong Dan Test Va Smoke Test End-To-End
+# 17. Part J - Hướng Dẫn Test Và Smoke Test End-To-End
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu guide 07, phan J.
+File này tách chi tiết từ guide 07, phần J.
 
-Muc tieu:
+Mục tiêu:
 
 ```text
 Chay duoc mot vertical slice tu Markdown -> PostgreSQL -> Qdrant -> Retrieval
 ```
 
-Khong yeu cau frontend hoac LLM answer trong guide nay.
+Không yêu cầu frontend hoặc LLM answer trong guide này.
 
 ---
 
-## 1. Dieu Kien Truoc Khi Chay
+## 1. Điều Kiện Trước Khi Chạy
 
-Da implement xong:
+Đã implement xong:
 
 ```text
 08 Part A - DB/schema contract
@@ -41,26 +41,26 @@ qdrant
 
 ## 2. Start Services
 
-Tai:
+Tại:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot
 ```
 
-Chay:
+Chạy:
 
 ```powershell
 docker compose up -d postgres qdrant
 docker compose ps
 ```
 
-Kiem tra PostgreSQL:
+Kiểm tra PostgreSQL:
 
 ```powershell
 docker compose exec postgres psql -U ct239h -d ctu_student_service_test -c "\dn"
 ```
 
-Kiem tra Qdrant:
+Kiểm tra Qdrant:
 
 ```powershell
 Invoke-WebRequest -Uri http://localhost:6333/collections -UseBasicParsing
@@ -70,7 +70,7 @@ Invoke-WebRequest -Uri http://localhost:6333/collections -UseBasicParsing
 
 ## 3. Set DB Test
 
-Tai:
+Tại:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
@@ -82,13 +82,13 @@ Set:
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
 ```
 
-Chay migration:
+Chạy migration:
 
 ```powershell
 ..\..\.venv\Scripts\alembic.exe upgrade head
 ```
 
-Kiem tra:
+Kiểm tra:
 
 ```powershell
 ..\..\.venv\Scripts\alembic.exe current
@@ -96,33 +96,33 @@ Kiem tra:
 
 ---
 
-## 4. Test Theo Tang
+## 4. Test Theo Tầng
 
-Chay schema:
+Chạy schema:
 
 ```powershell
 ..\..\.venv\Scripts\python.exe -m pytest test/schemas
 ```
 
-Chay ingestion unit:
+Chạy ingestion unit:
 
 ```powershell
 ..\..\.venv\Scripts\python.exe -m pytest test/ingestion/test_markdown_reader.py test/ingestion/test_chunker.py test/ingestion/test_preview.py
 ```
 
-Chay DB:
+Chạy DB:
 
 ```powershell
 ..\..\.venv\Scripts\python.exe -m pytest test/databases test/ingestion/test_ingestion_repository.py
 ```
 
-Chay embedding fake:
+Chạy embedding fake:
 
 ```powershell
 ..\..\.venv\Scripts\python.exe -m pytest test/embedding/test_embedder.py
 ```
 
-Chay vectorstore/retrieval:
+Chạy vectorstore/retrieval:
 
 ```powershell
 ..\..\.venv\Scripts\python.exe -m pytest test/vectorstore test/retrieval
@@ -130,15 +130,15 @@ Chay vectorstore/retrieval:
 
 ---
 
-## 5. Tao File Markdown Smoke Test
+## 5. Tạo File Markdown Smoke Test
 
-Nen tao fixture test trong temp hoac trong:
+Nên tạo fixture test trong temp hoặc trong:
 
 ```text
 chatbot/backend/test/fixtures/markdown/smoke_test.md
 ```
 
-Noi dung:
+Nội dung:
 
 ```markdown
 ---
@@ -182,7 +182,7 @@ Sinh vien nop ho so tai Phong Dao tao hoac kenh truc tuyen theo thong bao cua Tr
 ..\..\.venv\Scripts\python.exe -m app.ingestion.preview test\fixtures\markdown\smoke_test.md
 ```
 
-Mong doi:
+Mong đợi:
 
 ```text
 total_chunks > 0
@@ -191,7 +191,7 @@ child_chunks > 0
 warnings = []
 ```
 
-Neu warnings co heading/page, sua chunker truoc khi tiep.
+Nếu warnings có heading/page, sửa chunker trước khi tiếp.
 
 ---
 
@@ -201,7 +201,7 @@ Neu warnings co heading/page, sua chunker truoc khi tiep.
 ..\..\.venv\Scripts\python.exe -m app.ingestion.pipeline test\fixtures\markdown\smoke_test.md
 ```
 
-Mong doi:
+Mong đợi:
 
 ```json
 {
@@ -216,7 +216,7 @@ Mong doi:
 }
 ```
 
-Kiem tra DB:
+Kiểm tra DB:
 
 ```powershell
 cd ..\..
@@ -228,21 +228,21 @@ docker compose exec postgres psql -U ct239h -d ctu_student_service_test -c "SELE
 
 ## 8. Smoke Step 3 - Publish Qdrant
 
-Sau khi embedder va vectorstore xong:
+Sau khi embedder và vectorstore xong:
 
 ```powershell
 cd backend
 ..\..\.venv\Scripts\python.exe -m app.ingestion.pipeline test\fixtures\markdown\smoke_test.md --publish
 ```
 
-Mong doi:
+Mong đợi:
 
 ```text
 embedded_chunks = child_chunks
 indexed_chunks = child_chunks
 ```
 
-Kiem tra DB:
+Kiểm tra DB:
 
 ```powershell
 cd ..
@@ -250,7 +250,7 @@ docker compose exec postgres psql -U ct239h -d ctu_student_service_test -c "SELE
 docker compose exec postgres psql -U ct239h -d ctu_student_service_test -c "SELECT rag_status FROM css.document_versions;"
 ```
 
-Mong doi:
+Mong đợi:
 
 ```text
 child chunks co qdrant_point_id
@@ -262,13 +262,13 @@ document_versions.rag_status = published
 
 ## 9. Smoke Step 4 - Retrieval
 
-Tao CLI tam thoi neu can:
+Tạo CLI tạm thời nếu cần:
 
 ```powershell
 ..\..\.venv\Scripts\python.exe -m app.retrieval.retriever "cap bang diem nop o dau"
 ```
 
-Output mong doi:
+Output mong đợi:
 
 ```json
 [
@@ -282,7 +282,7 @@ Output mong doi:
 ]
 ```
 
-Neu chua co CLI retrieval, viet test integration thay the.
+Nếu chưa có CLI retrieval, viết test integration thay thế.
 
 ---
 
@@ -311,7 +311,7 @@ async def test_markdown_to_retrieval_smoke(tmp_path):
         retriever = Retriever(
             embedder=FakeEmbedder(dimensions=3),
             qdrant_client=get_qdrant_client(),
-            collection_name="test_ctu_student_service_chunks",
+            collection_name="css_qdrant",
         )
         results = await retriever.search(session, query="cap bang diem nop o dau")
 
@@ -319,7 +319,7 @@ async def test_markdown_to_retrieval_smoke(tmp_path):
     assert results[0].citation
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Neu dung FakeEmbedder dimensions=3, Qdrant collection test phai vector_size=3.
@@ -336,7 +336,7 @@ DB cleanup:
 DELETE FROM css.documents WHERE document_key LIKE 'smoke-%';
 ```
 
-Do cascade, document_versions/chunks/status se bi xoa neu relationship cascade/ondelete dung.
+Do cascade, document_versions/chunks/status sẽ bị xóa nếu relationship cascade/ondelete đúng.
 
 Qdrant cleanup:
 
@@ -344,64 +344,64 @@ Qdrant cleanup:
 Xoa collection test hoac delete points theo document_key.
 ```
 
-MVP don gian:
+MVP đơn giản:
 
 ```python
-client.delete_collection("test_ctu_student_service_chunks")
+client.delete_collection("css_qdrant")
 ```
 
-Chi dung voi collection test.
+Chỉ dùng với collection test.
 
 ---
 
 ## 12. Done Khi
 
-- [ ] PostgreSQL va Qdrant start duoc.
-- [ ] Migration tren DB test chay duoc.
-- [ ] Preview smoke Markdown khong warning nghiem trong.
-- [ ] Pipeline `publish=False` save DB duoc.
-- [ ] Pipeline `publish=True` embed/upsert duoc.
-- [ ] Child chunks co `qdrant_point_id`.
-- [ ] Retrieval tra ve content va citation.
-- [ ] Student filter khong tra expired/unpublished document.
-- [ ] Smoke test co the chay lai sau cleanup.
+- [ ] PostgreSQL và Qdrant start được.
+- [ ] Migration trên DB test chạy được.
+- [ ] Preview smoke Markdown không warning nghiêm trọng.
+- [ ] Pipeline `publish=False` save DB được.
+- [ ] Pipeline `publish=True` embed/upsert được.
+- [ ] Child chunks có `qdrant_point_id`.
+- [ ] Retrieval trả về content và citation.
+- [ ] Student filter không trả expired/unpublished document.
+- [ ] Smoke test có thể chạy lại sau cleanup.
 
 ---
 
-## 13. Loi De Gap
+## 13. Lỗi Dễ Gặp
 
-### Loi: test Qdrant dimension mismatch
+### Lỗi: test Qdrant dimension mismatch
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Dung chung collection cho fake vector va BGE-M3.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Dung collection rieng: test fake 3 dims, dev BGE-M3 1024 dims.
 ```
 
-### Loi: ingest lai tao duplicate DB rows
+### Lỗi: ingest lại tạo duplicate DB rows
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Upsert document/version chua dung key hoac cleanup thieu.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Upsert theo document_key/version_key.
 Delete chunks cu truoc khi insert lai.
 ```
 
-### Loi: retrieval khong co ket qua
+### Lỗi: retrieval không có kết quả
 
-Kiem tra theo thu tu:
+Kiểm tra theo thứ tự:
 
 ```text
 1. Qdrant collection co points khong.
@@ -411,15 +411,15 @@ Kiem tra theo thu tu:
 5. postgres_chunk_id co ton tai trong DB khong.
 ```
 
-### Loi: citation thieu page
+### Lỗi: citation thiếu page
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Smoke Markdown thieu <!-- page: 1 --> hoac chunker khong gan page.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Sua chunker/page marker truoc khi debug retriever.

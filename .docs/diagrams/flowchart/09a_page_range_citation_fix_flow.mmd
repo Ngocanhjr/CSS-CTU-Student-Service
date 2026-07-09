@@ -1,0 +1,28 @@
+%% Source: chatbot/.docs/guild_implement/09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md
+%% Page-aware section merge fixes citation page_start/page_end before retrieval.
+
+flowchart TD
+    A[raw body with page markers]
+    B[PageBlock<br/>page=1]
+    C[PageBlock<br/>page=2]
+    D[split heading inside<br/>each PageBlock]
+    E[ParentSection<br/>page_start=1<br/>page_end=1]
+    F[ParentSection<br/>page_start=2<br/>page_end=2]
+    G{same heading_path?}
+    H[merge adjacent sections]
+    I[ParentSection<br/>page_start=1<br/>page_end=2]
+    J([retrieval citation can use<br/>correct page range])
+
+    A --> B
+    A --> C
+    B --> D
+    C --> D
+    D --> E
+    D --> F
+    E --> G
+    F --> G
+    G -->|yes| H --> I --> J
+    G -->|no| K[keep separate sections]
+    K --> J
+
+    L[active_heading_path] -. inherited when next page<br/>has no repeated heading .-> D

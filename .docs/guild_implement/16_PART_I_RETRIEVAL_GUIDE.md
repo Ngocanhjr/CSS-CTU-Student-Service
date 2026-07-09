@@ -1,10 +1,10 @@
-# 16. Part I - Huong Dan Implement Retrieval Toi Thieu
+# 16. Part I - Hướng Dẫn Implement Retrieval Tối Thiểu
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu guide 07, phan I.
+File này tách chi tiết từ guide 07, phần I.
 
-Muc tieu:
+Mục tiêu:
 
 ```text
 Nhan query
@@ -14,18 +14,18 @@ lay full content/citation
 tra ve retrieval results
 ```
 
-Guide nay chua lam LLM answer generation.
+Guide này chưa làm LLM answer generation.
 
 ---
 
-## 1. File Can Sua/Tao
+## 1. File Cần Sửa/Tạo
 
 ```text
 chatbot/backend/app/retrieval/retriever.py
 chatbot/backend/test/retrieval/test_retriever.py
 ```
 
-Phu thuoc:
+Phụ thuộc:
 
 ```text
 app.embedding.embedder
@@ -35,7 +35,7 @@ langchain-qdrant
 langchain-core
 ```
 
-Da chot RAG pipeline di theo LangChain:
+Đã chốt RAG pipeline đi theo LangChain:
 
 ```text
 Embedding: LangChain NVIDIAEmbeddings
@@ -43,7 +43,7 @@ Vector retrieval: LangChain QdrantVectorStore/retriever
 Hydration/citation/status: project code rieng
 ```
 
-Ly do van can project code:
+Lý do vẫn cần project code:
 
 ```text
 Khong tin Qdrant payload lam canonical content.
@@ -120,12 +120,15 @@ from app.embedding.embedder import TextEmbedder
 from app.vectorstore.repository import DEFAULT_COLLECTION, build_student_filter
 
 
+DEFAULT_TOP_K = 5
+
+
 def build_langchain_qdrant_retriever(
     *,
     qdrant_client: QdrantClient,
     embedder: TextEmbedder,
     collection_name: str = DEFAULT_COLLECTION,
-    top_k: int = 5,
+    top_k: int = DEFAULT_TOP_K,
     audience: str = "student",
 ):
     vectorstore = QdrantVectorStore(
@@ -141,7 +144,9 @@ def build_langchain_qdrant_retriever(
     return vectorstore.as_retriever(search_kwargs=search_kwargs)
 ```
 
-Luu y:
+`top_k` trong caller production lấy từ `get_settings().retrieval.top_k` (default `5` trong settings model). Không dùng fallback bằng `or`.
+
+Lưu ý:
 
 ```text
 TextEmbedder can tuong thich LangChain Embeddings interface.
@@ -152,9 +157,9 @@ Neu TextEmbedder wrapper rieng khong du interface, tao adapter nho co embed_docu
 
 ## 5. Query Clarification / Context Completion
 
-Khong nen embed/search ngay moi query nguoi dung nhap vao.
+Không nên embed/search ngay mọi query người dùng nhập vào.
 
-Truoc clarification, nen chan greeting/smalltalk:
+Trước clarification, nên chặn greeting/smalltalk:
 
 ```text
 hi
@@ -164,9 +169,9 @@ xin chào
 alo
 ```
 
-Nhung query nay khong can retrieval. Tra loi truc tiep va hoi user muon hoi ve noi dung nao.
+Những query này không cần retrieval. Trả lời trực tiếp và hỏi user muốn hỏi về nội dung nào.
 
-Mot so query qua ngan hoac thieu doi tuong, vi du:
+Một số query quá ngắn hoặc thiếu đối tượng, ví dụ:
 
 ```text
 điều kiện là gì
@@ -175,7 +180,7 @@ nộp ở đâu
 cần giấy gì
 ```
 
-Nhung query nay chi co nghia khi biet nguoi dung dang hoi ve thu tuc/tai lieu nao.
+Những query này chỉ có nghĩa khi biết người dùng đang hỏi về thủ tục/tài liệu nào.
 
 Rule:
 
@@ -187,17 +192,17 @@ Neu UI co current_document_key/current_version_key -> bo sung filter theo docume
 Neu chat history vua nhac object ro rang -> rewrite query bang object do roi retrieval.
 ```
 
-Bang quyet dinh:
+Bảng quyết định:
 
-| Truong hop | Xu ly |
+| Trường hợp | Xử lý |
 |---|---|
-| `hi` / `xin chào` | Tra greeting response, khong search |
-| `điều kiện xin giấy khai sinh là gì` | Retrieval binh thuong |
-| `điều kiện là gì` va khong co context | Tra clarification question |
-| `điều kiện là gì` va UI dang xem document `xin-giay-khai-sinh` | Search voi `document_key=xin-giay-khai-sinh` |
-| `điều kiện là gì` sau cau truoc vua noi `xin giấy khai sinh` | Rewrite thanh `điều kiện xin giấy khai sinh là gì` |
+| `hi` / `xin chào` | Trả greeting response, không search |
+| `điều kiện xin giấy khai sinh là gì` | Retrieval bình thường |
+| `điều kiện là gì` và không có context | Trả clarification question |
+| `điều kiện là gì` và UI đang xem document `xin-giay-khai-sinh` | Search với `document_key=xin-giay-khai-sinh` |
+| `điều kiện là gì` sau câu trước vừa nói `xin giấy khai sinh` | Rewrite thành `điều kiện xin giấy khai sinh là gì` |
 
-Model de xuat:
+Model đề xuất:
 
 ```python
 from dataclasses import dataclass
@@ -283,7 +288,7 @@ def complete_or_clarify_query(
     )
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Day la rule toi thieu, khong phai LLM answer generation.
@@ -292,7 +297,7 @@ Neu co current_document_key/current_version_key, truyen xuong Qdrant metadata fi
 Neu rewrite bang chat history, phai log query goc va query da rewrite de debug.
 ```
 
-Vi du:
+Ví dụ:
 
 ```text
 Input: "hi"
@@ -340,7 +345,7 @@ class Retriever:
         session: AsyncSession,
         *,
         query: str,
-        top_k: int = 5,
+        top_k: int = DEFAULT_TOP_K,
         audience: str = "student",
         context: RetrievalContext | None = None,
     ) -> list[RetrievalResult]:
@@ -363,7 +368,9 @@ class Retriever:
         return await hydrate_langchain_documents(session, docs)
 ```
 
-Luu y:
+API/service layer nên truyền `top_k` từ runtime settings nếu request không override. Không đặt fallback kiểu `top_k = provided_top_k or settings.retrieval.top_k`; hãy phân biệt rõ `None` với giá trị sai.
+
+Lưu ý:
 
 ```text
 Skeleton tren tra `[]` khi can clarification de giu guide retrieval toi thieu.
@@ -372,17 +379,17 @@ Khi lam API/LLM orchestration, nen tra object rieng gom `clarification_question`
 
 ---
 
-## 7. Hydrate Results Tu PostgreSQL
+## 7. Hydrate Results Từ PostgreSQL
 
-LangChain retriever tra ve `Document` co `metadata` lay tu Qdrant payload.
+LangChain retriever trả về `Document` có `metadata` lấy từ Qdrant payload.
 
-Qdrant payload/metadata can co:
+Qdrant payload/metadata cần có:
 
 ```text
 postgres_chunk_id
 ```
 
-Lay full content tu DB:
+Lấy full content từ DB:
 
 ```python
 from sqlalchemy import select
@@ -434,7 +441,7 @@ async def hydrate_langchain_documents(
     return results
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Khong tin Qdrant payload lam canonical content.
@@ -444,27 +451,27 @@ LangChain Document.page_content chi dung de debug hoac fallback, khong lam sourc
 
 ---
 
-## 8. Student Filter O Dau?
+## 8. Student Filter Ở Đâu?
 
-Student filter nam trong:
+Student filter nằm trong:
 
 ```text
 app/vectorstore/repository.py::build_student_filter
 ```
 
-LangChain retriever phai truyen filter vao `search_kwargs`:
+LangChain retriever phải truyền filter vào `search_kwargs`:
 
 ```python
 search_kwargs["filter"] = build_student_filter()
 ```
 
-Khong bo filter de debug neu dang dung endpoint student.
+Không bỏ filter để debug nếu đang dùng endpoint student.
 
 ---
 
-## 9. Test Retriever Khong Can Qdrant That
+## 9. Test Retriever Không Cần Qdrant Thật
 
-Dung monkeypatch/fake retriever.
+Dùng monkeypatch/fake retriever.
 
 ```python
 from app.embedding.embedder import FakeEmbedder
@@ -555,7 +562,7 @@ def test_ambiguous_query_with_recent_topic_is_rewritten():
 
 ## 11. Test Student Filter
 
-Filter test nam o vectorstore:
+Filter test nằm ở vectorstore:
 
 ```python
 def test_student_filter_contains_required_statuses():
@@ -567,7 +574,7 @@ def test_student_filter_contains_required_statuses():
     assert "audience_student" in text
 ```
 
-Retriever test can dam bao khi `audience="student"` thi `search_kwargs` co filter.
+Retriever test cần đảm bảo khi `audience="student"` thì `search_kwargs` có filter.
 
 ```python
 def test_student_filter_used_for_langchain_retriever(monkeypatch):
@@ -600,14 +607,14 @@ def test_student_filter_used_for_langchain_retriever(monkeypatch):
 
 ---
 
-## 12. Lenh Test
+## 12. Lệnh Test
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
 ..\..\.venv\Scripts\python.exe -m pytest test/retrieval
 ```
 
-Neu hydrate can DB:
+Nếu hydrate cần DB:
 
 ```powershell
 $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_service_test"
@@ -618,60 +625,60 @@ $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_s
 
 ## 13. Done Khi
 
-- [ ] Blank query tra `[]`.
-- [ ] Greeting/smalltalk nhu `hi`, `xin chào` khong search Qdrant.
-- [ ] Query thieu object nhu `điều kiện là gì` khong search neu khong co context.
-- [ ] Query thieu object nhung co `current_document_key` thi truyen context/filter xuong retrieval.
-- [ ] Query thieu object nhung co `recent_topic` thi rewrite query truoc retrieval.
-- [ ] Query duoc embed bang embedder.
-- [ ] Student retrieval dung LangChain Qdrant retriever voi hard filter.
-- [ ] Result lay full content tu PostgreSQL.
-- [ ] Citation co source file va page/heading.
-- [ ] Expired/unpublished documents bi filter o vectorstore.
+- [ ] Blank query trả `[]`.
+- [ ] Greeting/smalltalk như `hi`, `xin chào` không search Qdrant.
+- [ ] Query thiếu object như `điều kiện là gì` không search nếu không có context.
+- [ ] Query thiếu object nhưng có `current_document_key` thì truyền context/filter xuống retrieval.
+- [ ] Query thiếu object nhưng có `recent_topic` thì rewrite query trước retrieval.
+- [ ] Query được embed bằng embedder.
+- [ ] Student retrieval dùng LangChain Qdrant retriever với hard filter.
+- [ ] Result lấy full content từ PostgreSQL.
+- [ ] Citation có source file và page/heading.
+- [ ] Expired/unpublished documents bị filter ở vectorstore.
 - [ ] Unit test retriever pass.
 
 ---
 
-## 14. Loi De Gap
+## 14. Lỗi Dễ Gặp
 
-### Loi: retrieval co score nhung content rong
+### Lỗi: retrieval có score nhưng content rỗng
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Qdrant payload thieu postgres_chunk_id hoac DB chunk da bi xoa.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Kiem tra payload upsert.
 Khi reingest/delete chunks, can deactivate/delete old Qdrant points.
 ```
 
-### Loi: student thay tai lieu chua duyet
+### Lỗi: student thấy tài liệu chưa duyệt
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 student_only=False hoac filter thieu review_status=approved/rag_status=published.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Endpoint student khong cho override filter.
 ```
 
-### Loi: citation khong co page
+### Lỗi: citation không có page
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Markdown thieu page marker.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Fallback sang heading_path trong build_citation.

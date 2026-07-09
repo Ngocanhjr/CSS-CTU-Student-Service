@@ -1,14 +1,14 @@
-# 04. Huong Dan Sua Va Chay Alembic Migration
+# 04. Hướng Dẫn Sửa Và Chạy Alembic Migration
 
 **Last Updated:** 2026-06-19
 
-File nay noi tiep sau `03_SQLALCHEMY_9_TABLES_GUIDE.md`.
+File này nối tiếp sau `03_SQLALCHEMY_9_TABLES_GUIDE.md`.
 
-Muc tieu cua guide 04 la sua cau hinh Alembic, tao migration dau tien, chay migration vao PostgreSQL schema `css`, va kiem tra DB co du bang core.
+Mục tiêu của guide 04 là sửa cấu hình Alembic, tạo migration đầu tiên, chạy migration vào PostgreSQL schema `css`, và kiểm tra DB có đủ bảng core.
 
-## Muc Tieu
+## Mục Tiêu
 
-Sau guide nay can dat duoc:
+Sau guide này cần đạt được:
 
 ```text
 alembic.ini dung format INI
@@ -19,9 +19,9 @@ alembic upgrade head tao bang trong schema css
 alembic current khong loi
 ```
 
-## Loi Hien Tai
+## Lỗi Hiện Tại
 
-Neu chay Alembic dang gap loi:
+Nếu chạy Alembic đang gặp lỗi:
 
 ```text
 MissingSectionHeaderError: File contains no section headers.
@@ -29,7 +29,7 @@ file: 'alembic.ini', line: 1
 'from dotenv import load_dotenv\n'
 ```
 
-nguyen nhan la `alembic.ini` dang bi viet nhu file Python:
+nguyên nhân là `alembic.ini` đang bị viết như file Python:
 
 ```python
 from dotenv import load_dotenv
@@ -37,7 +37,7 @@ load_dotenv()
 sqlalchemy.url = os.getenv("DATABASE_URL")
 ```
 
-`alembic.ini` khong chay Python code. No phai la file INI, co section nhu:
+`alembic.ini` không chạy Python code. Nó phải là file INI, có section như:
 
 ```ini
 [alembic]
@@ -45,42 +45,42 @@ script_location = alembic
 sqlalchemy.url = postgresql+asyncpg://...
 ```
 
-Viec load `.env` phai nam trong `alembic/env.py`, khong nam trong `alembic.ini`.
+Việc load `.env` phải nằm trong `alembic/env.py`, không nằm trong `alembic.ini`.
 
-## Dieu Kien Truoc Khi Lam
+## Điều Kiện Trước Khi Làm
 
-Chay tai root project:
+Chạy tại root project:
 
 ```powershell
 cd E:\RHNA\#Visual\NLCS\CTU-Service
 ```
 
-Kiem tra virtual environment co Alembic:
+Kiểm tra virtual environment có Alembic:
 
 ```powershell
 .\.venv\Scripts\python.exe -c "import sqlalchemy, alembic; print(sqlalchemy.__version__); print(alembic.__version__)"
 ```
 
-Neu lenh nay loi, cai dependency truoc:
+Nếu lệnh này lỗi, cài dependency trước:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r chatbot\backend\requirements.txt
 ```
 
-Kiem tra PostgreSQL dang chay:
+Kiểm tra PostgreSQL đang chạy:
 
 ```powershell
 cd chatbot
 docker compose ps
 ```
 
-Neu `postgres` chua chay:
+Nếu `postgres` chưa chạy:
 
 ```powershell
 docker compose up -d postgres
 ```
 
-## Buoc 1: Sua `app/databases/base.py`
+## Bước 1: Sửa `app/databases/base.py`
 
 File:
 
@@ -88,7 +88,7 @@ File:
 chatbot/backend/app/databases/base.py
 ```
 
-`DeclarativeBase` phai import tu `sqlalchemy.orm`, khong phai tu `sqlalchemy`.
+`DeclarativeBase` phải import từ `sqlalchemy.orm`, không phải từ `sqlalchemy`.
 
 Suggested pattern:
 
@@ -104,7 +104,7 @@ class Base(DeclarativeBase):
     metadata = metadata
 ```
 
-Ly do:
+Lý do:
 
 ```text
 SQLAlchemy 2.x dat DeclarativeBase trong sqlalchemy.orm.
@@ -118,13 +118,13 @@ cd chatbot/backend
 ..\..\.venv\Scripts\python.exe -c "from app.databases.base import Base; print(Base.metadata.schema)"
 ```
 
-Mong doi:
+Mong đợi:
 
 ```text
 css
 ```
 
-## Buoc 2: Sua `app/databases/__init__.py`
+## Bước 2: Sửa `app/databases/__init__.py`
 
 File:
 
@@ -132,7 +132,7 @@ File:
 chatbot/backend/app/databases/__init__.py
 ```
 
-Hien tai can tranh import sai ten nhu `SessionLocal`, `get_db` neu `session.py` chi co `AsyncSessionLocal`, `get_session`.
+Hiện tại cần tránh import sai tên như `SessionLocal`, `get_db` nếu `session.py` chỉ có `AsyncSessionLocal`, `get_session`.
 
 Suggested pattern:
 
@@ -148,23 +148,23 @@ __all__ = [
 ]
 ```
 
-Ly do:
+Lý do:
 
 ```text
 Alembic import app.databases.models.
 Neu app.databases.__init__ import sai symbol, Alembic se fail truoc khi thay metadata.
 ```
 
-Neu muon giam side effect cho Alembic, cach tot hon la trong `alembic/env.py` import truc tiep:
+Nếu muốn giảm side effect cho Alembic, cách tốt hơn là trong `alembic/env.py` import trực tiếp:
 
 ```python
 from app.databases.base import Base
 import app.databases.models  # noqa: F401
 ```
 
-Khong can import `app.databases` package root neu package root tao engine qua som.
+Không cần import `app.databases` package root nếu package root tạo engine quá sớm.
 
-## Buoc 3: Tao Lai `alembic.ini` Dung Format
+## Bước 3: Tạo Lại `alembic.ini` Đúng Format
 
 File:
 
@@ -172,7 +172,7 @@ File:
 chatbot/backend/alembic.ini
 ```
 
-Noi dung toi thieu:
+Nội dung tối thiểu:
 
 ```ini
 [alembic]
@@ -218,14 +218,14 @@ format = %(levelname)-5.5s [%(name)s] %(message)s
 datefmt = %H:%M:%S
 ```
 
-Ghi chu:
+Ghi chú:
 
 ```text
 sqlalchemy.url o day chi la placeholder.
 URL thuc te se duoc set trong env.py tu bien moi truong DATABASE_URL.
 ```
 
-## Buoc 4: Sua `alembic/env.py`
+## Bước 4: Sửa `alembic/env.py`
 
 File:
 
@@ -233,7 +233,7 @@ File:
 chatbot/backend/alembic/env.py
 ```
 
-Voi `DATABASE_URL=postgresql+asyncpg://...`, nen dung async Alembic env.
+Với `DATABASE_URL=postgresql+asyncpg://...`, nên dùng async Alembic env.
 
 Suggested pattern:
 
@@ -318,88 +318,88 @@ else:
     run_migrations_online()
 ```
 
-Tai sao can `include_schemas=True`:
+Tại sao cần `include_schemas=True`:
 
 ```text
 Model dung MetaData(schema="css").
 Neu khong include_schemas=True, Alembic co the generate/compare schema khong dung nhu mong doi.
 ```
 
-## Buoc 5: Dam Bao Schema `css` Ton Tai
+## Bước 5: Đảm Bảo Schema `css` Tồn Tại
 
-Neu database da tao truoc khi co init script, can tao schema thu cong:
+Nếu database đã tạo trước khi có init script, cần tạo schema thủ công:
 
 ```powershell
 cd chatbot
 docker compose exec postgres psql -U ct239h -d ctu_student_service -c "CREATE SCHEMA IF NOT EXISTS css AUTHORIZATION ct239h;"
 ```
 
-Kiem tra:
+Kiểm tra:
 
 ```powershell
 docker compose exec postgres psql -U ct239h -d ctu_student_service -c "\dn"
 ```
 
-Mong doi thay schema:
+Mong đợi thấy schema:
 
 ```text
 css
 ```
 
-Ghi chu:
+Ghi chú:
 
 ```text
 Script trong database/postgres/init chi chay khi volume Postgres duoc tao lan dau.
 Neu da co db/postgres volume tu truoc, them init script sau do se khong tu chay lai.
 ```
 
-## Buoc 6: Kiem Tra Import Model Truoc Khi Tao Migration
+## Bước 6: Kiểm Tra Import Model Trước Khi Tạo Migration
 
-Chay:
+Chạy:
 
 ```powershell
 cd chatbot/backend
 ..\..\.venv\Scripts\python.exe -c "from app.databases.base import Base; import app.databases.models; print(sorted(Base.metadata.tables.keys()))"
 ```
 
-Mong doi thay danh sach table co schema `css`, vi du:
+Mong đợi thấy danh sách table có schema `css`, ví dụ:
 
 ```text
 ['css.assets', 'css.departments', 'css.document_assets', ...]
 ```
 
-Neu loi:
+Nếu lỗi:
 
 ```text
 ImportError: cannot import name 'DeclarativeBase' from 'sqlalchemy'
 ```
 
-quay lai Buoc 1.
+quay lại Bước 1.
 
-Neu loi:
+Nếu lỗi:
 
 ```text
 ImportError: cannot import name 'SessionLocal'
 ```
 
-quay lai Buoc 2.
+quay lại Bước 2.
 
-## Buoc 7: Tao Migration Dau Tien
+## Bước 7: Tạo Migration Đầu Tiên
 
-Chay:
+Chạy:
 
 ```powershell
 cd chatbot/backend
 ..\..\.venv\Scripts\alembic.exe revision --autogenerate -m "create core rag tables"
 ```
 
-Sau lenh nay, Alembic se tao file trong:
+Sau lệnh này, Alembic sẽ tạo file trong:
 
 ```text
 chatbot/backend/alembic/versions/
 ```
 
-Mo file migration va kiem tra:
+Mở file migration và kiểm tra:
 
 ```text
 schema="css"
@@ -407,47 +407,47 @@ op.create_table(...) co du table core
 foreign key tro toi css.<table>.id
 unique constraint cho document_key/version_key/asset_key
 document_assets co composite primary key
-document_version_status dung document_version_id la primary key neu model da chot nhu vay
+document_recipients co composite primary key (document_version_id, department_id, effective_date)
 ```
 
-Neu migration bi rong:
+Nếu migration bị rỗng:
 
 ```text
 upgrade() pass
 downgrade() pass
 ```
 
-thi Alembic chua thay metadata. Kiem tra lai:
+thì Alembic chưa thấy metadata. Kiểm tra lại:
 
 ```text
 alembic/env.py da import app.databases.models chua
 Base.metadata.tables co table chua
 ```
 
-## Buoc 8: Chay Migration
+## Bước 8: Chạy Migration
 
-Chay:
+Chạy:
 
 ```powershell
 cd chatbot/backend
 ..\..\.venv\Scripts\alembic.exe upgrade head
 ```
 
-Neu gap loi schema:
+Nếu gặp lỗi schema:
 
 ```text
 schema "css" does not exist
 ```
 
-quay lai Buoc 5.
+quay lại Bước 5.
 
-Neu gap loi connection:
+Nếu gặp lỗi connection:
 
 ```text
 Connection refused
 ```
 
-kiem tra:
+kiểm tra:
 
 ```powershell
 cd chatbot
@@ -455,50 +455,49 @@ docker compose ps
 docker compose logs postgres --tail 100
 ```
 
-Neu gap loi auth:
+Nếu gặp lỗi auth:
 
 ```text
 password authentication failed
 ```
 
-kiem tra `chatbot/.env` va `DATABASE_URL`.
+kiểm tra `chatbot/.env` và `DATABASE_URL`.
 
-## Buoc 9: Kiem Tra Ket Qua Trong PostgreSQL
+## Bước 9: Kiểm Tra Kết Quả Trong PostgreSQL
 
-Chay:
+Chạy:
 
 ```powershell
 cd chatbot
 docker compose exec postgres psql -U ct239h -d ctu_student_service -c "\dt css.*"
 ```
 
-Mong doi thay cac bang core:
+Mong đợi thấy các bảng core (9 bảng, status fields nằm trực tiếp trên document_versions, không có bảng document_version_status/document_version_relationships riêng — xem 19_MIGRATE_10_TO_9_TABLES_GUIDE.md):
 
 ```text
 css.departments
 css.document_types
 css.documents
 css.document_versions
-css.document_version_status
-css.document_version_relationships
+css.document_recipients
 css.document_chunks
 css.assets
 css.document_assets
 css.ingestion_jobs
 ```
 
-Kiem tra revision hien tai:
+Kiểm tra revision hiện tại:
 
 ```powershell
 cd backend
 ..\..\.venv\Scripts\alembic.exe current
 ```
 
-Mong doi thay revision id cua migration vua tao.
+Mong đợi thấy revision id của migration vừa tạo.
 
-## Buoc 10: Smoke Test Insert Toi Thieu
+## Bước 10: Smoke Test Insert Tối Thiểu
 
-Sau khi migration thanh cong, can co smoke test insert data theo thu tu:
+Sau khi migration thành công, cần có smoke test insert data theo thứ tự:
 
 ```text
 Department
@@ -513,24 +512,24 @@ DocumentChunk child
 IngestionJob
 ```
 
-Khong can test Qdrant trong guide 04. Guide nay chi xac nhan PostgreSQL schema va SQLAlchemy mapping.
+Không cần test Qdrant trong guide 04. Guide này chỉ xác nhận PostgreSQL schema và SQLAlchemy mapping.
 
-## Common Mistakes Can Tranh
+## Common Mistakes Cần Tránh
 
-- Viet Python code trong `alembic.ini`.
-- Quen `[alembic]` section trong `alembic.ini`.
-- Import `DeclarativeBase` tu `sqlalchemy` thay vi `sqlalchemy.orm`.
-- Import `app.databases` lam side effect tao engine qua som khi Alembic chi can models.
-- Quen import `app.databases.models` trong `alembic/env.py`.
-- Quen `include_schemas=True` khi model dung schema `css`.
-- Tao migration khi `Base.metadata.tables` dang rong.
-- Cho `DATABASE_URL` trong `.env` tro toi sai host khi chay ngoai Docker.
-- Nghi rang init SQL trong `docker-entrypoint-initdb.d` se chay lai tren volume Postgres da ton tai.
-- Sua model sau khi generate migration nhung khong generate lai migration.
+- Viết Python code trong `alembic.ini`.
+- Quên `[alembic]` section trong `alembic.ini`.
+- Import `DeclarativeBase` từ `sqlalchemy` thay vì `sqlalchemy.orm`.
+- Import `app.databases` làm side effect tạo engine quá sớm khi Alembic chỉ cần models.
+- Quên import `app.databases.models` trong `alembic/env.py`.
+- Quên `include_schemas=True` khi model dùng schema `css`.
+- Tạo migration khi `Base.metadata.tables` đang rỗng.
+- Cho `DATABASE_URL` trong `.env` trỏ tới sai host khi chạy ngoài Docker.
+- Nghĩ rằng init SQL trong `docker-entrypoint-initdb.d` sẽ chạy lại trên volume Postgres đã tồn tại.
+- Sửa model sau khi generate migration nhưng không generate lại migration.
 
 ## Debug Checklist
 
-Khi migration loi, kiem tra theo thu tu nay:
+Khi migration lỗi, kiểm tra theo thứ tự này:
 
 ```text
 1. alembic.ini co section [alembic] khong?
@@ -544,7 +543,7 @@ Khi migration loi, kiem tra theo thu tu nay:
 9. alembic_version co nam dung database khong?
 ```
 
-Lenh debug nhanh:
+Lệnh debug nhanh:
 
 ```powershell
 cd chatbot/backend
@@ -559,7 +558,7 @@ alembic current
 
 ## Definition Of Done
 
-Hoan thanh guide 04 khi:
+Hoàn thành guide 04 khi:
 
 ```text
 alembic.ini doc duoc bang configparser
@@ -571,4 +570,3 @@ alembic upgrade head thanh cong
 \dt css.* thay du bang core
 alembic current hien revision moi nhat
 ```
-

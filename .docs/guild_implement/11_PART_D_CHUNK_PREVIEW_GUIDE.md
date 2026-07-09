@@ -1,10 +1,10 @@
-# 11. Part D - Huong Dan Implement Chunk Preview
+# 11. Part D - Hướng Dẫn Implement Chunk Preview
 
 **Last Updated:** 2026-06-20
 
-File nay tach chi tiet tu guide 07, phan D.
+File này tách chi tiết từ guide 07, phần D.
 
-Muc tieu:
+Mục tiêu:
 
 ```text
 Doc Markdown
@@ -13,25 +13,25 @@ chunk body
 in preview de kiem tra truoc khi ghi DB
 ```
 
-Preview giup phat hien loi chunking som: mat noi dung, heading sai, page sai, child thieu parent.
+Preview giúp phát hiện lỗi chunking sớm: mất nội dung, heading sai, page sai, child thiếu parent.
 
 ---
 
-## 1. File Can Tao
+## 1. File Cần Tạo
 
 ```text
 chatbot/backend/app/ingestion/preview.py
 chatbot/backend/test/ingestion/test_preview.py
 ```
 
-Phu thuoc vao:
+Phụ thuộc vào:
 
 ```text
 app.ingestion.markdown_reader
 app.ingestion.chunking.chunker
 ```
 
-Chunker hien tai:
+Chunker hiện tại:
 
 ```text
 Public API nam o app.ingestion.chunking.chunker.
@@ -44,7 +44,7 @@ Child lien ket parent bang parent_chunk_key stable key.
 
 ## 2. Output Contract
 
-Preview nen tra ve `dict` de de serialize JSON:
+Preview nên trả về `dict` để dễ serialize JSON:
 
 ```json
 {
@@ -68,6 +68,11 @@ Chunk preview item:
   "chunk_type": "child",
   "chunk_index": 1,
   "heading_path": ["Title", "Dieu 1"],
+  "item_marker": "a)",
+  "item_level": 3,
+  "item_path": ["Khoan 1", "Diem a)"],
+  "legal_unit_type": "point",
+  "block_type": "lettered_item",
   "page_start": 1,
   "page_end": 1,
   "token_count": 120,
@@ -75,7 +80,7 @@ Chunk preview item:
 }
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 chunk_key trong preview la stable key se duoc luu vao DocumentChunk.chunk_key.
@@ -134,6 +139,11 @@ def chunk_to_preview_item(chunk: Chunk) -> dict[str, Any]:
         "chunk_type": chunk.chunk_type,
         "chunk_index": chunk.chunk_index,
         "heading_path": chunk.heading_path,
+        "item_marker": getattr(chunk, "item_marker", None),
+        "item_level": getattr(chunk, "item_level", None),
+        "item_path": getattr(chunk, "item_path", []),
+        "legal_unit_type": getattr(chunk, "legal_unit_type", "none"),
+        "block_type": getattr(chunk, "block_type", None),
         "page_start": chunk.page_start,
         "page_end": chunk.page_end,
         "token_count": chunk.token_count,
@@ -176,10 +186,17 @@ def validate_preview_chunks(chunks: list[Chunk]) -> list[str]:
         if not chunk.heading_path:
             warnings.append(f"Chunk {chunk.chunk_key} has empty heading_path")
 
+        if chunk.chunk_type == "child":
+            block_type = getattr(chunk, "block_type", None)
+            if block_type in {"numbered_item", "lettered_item", "bullet_item"}:
+                item_path = getattr(chunk, "item_path", [])
+                if not item_path:
+                    warnings.append(f"Child {chunk.chunk_key} has empty item_path")
+
     return warnings
 ```
 
-Luu y:
+Lưu ý:
 
 ```text
 Preview warning khong nhat thiet fail.
@@ -188,9 +205,9 @@ Pipeline ingest moi quyet dinh warning nao thanh error.
 
 ---
 
-## 6. CLI Tam Thoi
+## 6. CLI Tạm Thời
 
-Them vao cuoi `preview.py`:
+Thêm vào cuối `preview.py`:
 
 ```python
 def main() -> None:
@@ -209,14 +226,14 @@ if __name__ == "__main__":
     main()
 ```
 
-Chay:
+Chạy:
 
 ```powershell
-cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
+cd E:\RHNA\1Visual\NLCS\CTU-Service\chatbot\backend
 ..\..\.venv\Scripts\python.exe -m app.ingestion.preview "..\..\nlcs\06_Processing\03_Markdown_Cleaning\PDFs_CTSV\Noi_quy_KTX_nam_2016_structured.md"
 ```
 
-Neu file Markdown chua co metadata dung schema, dung test fixture truoc.
+Nếu file Markdown chưa có metadata đúng schema, dùng test fixture trước.
 
 ---
 
@@ -274,9 +291,9 @@ def test_preview_warns_for_missing_parent():
 
 ---
 
-## 8. Khong Lam Trong Preview
+## 8. Không Làm Trong Preview
 
-Preview khong:
+Preview không:
 
 ```text
 insert DB
@@ -286,61 +303,61 @@ update status
 auto fix Markdown
 ```
 
-Preview chi doc, chunk va report.
+Preview chỉ đọc, chunk và report.
 
 ---
 
 ## 9. Done Khi
 
-- [ ] `build_chunk_preview(path)` tra dict serializable.
-- [ ] Preview dem dung parent/child.
-- [ ] Preview item co heading_path, page, token_count.
-- [ ] Warning phat hien child thieu parent.
-- [ ] CLI chay duoc voi file fixture.
+- [ ] `build_chunk_preview(path)` trả dict serializable.
+- [ ] Preview đếm đúng parent/child.
+- [ ] Preview item có heading_path, page, token_count.
+- [ ] Warning phát hiện child thiếu parent.
+- [ ] CLI chạy được với file fixture.
 - [ ] Test preview pass.
 
 ---
 
-## 10. Loi De Gap
+## 10. Lỗi Dễ Gặp
 
-### Loi: preview dung file that bi ValidationError
+### Lỗi: preview dùng file thật bị ValidationError
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 File Markdown that chua co metadata theo schema backend.
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Test bang fixture truoc.
 Sau do tao canonical Markdown metadata dung document_key/version_key.
 ```
 
-### Loi: console khong hien tieng Viet dung
+### Lỗi: console không hiện tiếng Việt đúng
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 PowerShell encoding.
 ```
 
-Xu ly:
+Xử lý:
 
 ```powershell
 $OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8
 ```
 
-### Loi: warnings qua nhieu empty heading_path
+### Lỗi: warnings quá nhiều empty heading_path
 
-Nguyen nhan:
+Nguyên nhân:
 
 ```text
 Chunker chua tao default heading_path ["Document"].
 ```
 
-Xu ly:
+Xử lý:
 
 ```text
 Sua chunker, khong sua preview.

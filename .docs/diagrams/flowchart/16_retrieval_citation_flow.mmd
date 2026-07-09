@@ -1,0 +1,29 @@
+%% Source: chatbot/.docs/guild_implement/16_PART_I_RETRIEVAL_GUIDE.md
+%% Retrieval: clarify query first, then Qdrant with student filter, hydrate content from PostgreSQL.
+
+flowchart TD
+    A([user query])
+    B{greeting or blank?}
+    C[return greeting / empty result<br/>no retrieval]
+    D{ambiguous without context?}
+    E[ask clarification<br/>no Qdrant search]
+    F[complete or rewrite query<br/>using current document or recent topic]
+    G[embed query]
+    H[LangChain Qdrant retriever]
+    I[student hard filter<br/>review_status=approved<br/>rag_status=published<br/>audience_student=true]
+    J[(Qdrant results<br/>payload metadata)]
+    K[read postgres_chunk_id]
+    L[(PostgreSQL<br/>DocumentChunk content)]
+    M["build_citation()"]
+    N(["RetrievalResult<br/>content + citation"])
+
+    A --> B
+    B -->|yes| C
+    B -->|no| D
+    D -->|yes| E
+    D -->|no| F --> G --> H
+    I --> H
+    H --> J --> K --> L --> M --> N
+
+    J -. payload is trace only .-> K
+    L -. canonical content .-> N

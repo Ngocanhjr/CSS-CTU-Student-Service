@@ -1,0 +1,20 @@
+%% Source: chatbot/.docs/guild_implement/09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md
+%% Flow chot: OCR/loader -> raw Markdown body -> page-aware chunking -> embedding -> Qdrant
+
+flowchart LR
+    A([OCR/loader])
+    B[raw Markdown body]
+    C[split_body_by_page_markers()]
+    D[backend parsing<br/>normalize_structural_headings()]
+    E[page-aware<br/>parent chunker]
+    F[page-aware<br/>child chunker]
+    G[enriched embedding text]
+    H[embedding]
+    I[(Qdrant)]
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+
+    C -. preserves .-> P[PageBlock(page_number,<br/>content)]
+    D -. fixes .-> Q[plain-text business headings<br/>into structural headings]
+    E -. outputs .-> R[ParentSection<br/>page_start/page_end]
+    F -. outputs .-> S[Child chunks with<br/>accurate citation pages]

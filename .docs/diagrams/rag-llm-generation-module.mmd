@@ -1,0 +1,63 @@
+%% CTU Student Service - RAG LLM Answer Generation Module
+%% Source of truth: chatbot/.docs/spec/ctu-service/07_RAG_SPEC.md, 06_API_SPEC.md, 05_DATABASE_SPEC.md
+%% Paired Archify diagram: rag-llm-generation-module.html / rag-llm-generation-module.json
+flowchart LR
+    subgraph S1["01 Retrieval Input"]
+        context_pack["Context Pack<br/>ranked chunks + trace<br/>(from Retrieval Module)"]
+        source_metadata[("Source Metadata<br/>document/version/chunk<br/>page + section")]
+    end
+
+    subgraph S2["02 Prompt + Citation Policy"]
+        prompt_builder["Prompt Builder<br/>system + question + context<br/>grounded only"]
+        citation_rules["Citation Rules<br/>claim needs evidence<br/>no source -&gt; refuse"]
+    end
+
+    subgraph S3["03 Generate"]
+        llm_provider["LLM Provider<br/>provider TBD from spec<br/>not hard-coded"]
+        draft_answer["Draft Answer<br/>uses retrieved context<br/>not model memory"]
+    end
+
+    subgraph S4["04 Ground + Cite"]
+        citation_builder["Citation Builder<br/>map claims to chunks<br/>document_key/version_key"]
+        grounding_check["Grounding Check<br/>citation validation<br/>block weak claims"]
+        postprocess["Post-process<br/>format answer JSON<br/>citations required"]
+    end
+
+    subgraph S5["05 Trace + Assets"]
+        trace_logger[("Trace Logging<br/>trace_id for debug<br/>fields TBD from spec")]
+        related_assets[("Related Assets<br/>document_assets + assets<br/>asset validity_status")]
+    end
+
+    subgraph S6["06 Response"]
+        api_response["API Response<br/>answer / citations / related_assets<br/>trace_id"]
+        flutter_ui["Flutter UI<br/>chat + citation drawer<br/>student-facing"]
+    end
+
+    context_pack -->|ranked context| prompt_builder
+    source_metadata -->|source map| citation_rules
+    citation_rules -->|instructions| prompt_builder
+    prompt_builder --> llm_provider
+    llm_provider -->|draft| draft_answer
+    draft_answer -->|claims| citation_builder
+    source_metadata -.->|doc/title/page| citation_builder
+    citation_builder --> grounding_check
+    grounding_check --> postprocess
+    postprocess -->|answer JSON| api_response
+    related_assets -.->|public assets| api_response
+    api_response --> flutter_ui
+    context_pack -.->|retrieved chunks| trace_logger
+    prompt_builder -.->|prompt trace| trace_logger
+    draft_answer -.-> trace_logger
+    trace_logger -.->|trace_id| api_response
+
+    classDef frontend fill:#083344,stroke:#22d3ee,color:#e2e8f0;
+    classDef security fill:#881337,stroke:#fb7185,color:#e2e8f0;
+    classDef database fill:#4c1d95,stroke:#a78bfa,color:#e2e8f0;
+    classDef backend fill:#064e3b,stroke:#34d399,color:#e2e8f0;
+    classDef external fill:#1e293b,stroke:#94a3b8,color:#e2e8f0;
+
+    class flutter_ui frontend;
+    class citation_rules,grounding_check security;
+    class source_metadata,trace_logger,related_assets database;
+    class prompt_builder,draft_answer,citation_builder,postprocess,api_response backend;
+    class context_pack,llm_provider external;

@@ -1,0 +1,37 @@
+%% Sources:
+%% - chatbot/.docs/guild_implement/07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md
+%% - chatbot/.docs/guild_implement/13_PART_F_PIPELINE_ORCHESTRATION_GUIDE.md
+
+flowchart TD
+    A(["Markdown canonical file"])
+    B["read_markdown_document()"]
+    C["validate YAML metadata"]
+    D["chunk_markdown_document()"]
+    E["preview chunks"]
+    F["save metadata + chunks<br/>to PostgreSQL"]
+    G{publish?}
+    H(["IngestionResult<br/>publish=false"])
+    I["embed child chunks"]
+    J["upsert Qdrant"]
+    K["update chunk index_status<br/>and version rag_status"]
+    L(["Published for retrieval"])
+    X["mark failed:<br/>job current_step + error<br/>version rag_status=failed"]
+
+    A --> B --> C --> D --> E --> F --> G
+    G -->|false| H
+    G -->|true| I --> J --> K --> L
+
+    B -. exception .-> X
+    C -. exception .-> X
+    D -. exception .-> X
+    F -. exception .-> X
+    I -. exception .-> X
+    J -. exception .-> X
+
+    subgraph Pipeline_is_orchestrator_only
+        B
+        D
+        F
+        I
+        J
+    end
