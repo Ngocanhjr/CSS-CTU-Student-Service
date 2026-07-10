@@ -1,27 +1,33 @@
 %% Sources:
-%% - chatbot/.docs/guild_implement/14_PART_G_EMBEDDING_GUIDE.md
-%% - chatbot/.docs/guild_implement/15_PART_H_QDRANT_VECTORSTORE_GUIDE.md
+%% - 14_PART_G_EMBEDDING_GUIDE.md
+%% - 15_PART_H_QDRANT_VECTORSTORE_GUIDE.md
 
 flowchart TD
-    A[(PostgreSQL<br/>child chunks)]
-    B[select child chunks<br/>index_status=not_indexed]
-    C["build_embedding_text()"]
-    D["TextEmbedder<br/>Fake or LangChain NVIDIA/BGE-M3"]
-    E[vector list]
-    F{collection exists?}
-    G["ensure_collection<br/>vector_size=len(vector)"]
-    H["build_chunk_payload()"]
-    I["make_point_id<br/>version_key + chunk_key"]
-    J["upsert_points()"]
-    K[(Qdrant<br/>css_qdrant)]
-    L["mark_chunks_indexed()"]
-    M[(PostgreSQL<br/>qdrant_point_id<br/>index_status=indexed)]
+    A[(PostgreSQL<br/>Child chunks not indexed)]
+    B[Load Child chunk<br/>and in-memory structural metadata]
+    C[build_embedding_text]
+    D[Prepend heading_path]
+    E[Prepend ancestor item labels<br/>item_path without current item]
+    F[Keep raw Child content unchanged<br/>do not duplicate current item label]
+    G[Text embedder]
+    H[Vector list]
+    I{Collection exists?}
+    J[Ensure collection<br/>vector_size from embedding]
+    K[build_chunk_payload]
+    L[make deterministic point id<br/>version_key + chunk_key]
+    M[Upsert points]
+    N[(Qdrant)]
+    O[Mark chunks indexed]
+    P[(PostgreSQL<br/>qdrant_point_id + index_status)]
 
-    A --> B --> C --> D --> E --> F
-    F -->|no| G --> H
-    F -->|yes| H
-    H --> I --> J --> K
-    J --> L --> M
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+    I -->|no| J --> K
+    I -->|yes| K
+    K --> L --> M --> N
+    M --> O --> P
 
-    C -. enriches with .-> N["title<br/>department<br/>document_type<br/>heading_path<br/>page range"]
-    H -. payload must trace .-> O["postgres_chunk_id<br/>chunk_key<br/>review_status<br/>rag_status<br/>audience_student"]
+    K -. identity and trace .-> Q[postgres_chunk_id<br/>chunk_key<br/>parent_chunk_key]
+    K -. structural payload .-> R[logical_item_key<br/>parent_item_key<br/>heading_path + item_path<br/>item_marker + item_level<br/>split_index + split_count<br/>chunk_index or source_order<br/>block_type + legal_unit_type<br/>page_start + page_end]
+    K -. governance filters .-> S[review_status<br/>rag_status<br/>audience_student<br/>document/version metadata]
+
+    T{{Only Child chunks<br/>are embedded by default}} -. contract .-> A

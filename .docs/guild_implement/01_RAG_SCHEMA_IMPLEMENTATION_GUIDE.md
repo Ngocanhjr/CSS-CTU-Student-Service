@@ -2,6 +2,10 @@
 
 **Last Updated:** 2026-07-04
 
+> **Legacy note (9-table contract):** Khong implement/import `DocumentVersionStatus` theo file nay.
+> Dung `DocumentVersionStatusFields` va export/test hien hanh trong guide 19. Cac phan khac
+> cua file chi dung de tham khao khi khong mau thuan voi guide 19.
+
 Source of truth cho field YAML metadata: `chatbot/.docs/spec/ctu-service/07_RAG_SPEC.md`.
 Source of truth cho schema DB: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md`.
 

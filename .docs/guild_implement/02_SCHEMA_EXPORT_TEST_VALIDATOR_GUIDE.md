@@ -2,6 +2,9 @@
 
 **Last Updated:** 2026-06-17
 
+> **Legacy note (9-table contract):** Cac lenh import/export `DocumentVersionStatus` trong file nay
+> da cu. Khong chay hoac copy cac snippet do; dung `DocumentVersionStatusFields` theo guide 19.
+
 File này hướng dẫn 3 bước sau khi implement xong `app/schemas/rag.py`:
 
 1. cập nhật `app/schemas/__init__.py`;

@@ -1,6 +1,6 @@
 # 04. Hướng Dẫn Sửa Và Chạy Alembic Migration
 
-**Last Updated:** 2026-06-19
+**Last Updated:** 2026-07-10
 
 File này nối tiếp sau `03_SQLALCHEMY_9_TABLES_GUIDE.md`.
 
@@ -504,13 +504,19 @@ Department
 DocumentType
 Document
 DocumentVersion
-DocumentVersionStatus
+  - ocr_status
+  - review_status
+  - rag_status
+  - status_note
+DocumentRecipient
 Asset
 DocumentAsset
 DocumentChunk parent
 DocumentChunk child
 IngestionJob
 ```
+
+`DocumentVersionStatus` chỉ là tên schema Pydantic ở các guide schema cũ; nó không phải SQLAlchemy model hoặc bảng PostgreSQL. Status workflow nằm trực tiếp trên `DocumentVersion`.
 
 Không cần test Qdrant trong guide 04. Guide này chỉ xác nhận PostgreSQL schema và SQLAlchemy mapping.
 

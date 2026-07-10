@@ -1,13 +1,18 @@
 # 18. Part K - Hướng Dẫn RAG Answer Chain Bằng LangChain
 
-**Last Updated:** 2026-06-27
+**Last Updated:** 2026-07-10
 
 File này bắt đầu sau guide 16.
 
-Guide 16 chỉ làm retrieval:
+Guide 16 làm retrieval đã resolve query, hydrate canonical content và structural expansion:
 
 ```text
-query -> retriever -> hydrate PostgreSQL -> RetrievalResult co citation
+resolved query
+-> vector retrieval
+-> hydrate PostgreSQL
+-> parent/child/sibling/split expansion
+-> deduplicate/source-order/context budget
+-> RetrievalResult co citation
 ```
 
 Guide 18 mới làm answer chain:
@@ -65,8 +70,8 @@ Flow nên dùng:
 input question
   -> is_greeting_or_smalltalk()
   -> complete_or_clarify_query()
-  -> Retriever.search()
-  -> list[RetrievalResult]
+  -> Retriever.search_resolved_query()
+  -> hydrated + expanded list[RetrievalResult]
   -> build_context_block()
   -> prompt
   -> llm
@@ -170,7 +175,12 @@ from dataclasses import dataclass
 from langchain_core.output_parsers import StrOutputParser
 
 from app.llm.prompts import RAG_ANSWER_PROMPT
-from app.retrieval.retriever import Retriever, RetrievalContext, RetrievalResult
+from app.retrieval.retriever import (
+    Retriever,
+    RetrievalContext,
+    RetrievalResult,
+    complete_or_clarify_query,
+)
 
 
 @dataclass(frozen=True)
@@ -214,14 +224,23 @@ async def answer_question(
     context: RetrievalContext | None = None,
     top_k: int = DEFAULT_TOP_K,
 ) -> RagAnswer:
-    # Production nen goi complete_or_clarify_query() truoc do.
-    # Neu la greeting/smalltalk hoac query can clarification, tra response truc tiep
-    # va khong goi retriever/LLM.
-    results = await retriever.search(
+    decision = complete_or_clarify_query(question, context=context)
+
+    if not decision.should_search:
+        response = decision.clarification_question or "Vui lòng nhập câu hỏi cụ thể hơn."
+        return RagAnswer(
+            answer=response,
+            citations=[],
+            retrieval_results=[],
+            clarification_question=decision.clarification_question,
+        )
+
+    results = await retriever.search_resolved_query(
         session,
-        query=question,
+        query=decision.query,
+        document_key=decision.document_key,
+        version_key=decision.version_key,
         top_k=top_k,
-        context=context,
     )
 
     if not results:
@@ -229,22 +248,24 @@ async def answer_question(
             answer="Tôi chưa tìm thấy thông tin phù hợp trong tài liệu hiện có.",
             citations=[],
             retrieval_results=[],
+            clarification_question=None,
         )
 
     context_block = build_context_block(results)
     chain = RAG_ANSWER_PROMPT | llm | StrOutputParser()
     answer = await chain.ainvoke(
         {
-            "question": question,
+            "question": decision.query,
             "context": context_block,
         }
     )
 
-    citations = [result.citation for result in results]
+    citations = list(dict.fromkeys(result.citation for result in results))
     return RagAnswer(
         answer=answer,
         citations=citations,
         retrieval_results=results,
+        clarification_question=None,
     )
 ```
 
@@ -253,9 +274,9 @@ async def answer_question(
 Lưu ý:
 
 ```text
-Skeleton tren chua validate citation trong text answer.
-Greeting/smalltalk va clarification nen xu ly truoc khi goi retriever de tranh search Qdrant voi query nhu "hi".
-Buoc production tiep theo phai them citation_validator.py.
+- Greeting/smalltalk và clarification được xử lý trước Retriever/Qdrant/LLM.
+- `results == []` sau `search_resolved_query()` chỉ còn nghĩa là no-result.
+- Skeleton chưa validate citation xuất hiện trong text answer; cần citation_validator.py trước public endpoint.
 ```
 
 ---
@@ -333,10 +354,42 @@ Chỉ dùng để học LangChain pipe, không dùng làm production RAG endpoin
 
 ---
 
+## 6.1 Test Answer Chain Decision
+
+```python
+async def test_greeting_does_not_call_retriever_or_llm(...):
+    answer = await answer_question(question="hi", ...)
+    assert answer.clarification_question
+    assert answer.retrieval_results == []
+    # fake retriever/LLM assert not called
+
+
+async def test_ambiguous_query_returns_clarification(...):
+    answer = await answer_question(question="điều kiện là gì", ...)
+    assert answer.clarification_question
+
+
+async def test_no_result_is_not_clarification(...):
+    answer = await answer_question(question="điều kiện xin giấy X", ...)
+    assert answer.clarification_question is None
+    assert "chưa tìm thấy" in answer.answer.lower()
+
+
+async def test_context_filter_is_forwarded(...):
+    context = RetrievalContext(current_document_key="xin-giay-khai-sinh")
+    await answer_question(question="điều kiện là gì", context=context, ...)
+    # fake retriever assert document_key == "xin-giay-khai-sinh"
+```
+
+---
+
 ## 7. Checklist
 
 - [ ] Guide 16 retrieval trả `RetrievalResult` có content/citation.
+- [ ] Greeting/smalltalk không gọi Qdrant hoặc LLM.
 - [ ] Query mơ hồ được clarification trước retrieval.
+- [ ] Clarification và no-result có response contract khác nhau.
+- [ ] `current_document_key`/`current_version_key` được truyền xuống retrieval filter.
 - [ ] `build_context_block()` tạo context có SOURCE/citation.
 - [ ] Prompt yêu cầu trả lời dựa trên source.
 - [ ] Chain dùng `RAG_ANSWER_PROMPT | llm | StrOutputParser()`.

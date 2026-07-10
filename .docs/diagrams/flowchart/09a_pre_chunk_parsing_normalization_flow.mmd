@@ -1,20 +1,32 @@
-%% Source: chatbot/.docs/guild_implement/09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md
-%% Flow chot: OCR/loader -> raw Markdown body -> page-aware chunking -> embedding -> Qdrant
+%% Sources:
+%% - 09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md
+%% - 10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md
+%% - 10B_PART_C_PAGE_AWARE_CHUNKER_DECISIONS.md
+%% Canonical pre-chunk and structural parsing flow.
 
-flowchart LR
-    A([OCR/loader])
-    B[raw Markdown body]
-    C[split_body_by_page_markers()]
-    D[backend parsing<br/>normalize_structural_headings()]
-    E[page-aware<br/>parent chunker]
-    F[page-aware<br/>child chunker]
-    G[enriched embedding text]
-    H[embedding]
-    I[(Qdrant)]
+flowchart TD
+    A([Markdown body validated<br/>by markdown_reader])
+    B[split_body_by_page_markers]
+    C[Consume page markers<br/>and technical HTML comments]
+    D[Drop standalone OCR page number<br/>and --- only at page boundary]
+    E[PageBlock list]
+    F[structural_parser.parse_page_blocks<br/>stateful across all pages]
+    G[Recognition precedence]
+    H[StructuralParseResult<br/>StructuralBlock list + reports]
+    I[parent_builder]
+    J[child_builder]
+    K[oversized_unit_splitter]
+    L[chunk_factory]
+    M[embedding_text_builder]
+    N[chunk_validator]
+    O([ChunkingResult])
 
-    A --> B --> C --> D --> E --> F --> G --> H --> I
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M --> N --> O
 
-    C -. preserves .-> P[PageBlock(page_number,<br/>content)]
-    D -. fixes .-> Q[plain-text business headings<br/>into structural headings]
-    E -. outputs .-> R[ParentSection<br/>page_start/page_end]
-    F -. outputs .-> S[Child chunks with<br/>accurate citation pages]
+    G -. order .-> P[page artifact<br/>fenced code<br/>Markdown table<br/>Markdown heading<br/>numbered item<br/>lettered item<br/>bullet item<br/>paragraph]
+
+    F -. preserves state .-> Q[heading stack<br/>item stack<br/>source order<br/>page range]
+    F -. does not use .-> R[MarkdownHeaderTextSplitter<br/>in production flow]
+    F -. does not modify .-> S[canonical Markdown]
+
+    H -. block metadata .-> T[block_type + raw_content<br/>page_start/page_end<br/>source_order + heading_path<br/>item marker/level<br/>logical_item_key<br/>parent_item_key]

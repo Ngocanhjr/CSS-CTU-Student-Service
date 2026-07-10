@@ -1,6 +1,6 @@
-# 10. Part C - Hướng Dẫn Implement Structural Parent-Child Chunker
+﻿# 10. Part C - Hướng Dẫn Implement Structural Parent-Child Chunker
 
-**Last Updated:** 2026-06-20
+**Last Updated:** 2026-07-10
 
 File này tách chi tiết từ guide 07, phần C.
 
@@ -11,9 +11,9 @@ Nhan Markdown body da validate
 tach page marker truoc structural parsing
 parent tao theo Markdown heading
 child tao theo Dieu/Khoan/Diem/Bullet structural boundary
-RecursiveCharacterTextSplitter chi dung cho item/paragraph/table/code qua dai
+RecursiveCharacterTextSplitter chi dung cho item/paragraph qua dai; table/code co splitter rieng
 giu heading_path, item_path, legal_unit_type, page range, table/page marker neu co
-tra ve list[Chunk] voi stable chunk keys
+tra ve ChunkingResult voi stable chunk keys, warnings va errors
 ```
 
 Chunker không đọc file, không parse YAML, không ghi DB, không tạo DB id.
@@ -52,9 +52,6 @@ langchain-text-splitters>=0.2
 Import đề xuất trong từng file:
 
 ```python
-# parent_chunker.py
-from langchain_text_splitters import MarkdownHeaderTextSplitter
-
 # child_chunker.py
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -85,20 +82,19 @@ chunker.py
 - public API: chunk_markdown_document(), chunk_markdown_body()
 - dieu phoi parent_chunker va child_chunker
 - quan ly chunk_index global va child_counter
-- return list[Chunk]
+- return ChunkingResult
 
 parent_chunker.py
 - ParentSection dataclass
-- HEADERS_TO_SPLIT_ON
-- heading_path_from_metadata()
-- make_parent_section()
 - build_parent_sections()
+- make_parent_section()
 - make_parent_chunk()
 
 child_chunker.py
 - build_child_splitter()
 - ChildUnit dataclass
 - build_child_units()
+- build_structural_child_units()
 - split_long_child_unit()
 - make_child_chunks()
 
@@ -113,8 +109,8 @@ text_stats.py
 
 parsing/structural_parser.py
 - StructuralBlock dataclass
-- AmbiguousBlockReport dataclass
-- parse_structural_blocks()
+- ValidationReport dataclass
+- parse_page_blocks()
 - classify_line()
 - build_item_path()
 ```
@@ -126,10 +122,11 @@ Không tách nhỏ hơn nữa trong MVP. Các file này đủ để clean code m
 Trong MVP:
 
 ```text
-Chunk.chunk_key = stable key trong memory/preview/DB/Qdrant
-Chunk.parent_chunk_key = stable parent key trong memory/preview/DB/Qdrant
+Chunk.chunk_key = stable key trong memory/preview/PostgreSQL/Qdrant
+Chunk.parent_chunk_key = stable parent key trong memory/preview/repository input/Qdrant
 DocumentChunk.id = internal PostgreSQL primary key sau khi insert DB
 DocumentChunk.parent_chunk_id = internal FK sau khi repository map parent_chunk_key -> DB id
+PostgreSQL không có cột parent_chunk_key; không tuyên bố structural metadata đã persist nếu schema chưa có JSONB/cột tương ứng
 ```
 
 Chunker tạo stable key, không tạo DB id.
@@ -165,14 +162,17 @@ MVP dùng 3 lớp:
 ```text
 Layer 1: Page-aware structural parser
   -> PageBlock[]
-  -> StructuralBlock[]
+  -> StructuralParseResult(blocks, reports)
+  -> page marker da consume truoc parser
   -> nhan dien code/table/heading/item/paragraph theo thu tu bat buoc
 
 Layer 2: Parent chunker
-  -> tao parent theo Markdown heading
+  -> nhan StructuralBlock[] da parse san
+  -> tao parent theo moi Markdown heading
   -> noi dung truoc heading dau tien vao document-root parent
 
 Layer 3: Child chunker
+  -> nhan ParentSection.blocks
   -> tao child theo numbered_item / lettered_item / bullet_item / table / code / paragraph boundary
   -> RecursiveCharacterTextSplitter chi split ben trong mot child unit qua dai
 
@@ -207,7 +207,7 @@ from app.ingestion.markdown_reader import MarkdownDocument
 from app.schemas.chunks import Chunk
 
 
-def chunk_markdown_document(document: MarkdownDocument) -> list[Chunk]:
+def chunk_markdown_document(document: MarkdownDocument) -> ChunkingResult:
     return chunk_markdown_body(
         body=document.body,
         document_key=document.metadata.document_key,
@@ -229,9 +229,26 @@ def chunk_markdown_body(
     version_key: str,
     child_chunk_size: int = DEFAULT_CHILD_CHUNK_SIZE,
     child_chunk_overlap: int = DEFAULT_CHILD_CHUNK_OVERLAP,
-) -> list[Chunk]:
+) -> ChunkingResult:
     ...
 ```
+
+Return contract:
+
+```python
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ChunkingResult:
+    parent_chunks: list[Chunk]
+    child_chunks: list[Chunk]
+    warnings: list[ValidationReport]
+    errors: list[ValidationReport]
+```
+
+`chunk_markdown_document()` và `chunk_markdown_body()` trả `ChunkingResult`, không trả raw `list[Chunk]`.
+Caller dùng `result.parent_chunks + result.child_chunks`; preview/API show `result.warnings` và `result.errors`.
 
 Trong MVP, `child_chunk_size` và `child_chunk_overlap` tính theo ký tự vì `RecursiveCharacterTextSplitter` mặc định dùng length function theo character.
 
@@ -262,10 +279,14 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ParentSection:
+    heading: str | None
     content: str
+    blocks: list[StructuralBlock]
     heading_path: list[str]
     page_start: int
     page_end: int
+    context_only: bool = False
+    context_only_reason: str | None = None
 ```
 
 Nếu `child_chunker.py` cần type hint `ParentSection`, import:
@@ -298,19 +319,23 @@ Xem chi tiết tại:
 chatbot/.docs/guild_implement/10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md
 ```
 
-Trong `parent_chunker.py` và `child_chunker.py`, import:
+Trong parser/chunker, dùng helper:
 
 ```python
-from app.ingestion.parsing.page_markers import require_page_range
+from app.ingestion.parsing.page_markers import (
+    require_page_range,
+    split_body_by_page_markers,
+)
 ```
 
 Rule:
 
 ```text
-Page marker khong duoc xoa truoc khi split.
-Parent/child page_start/page_end lay tu content sau split.
-Parent chunk phai resolve duoc page range, khong duoc tra `None`.
-Neu child khong co page marker nhung parent co page range, fallback sang parent range.
+Page marker khong duoc xoa truoc structural parsing.
+Parent page_start/page_end lay tu min/max page cua StructuralBlock trong parent.
+Child page_start/page_end lay tu ChildUnit.
+Neu ChildUnit thieu page nhung parent co page range, fallback sang parent range.
+Moi chunk phai resolve duoc page range, khong duoc tra `None`.
 Neu toan bo document khong co page marker thi chunker fail som de khong tao chunk sai contract.
 ```
 
@@ -340,7 +365,7 @@ Parent va child chunk deu dung cung helper nay.
 
 ---
 
-## 7. Tạo Parent Sections Bằng MarkdownHeaderTextSplitter
+## 7. Tạo Parent Sections Từ Structural Blocks
 
 File:
 
@@ -348,32 +373,23 @@ File:
 chatbot/backend/app/ingestion/chunking/parent_chunker.py
 ```
 
-Header config đề xuất:
+Parent chỉ dựa trên `StructuralBlock(block_type="heading")`.
+
+Helper nhỏ:
 
 ```python
-HEADERS_TO_SPLIT_ON = [
-    ("#", "h1"),
-    ("##", "h2"),
-    ("###", "h3"),
-]
-```
-
-Helper nhỏ để code gọn hơn:
-
-```python
-def heading_path_from_metadata(metadata: dict) -> list[str]:
-    heading_path = [
-        str(metadata[key]).strip()
-        for key in ("h1", "h2", "h3")
-        if metadata.get(key)
-    ]
-    return heading_path or ["Document"]
-
-
-def make_parent_section(content: str, heading_path: list[str]) -> ParentSection:
-    page_start, page_end = require_page_range(content)
+def make_parent_section(
+    *,
+    blocks: list[StructuralBlock],
+    heading_path: list[str],
+) -> ParentSection:
+    content = "\n\n".join(block.raw_content for block in blocks).strip()
+    page_start = min(block.page_start for block in blocks)
+    page_end = max(block.page_end for block in blocks)
     return ParentSection(
+        heading=heading_path[-1] if heading_path else None,
         content=content,
+        blocks=blocks,
         heading_path=heading_path,
         page_start=page_start,
         page_end=page_end,
@@ -383,40 +399,57 @@ def make_parent_section(content: str, heading_path: list[str]) -> ParentSection:
 Function chính:
 
 ```python
-def build_parent_sections(body: str) -> list[ParentSection]:
-    splitter = MarkdownHeaderTextSplitter(
-        headers_to_split_on=HEADERS_TO_SPLIT_ON,
-        strip_headers=False,
-    )
-
-    docs = splitter.split_text(body)
-
-    if not docs:
-        return [make_parent_section(body.strip(), ["Document"])]
-
+def build_parent_sections(blocks: list[StructuralBlock]) -> list[ParentSection]:
     sections: list[ParentSection] = []
-    for doc in docs:
-        content = doc.page_content.strip()
-        if not content:
-            continue
+    current_blocks: list[StructuralBlock] = []
+    current_heading_path: list[str] = ["document-root"]
 
+    for block in blocks:
+        if block.block_type == "heading":
+            if current_blocks:
+                sections.append(
+                    make_parent_section(
+                        blocks=current_blocks,
+                        heading_path=current_heading_path,
+                    )
+                )
+                current_blocks = []
+
+            current_heading_path = update_heading_path(
+                current_heading_path,
+                level=block.heading_level or 1,
+                text=block.heading_text or block.raw_content.strip(),
+            )
+
+        current_blocks.append(block)
+
+    if current_blocks:
         sections.append(
             make_parent_section(
-                content,
-                heading_path_from_metadata(doc.metadata or {}),
+                blocks=current_blocks,
+                heading_path=current_heading_path,
             )
         )
 
-    return sections
+    return sections  # Không merge qua Markdown heading boundary.
+```
+
+`update_heading_path()`:
+
+```python
+def update_heading_path(path: list[str], *, level: int, text: str) -> list[str]:
+    if path == ["document-root"]:
+        path = []
+    return [*path[: max(level - 1, 0)], text]
 ```
 
 Lưu ý:
 
 ```text
-LangChain metadata chi giu heading theo header config.
-Neu can level 4-6 sau nay, them ("####", "h4")... vao config.
-Khong dua langchain Document ra khoi chunker; output public van la list[Chunk].
-Can test case page marker nam truoc heading. Neu MarkdownHeaderTextSplitter lam roi marker khoi section dau tien, `require_page_range(content)` se fail. Khi do can preprocess de gan current page marker vao section hoac giu marker trong content truoc khi tao ParentSection.
+Markdown heading co san luon la heading, ke ca "### 1. Muc dich" hoac "### a) Doi tuong".
+Item khong tao parent.
+Noi dung truoc heading dau tien thuoc heading_path ["document-root"].
+Page range lay tu min/max page cua StructuralBlock, khong doan bang marker sau khi split text.
 ```
 
 ---
@@ -580,7 +613,48 @@ class ChildUnit:
     item_marker: str | None
     item_level: int | None
     item_path: list[str]
+    logical_item_key: str | None
+    parent_item_key: str | None
+    logical_table_key: str | None = None
+    logical_code_key: str | None = None
     legal_unit_type: str
+    split_index: int = 0
+    split_count: int = 1
+```
+
+Rule cho item:
+
+```text
+numbered_item, lettered_item, bullet_item luon tao it nhat mot Child rieng.
+Item ngan va item ket thuc bang ":" van tao Child.
+Item cha co item con van tao Child rieng; item con tao Child rieng.
+Item con link ve item cha bang parent_item_key.
+Child item cha khong gom noi dung item con.
+Khong gop hai marker khac nhau vao cung mot Child.
+```
+
+`item_path` lấy xác định từ dòng item gốc:
+
+```python
+MAX_ITEM_LABEL_LENGTH = 120
+
+
+def item_path_label(block: StructuralBlock) -> str:
+    marker = block.item_marker or ""
+    text = strip_item_marker(block.raw_content, marker).strip()
+    label = f"{marker} {text}".strip()
+    if len(label) <= MAX_ITEM_LABEL_LENGTH:
+        return label
+    return label[: MAX_ITEM_LABEL_LENGTH - 3].rstrip() + "..."
+```
+
+Rule:
+
+```text
+Giu marker va nhan ngan trong item_path.
+Khong chi luu marker.
+Khong dung LLM de tom tat.
+Khong dua toan bo noi dung dai cua item cha vao item_path.
 ```
 
 Recursive splitter chỉ dùng cho một unit quá dài:
@@ -607,18 +681,102 @@ def build_child_splitter(
 Build child units:
 
 ```python
+def build_structural_child_units(section: ParentSection) -> tuple[list[ChildUnit], list[ValidationReport]]:
+    units: list[ChildUnit] = []
+    reports: list[ValidationReport] = []
+    current: ChildUnit | None = None
+    item_stack: list[StructuralBlock] = []
+
+    for block in section.blocks:
+        if block.block_type == "heading":
+            current = None
+            item_stack = []
+            continue
+
+        if block.block_type in {"numbered_item", "lettered_item", "bullet_item"}:
+            if current:
+                units.append(current)
+            item_stack = close_deeper_or_same_level_items(item_stack, block)
+            parent_item = item_stack[-1] if item_stack else None
+            item_stack.append(block)
+            current = child_unit_from_item(block, parent_item_key=get_item_key(parent_item))
+            continue
+
+        if block.block_type in {"table", "code"}:
+            if current:
+                units.append(current)
+                current = None
+            parent_item = item_stack[-1] if item_stack else None
+            units.append(
+                child_unit_from_block(
+                    block,
+                    section.heading_path,
+                    item_path=build_item_path(item_stack),
+                    parent_item_key=get_item_key(parent_item),
+                )
+            )
+            continue
+
+        if block.block_type == "paragraph":
+            if current:
+                current = append_block_to_unit(current, block)
+            else:
+                # Sau table/code, paragraph vẫn có thể thuộc item đang mở về mặt
+                # cấu trúc nhưng phải là paragraph Child riêng, không mở lại Child cũ.
+                parent_item = item_stack[-1] if item_stack else None
+                units.append(
+                    child_unit_from_block(
+                        block,
+                        section.heading_path,
+                        item_path=build_item_path(item_stack),
+                        parent_item_key=get_item_key(parent_item),
+                    )
+                )
+
+    if current:
+        units.append(current)
+
+    if not units:
+        heading = first_heading_block(section.blocks)
+        if heading and is_normative_or_independent_heading(heading):
+            units.append(make_heading_content_unit(heading, section))
+        else:
+            reports.append(
+                ValidationReport(
+                    severity="warning",
+                    code="context_only_parent",
+                    reason="Parent has no child content; heading is context-only",
+                    page=section.page_start,
+                    raw_content=heading.raw_content if heading else "",
+                    current_heading_path=section.heading_path,
+                    current_item_path=[],
+                    selected_owner=section.heading_path,
+                    candidate_owners=[section.heading_path],
+                    candidate_types=["context_only"],
+                    selected_type="context_only",
+                    confidence=1.0,
+                )
+            )
+
+    return units, reports
+
+
 def build_child_units(
-    parent_chunk: Chunk,
+    section: ParentSection,
     *,
     child_chunk_size: int,
     child_chunk_overlap: int,
-) -> list[ChildUnit]:
-    units = build_structural_child_units(parent_chunk.content)
+) -> tuple[list[ChildUnit], list[ValidationReport]]:
+    units, reports = build_structural_child_units(section)
     result: list[ChildUnit] = []
 
     for unit in units:
         if unit.block_type == "table":
             result.extend(split_table_child_unit(unit, child_chunk_size=child_chunk_size))
+            continue
+
+        if unit.block_type == "code":
+            result.extend(split_code_child_unit(unit, child_chunk_size=child_chunk_size))
             continue
 
         if len(unit.content) > child_chunk_size:
@@ -633,16 +791,36 @@ def build_child_units(
 
         result.append(unit)
 
-    return result
+    return result, reports
 ```
 
-Lý do split bằng `parent_chunk` thay vì `ParentSection`:
+Post-scan fallback:
 
 ```text
-Sau khi da tao parent Chunk, child pipeline chi nen lam viec voi parent Chunk.
-ParentSection chi la object tam de build parent Chunk.
-Dung parent_chunk.content giup flow don gian hon:
-ParentSection -> parent Chunk -> ChildUnit -> child Chunks
+Normative/independent heading with no children -> create heading_content Child and embed it.
+Context-only heading -> do not create fake content; emit explicit context_only_reason/report.
+Every Parent must have at least one Child or an explicit context_only_reason.
+```
+
+Paragraph rule:
+
+```text
+Paragraph sau item gan vao Child hien tai.
+Dung khi gap heading moi hoac bat ky item moi.
+Neu item moi co cap thap hon thi thanh item con.
+Page marker khong lam ket thuc item va khong lam mat item_path.
+Paragraph khong thuoc item nao tao paragraph Child trong Parent hien tai.
+Neu khong ro paragraph thuoc item cuoi hay item cha, dung fallback bao thu va ghi ValidationReport warning/error tuy muc do.
+```
+
+Lý do dùng `ParentSection`:
+
+```text
+StructuralParser chi chay mot lan o chunk_markdown_body().
+ParentSection giu blocks da parse san.
+Child builder dung section.blocks, khong parse lai parent_chunk.content.
+Flow dung:
+PageBlock[] -> StructuralParseResult -> ParentSection.blocks -> ChildUnit -> child Chunks
 ```
 
 Lưu ý về table:
@@ -652,6 +830,57 @@ RecursiveCharacterTextSplitter khong hieu semantic table cua du an.
 Phai detect table truoc item regex va truoc recursive splitter.
 Table ngan thanh 1 child chunk rieng.
 Table dai split theo row group va lap lai header/separator.
+```
+
+---
+
+## 10.1 Split Fenced Code Dài
+
+Fenced code là atomic structural unit. Chỉ khi vượt giới hạn cứng mới split theo ranh giới dòng; không dùng `RecursiveCharacterTextSplitter`.
+
+```python
+from dataclasses import replace
+
+
+def split_code_child_unit(
+    unit: ChildUnit,
+    *,
+    child_chunk_size: int,
+) -> list[ChildUnit]:
+    if len(unit.content) <= child_chunk_size:
+        return [unit]
+
+    # parse_fenced_code() preserves the original fence token/length and language tag.
+    opening_fence, language, body_lines, closing_fence = parse_fenced_code(unit.content)
+    groups = group_complete_lines(
+        body_lines,
+        max_size=child_chunk_size - len(opening_fence) - len(closing_fence) - 2,
+    )
+    split_count = len(groups)
+
+    return [
+        replace(
+            unit,
+            content="\n".join([
+                f"{opening_fence}{language}",
+                *group,
+                closing_fence,
+            ]),
+            split_index=index,
+            split_count=split_count,
+        )
+        for index, group in enumerate(groups)
+    ]
+```
+
+Contract:
+
+```text
+- Không cắt giữa một dòng.
+- Mỗi split giữ opening/closing fence và là fenced Markdown hợp lệ.
+- Các split dùng chung logical_code_key.
+- Marker heading/item bên trong code không được parse lại.
+- split_index bắt đầu từ 0 và split_count giống nhau trong cả group.
 ```
 
 ---
@@ -687,32 +916,40 @@ def make_child_chunks(
                 chunk_type="child",
                 content=unit.content,
                 heading_path=parent_chunk.heading_path,
-                item_marker=unit.item_marker,
-                item_level=unit.item_level,
-                item_path=unit.item_path,
-                legal_unit_type=unit.legal_unit_type,
-                block_type=unit.block_type,
                 page_start=unit.page_start,
                 page_end=unit.page_end,
                 chunk_index=chunk_start_index + offset,
                 token_count=count_units(unit.content),
+                metadata={
+                    "item_marker": unit.item_marker,
+                    "item_level": unit.item_level,
+                    "item_path": unit.item_path,
+                    "logical_item_key": unit.logical_item_key,
+                    "parent_item_key": unit.parent_item_key,
+                    "logical_table_key": unit.logical_table_key,
+                    "logical_code_key": unit.logical_code_key,
+                    "legal_unit_type": unit.legal_unit_type,
+                    "block_type": unit.block_type,
+                    "split_index": unit.split_index,
+                    "split_count": unit.split_count,
+                },
             )
         )
     return chunks
 ```
 
-Lý do không truyền `section` vào `make_child_chunks()`:
+Lý do `make_child_chunks()` không cần `section`:
 
 ```text
-ParentSection chi la object tam sau buoc tach heading.
+build_child_units(section) da tao ChildUnit tu section.blocks.
 parent_chunk la Chunk cha chinh thuc da tao tu ParentSection.
-Child chunk chi can parent_chunk de lay:
+make_child_chunks chi can parent_chunk de lay:
 - parent_chunk.chunk_key lam parent_chunk_key
 - parent_chunk.heading_path
 - parent_chunk.page_start/page_end lam fallback khi structural unit thieu page
 ```
 
-Sau khi đã có `parent_chunk`, child pipeline không cần đưa `section` tiếp vào nữa.
+Khong parse lai parent_chunk.content trong child_builder.
 
 ---
 
@@ -735,6 +972,8 @@ from app.ingestion.chunking.parent_chunker import (
     build_parent_sections,
     make_parent_chunk,
 )
+from app.ingestion.parsing.page_markers import split_body_by_page_markers
+from app.ingestion.parsing.structural_parser import parse_page_blocks
 
 
 DEFAULT_CHILD_CHUNK_SIZE = 1000
@@ -748,12 +987,16 @@ def chunk_markdown_body(
     version_key: str,
     child_chunk_size: int = DEFAULT_CHILD_CHUNK_SIZE,
     child_chunk_overlap: int = DEFAULT_CHILD_CHUNK_OVERLAP,
-) -> list[Chunk]:
+) -> ChunkingResult:
     if not body.strip():
         raise ValueError("Markdown body is empty")
 
-    sections = build_parent_sections(body)
-    chunks: list[Chunk] = []
+    page_blocks = split_body_by_page_markers(body)
+    parse_result = parse_page_blocks(page_blocks)
+    sections = build_parent_sections(parse_result.blocks)
+    parent_chunks: list[Chunk] = []
+    child_chunks: list[Chunk] = []
+    child_reports: list[ValidationReport] = []
     child_counter = 1
     chunk_index = 0
 
@@ -765,14 +1008,15 @@ def chunk_markdown_body(
             parent_index=parent_counter,
             chunk_index=chunk_index,
         )
-        chunks.append(parent)
+        parent_chunks.append(parent)
         chunk_index += 1
 
-        child_units = build_child_units(
-            parent,
+        child_units, section_reports = build_child_units(
+            section,
             child_chunk_size=child_chunk_size,
             child_chunk_overlap=child_chunk_overlap,
         )
+        child_reports.extend(section_reports)
         children = make_child_chunks(
             child_units=child_units,
             parent_chunk=parent,
@@ -781,11 +1025,22 @@ def chunk_markdown_body(
             child_start_index=child_counter,
             chunk_start_index=chunk_index,
         )
-        chunks.extend(children)
+        child_chunks.extend(children)
         child_counter += len(children)
         chunk_index += len(children)
 
-    return chunks
+    return ChunkingResult(
+        parent_chunks=parent_chunks,
+        child_chunks=child_chunks,
+        warnings=[
+            report for report in [*parse_result.reports, *child_reports]
+            if report.severity == "warning"
+        ],
+        errors=[
+            report for report in [*parse_result.reports, *child_reports]
+            if report.severity == "error"
+        ],
+    )
 ```
 
 Trong production caller, truyền `child_chunk_size` và `child_chunk_overlap` từ `get_rag_settings().chunking`. Function vẫn có default để test/unit call đơn giản, nhưng không rải magic number ở pipeline.
@@ -831,19 +1086,24 @@ Tests:
 from app.ingestion.chunking.chunker import chunk_markdown_body
 
 
+def all_chunks(result):
+    return [*result.parent_chunks, *result.child_chunks]
+
+
 def test_chunker_creates_parent_and_child():
-    chunks = chunk_markdown_body(
+    result = chunk_markdown_body(
         body=SAMPLE_BODY,
         document_key="doc",
         version_key="doc-v1",
     )
+    chunks = all_chunks(result)
 
     assert any(chunk.chunk_type == "parent" for chunk in chunks)
     assert any(chunk.chunk_type == "child" for chunk in chunks)
 
 
 def test_child_chunks_have_parent_key():
-    chunks = chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1")
+    chunks = all_chunks(chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1"))
     parent_keys = {chunk.chunk_key for chunk in chunks if chunk.chunk_type == "parent"}
 
     for chunk in chunks:
@@ -852,25 +1112,25 @@ def test_child_chunks_have_parent_key():
 
 
 def test_chunker_uses_stable_key_pattern():
-    chunks = chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1")
+    chunks = all_chunks(chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1"))
 
     assert any(chunk.chunk_key.startswith("doc-v1::p::") for chunk in chunks)
     assert any(chunk.chunk_key.startswith("doc-v1::c::") for chunk in chunks)
 
 
 def test_chunk_index_is_global_sequential():
-    chunks = chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1")
+    chunks = all_chunks(chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1"))
 
     assert [chunk.chunk_index for chunk in chunks] == list(range(len(chunks)))
 
 
 def test_chunker_tracks_heading_path():
-    chunks = chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1")
+    chunks = all_chunks(chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1"))
     assert any("Dieu 1. Pham vi" in chunk.heading_path for chunk in chunks)
 
 
 def test_chunker_tracks_page_range():
-    chunks = chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1")
+    chunks = all_chunks(chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1"))
     assert any(chunk.page_start == 1 for chunk in chunks)
 
 
@@ -881,7 +1141,7 @@ def test_chunker_keeps_page_marker_before_heading():
 
 Content on page 1.
 """
-    chunks = chunk_markdown_body(body=body, document_key="doc", version_key="doc-v1")
+    chunks = all_chunks(chunk_markdown_body(body=body, document_key="doc", version_key="doc-v1"))
 
     assert chunks
     assert all(chunk.page_start == 1 and chunk.page_end == 1 for chunk in chunks)
@@ -905,7 +1165,7 @@ Table test:
 
 ```python
 def test_chunker_keeps_small_table_as_one_child_chunk():
-    chunks = chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1")
+    chunks = all_chunks(chunk_markdown_body(body=SAMPLE_BODY, document_key="doc", version_key="doc-v1"))
     table_chunks = [
         chunk
         for chunk in chunks
@@ -927,8 +1187,112 @@ def test_large_table_chunks_repeat_header_and_separator():
     assert len(table_chunks) > 1
     for chunk in table_chunks:
         assert "| Cot A | Cot B |" in chunk.content
-    assert "|---|---|" in chunk.content
+        assert "|---|---|" in chunk.content
 ```
+
+Item hierarchy tests:
+
+```python
+def test_parent_item_with_colon_still_creates_child():
+    body = """<!-- page: 1 -->
+
+# Title
+
+1. Ho so gom:
+a) Don dang ky.
+"""
+    chunks = all_chunks(chunk_markdown_body(body=body, document_key="doc", version_key="doc-v1"))
+    child_chunks = [chunk for chunk in chunks if chunk.chunk_type == "child"]
+
+    assert any(chunk.content.startswith("1. Ho so gom:") for chunk in child_chunks)
+    assert any(chunk.content.startswith("a) Don dang ky.") for chunk in child_chunks)
+
+
+def test_child_item_has_parent_item_key_and_full_item_path_label():
+    body = """<!-- page: 1 -->
+
+# Title
+
+1. Ho so gom:
+a) Don dang ky.
+"""
+    chunks = all_chunks(chunk_markdown_body(body=body, document_key="doc", version_key="doc-v1"))
+    point = next(chunk for chunk in chunks if chunk.content.startswith("a) Don dang ky."))
+    metadata = point.metadata or {}
+
+    assert metadata["parent_item_key"]
+    assert metadata["item_path"] == ["1. Ho so gom:", "a) Don dang ky."]
+
+
+def test_parent_item_child_does_not_include_nested_item_content():
+    body = """<!-- page: 1 -->
+
+# Title
+
+1. Ho so gom:
+a) Don dang ky.
+"""
+    chunks = all_chunks(chunk_markdown_body(body=body, document_key="doc", version_key="doc-v1"))
+    parent_item = next(chunk for chunk in chunks if chunk.content.startswith("1. Ho so gom:"))
+
+    assert "a) Don dang ky." not in parent_item.content
+
+
+def test_split_long_item_keeps_logical_item_metadata():
+    long_text = " ".join(f"noi-dung-{index}" for index in range(240))
+    body = f"""<!-- page: 1 -->
+
+# Title
+
+1. {long_text}
+2. Item tiep theo khong duoc bi tron vao item 1.
+"""
+    chunks = all_chunks(chunk_markdown_body(
+        body=body,
+        document_key="doc",
+        version_key="doc-v1",
+        child_chunk_size=100,
+        child_chunk_overlap=10,
+    ))
+    item_chunks = [chunk for chunk in chunks if (chunk.metadata or {}).get("logical_item_key")]
+    keys = {(chunk.metadata or {})["logical_item_key"] for chunk in item_chunks}
+
+    assert len(keys) == 1
+    assert len(item_chunks) > 1
+    assert all((chunk.metadata or {})["split_count"] == len(item_chunks) for chunk in item_chunks)
+    assert [chunk.metadata["split_index"] for chunk in item_chunks] == list(range(len(item_chunks)))
+    assert all("2. Item tiep theo" not in chunk.content for chunk in item_chunks)
+    assert any(chunk.content.startswith("2. Item tiep theo") for chunk in chunks)
+```
+
+Fenced code atomic-child test:
+
+````python
+def test_fenced_code_is_atomic_child_and_not_item_content():
+    body = """<!-- page: 1 -->
+
+# Title
+
+1. Huong dan:
+
+```text
+1. marker trong code
+a) marker trong code
+```
+
+Noi dung sau code.
+"""
+    chunks = all_chunks(chunk_markdown_body(body=body, document_key="doc", version_key="doc-v1"))
+    code_chunks = [
+        chunk for chunk in chunks
+        if chunk.chunk_type == "child" and (chunk.metadata or {}).get("block_type") == "code"
+    ]
+    parent_item = next(chunk for chunk in chunks if chunk.content.startswith("1. Huong dan:"))
+
+    assert len(code_chunks) == 1
+    assert "1. marker trong code" in code_chunks[0].content
+    assert "1. marker trong code" not in parent_item.content
+````
 
 Structural parser/chunker tests bắt buộc:
 
@@ -941,17 +1305,21 @@ Structural parser/chunker tests bắt buộc:
 6. `### - Nội dung` vẫn là heading.
 7. Markdown heading không bị demote thành numbered_item/lettered_item/bullet_item.
 8. Điều -> Khoản -> Điểm -> Bullet tạo đúng item_path.
-9. Paragraph được gắn đúng item hoặc sinh ambiguous report.
+9. Paragraph được gắn đúng item hoặc sinh ValidationReport warning.
 10. Item con kế thừa context cha.
-11. Item cha kết thúc bằng ":" không tạo child rỗng.
-12. Bullet -, +, * tạo atomic child.
-13. Item quá dài chỉ split nội bộ.
-14. Không child nào chứa nội dung của hai item khác nhau.
-15. Marker trong table/code không bị parse thành item.
-16. Nội dung trước heading đầu tiên thuộc document-root parent.
-17. Table/code trong item kế thừa đúng context.
-18. Child ngắn có embedding_text chứa context thật.
-19. Page marker không bị đưa vào embedding_text.
+11. Item cha kết thúc bằng ":" vẫn tạo child riêng.
+12. Item cha có item con không chứa nội dung item con.
+13. Item con có parent_item_key.
+14. item_path giữ marker và nhãn ngắn, không chỉ lưu marker.
+15. Bullet -, +, * tạo atomic child.
+16. Item quá dài chỉ split nội bộ và giữ logical_item_key.
+17. Split child có split_index/split_count.
+18. Không child nào chứa nội dung của hai item khác nhau.
+19. Marker trong table/code không bị parse thành item.
+20. Nội dung trước heading đầu tiên thuộc document-root parent.
+21. Table/code trong item kế thừa đúng context.
+22. Child ngắn có embedding_text chứa context thật.
+23. Page marker/HTML comment không bị đưa vào embedding_text.
 ```
 
 ---
@@ -995,7 +1363,7 @@ Dung import cu `from langchain.text_splitter import ...`
 Xử lý:
 
 ```python
-from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 ```
 
 ### Lỗi: child chunk parent id không tồn tại
@@ -1041,3 +1409,23 @@ Xử lý MVP:
 Tang child_chunk_size va them test small table.
 Neu van khong du, implement protect table blocks truoc khi split.
 ```
+
+## 19. Reconciliation Contract Bắt Buộc
+
+Các rule dưới đây ghi đè pseudocode cũ nếu có mâu thuẫn:
+
+```text
+1. Mỗi Markdown heading mở Parent mới; Parent cũ đóng ngay trước heading tiếp theo.
+2. Không merge hai Parent có hai source heading khác nhau.
+3. Parent không body nhưng heading chứa nội dung độc lập tạo heading_content Child nguyên văn.
+4. Heading context như Chương/Phần/Mục có thể context_only; mọi Parent phải có Child hoặc context_only_reason.
+5. Cặp "Chương I" + "TÊN CHƯƠNG" liên tiếp giữ derived heading_path kết hợp, không sửa raw Markdown.
+6. Table và fenced code luôn là atomic Child riêng; không append vào Child item.
+7. Table dài split theo row group và lặp header; code dài split theo dòng, giữ fence hợp lệ và logical_code_key.
+8. legal_unit_type chỉ gán khi có legal context, không suy ra chỉ từ marker.
+9. Validation report có severity; warning không block publish, error mới block theo mặc định.
+10. Chunk.metadata là metadata trong memory; không đồng nghĩa đã persist PostgreSQL.
+```
+
+`embedding_text` của item con prepend `heading_path` và ancestor item labels (`item_path[:-1]`).
+Không lặp current label vì raw content đã chứa item hiện tại.

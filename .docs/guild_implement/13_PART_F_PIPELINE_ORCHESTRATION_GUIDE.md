@@ -1,4 +1,4 @@
-# 13. Part F - Hướng Dẫn Implement Ingestion Pipeline Orchestration
+﻿# 13. Part F - Hướng Dẫn Implement Ingestion Pipeline Orchestration
 
 **Last Updated:** 2026-06-20
 
@@ -37,8 +37,16 @@ Chunker hiện tại đã tách module:
 ```text
 chunking/chunker.py chi orchestration chunk.
 chunking/parent_chunker.py build ParentSection va parent Chunk.
-chunking/child_chunker.py split parent Chunk thanh child Chunks.
+chunking/child_chunker.py đọc ParentSection.blocks để tạo child Chunks.
 Pipeline chi goi chunk_markdown_document(document).
+```
+
+Lưu ý quan trọng:
+
+```text
+StructuralParser chi chay mot lan trong chunk_markdown_body().
+Pipeline khong parse lai Markdown body.
+Child builder khong parse lai parent_chunk.content; no dung ParentSection.blocks da parse san.
 ```
 
 ---
@@ -123,7 +131,8 @@ from app.ingestion.repository import save_document_with_chunks
 
 async def ingest_markdown_file(path: str | Path, *, publish: bool = False) -> IngestionResult:
     document = read_markdown_document(path)
-    chunks = chunk_markdown_document(document)
+    chunk_result = chunk_markdown_document(document)
+    chunks = [*chunk_result.parent_chunks, *chunk_result.child_chunks]
     parent_count, child_count = count_chunks(chunks)
 
     async with AsyncSessionLocal() as session:
@@ -146,10 +155,27 @@ async def ingest_markdown_file(path: str | Path, *, publish: bool = False) -> In
     if not publish:
         return result
 
-    return await publish_saved_document(result)
+    blocking_reports = [
+        report
+        for report in chunk_result.errors
+    ]
+    if blocking_reports:
+        raise ValueError("Cannot publish document with structural parsing errors")
+
+    # Warnings remain available for preview/log/review but do not block publish
+    # by default. A separate strict mode may promote warnings to blocking.
+
+    return await publish_saved_document(
+        result,
+        document=document,
+        chunks=chunks,
+    )
 ```
 
 `publish_saved_document` sẽ làm trong guide 14-15 sau khi có embedder và qdrant repository.
+Khi publish, dùng `chunks` còn trong memory để giữ `Chunk.metadata` như `item_path`,
+`legal_unit_type`, `block_type`. Không load lại từ DB row nếu schema DB chưa có JSON metadata
+cho `document_chunks`.
 
 ---
 
@@ -313,3 +339,22 @@ Xử lý:
 ```text
 Dung guard DATABASE_URL.endswith("/ctu_student_service_test").
 ```
+
+## 12. Warning/Error Publish Contract
+
+```text
+warning:
+- paragraph ownership mơ hồ;
+- heading context kép;
+- canonical Markdown heading bất thường nhưng parser vẫn tạo output hợp lệ.
+
+error:
+- không resolve được page range;
+- duplicate logical_item_key;
+- child thiếu parent_chunk_key;
+- split vượt boundary;
+- structural parse không tạo được output hợp lệ.
+```
+
+Default publish chỉ block `error`. `warning` được giữ trong `ChunkingResult`, log và preview.
+Strict mode có thể block cả warning nhưng không phải default.

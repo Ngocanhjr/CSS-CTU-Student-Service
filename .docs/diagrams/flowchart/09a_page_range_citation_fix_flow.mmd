@@ -1,28 +1,26 @@
-%% Source: chatbot/.docs/guild_implement/09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md
-%% Page-aware section merge fixes citation page_start/page_end before retrieval.
+%% Source: 09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md
+%% Multi-page Parent ranges are built directly from stateful structural blocks.
 
 flowchart TD
-    A[raw body with page markers]
-    B[PageBlock<br/>page=1]
-    C[PageBlock<br/>page=2]
-    D[split heading inside<br/>each PageBlock]
-    E[ParentSection<br/>page_start=1<br/>page_end=1]
-    F[ParentSection<br/>page_start=2<br/>page_end=2]
-    G{same heading_path?}
-    H[merge adjacent sections]
-    I[ParentSection<br/>page_start=1<br/>page_end=2]
-    J([retrieval citation can use<br/>correct page range])
+    A[Raw body with page markers]
+    B[split_body_by_page_markers]
+    C[PageBlock page 10]
+    D[PageBlock page 11]
+    E[Stateful structural parser<br/>runs once in source order]
+    F[Heading opens Parent<br/>on page 10]
+    G[Item and paragraph blocks<br/>continue across page boundary]
+    H[Next Markdown heading<br/>closes Parent on page 11]
+    I[ParentSection<br/>page_start=10<br/>page_end=11]
+    J[Child units keep source block<br/>page_start/page_end]
+    K([Accurate citations])
 
     A --> B
-    A --> C
+    B --> C
     B --> D
-    C --> D
+    C --> E
     D --> E
-    D --> F
-    E --> G
-    F --> G
-    G -->|yes| H --> I --> J
-    G -->|no| K[keep separate sections]
-    K --> J
+    E --> F --> G --> H --> I --> J --> K
 
-    L[active_heading_path] -. inherited when next page<br/>has no repeated heading .-> D
+    L[Page marker is metadata only] -. does not reset<br/>heading/item context .-> G
+    M{{No merge by heading_path}} -. Parent is multi-page<br/>from the beginning .-> I
+    N[Next heading boundary] -. always closes<br/>current Parent .-> H

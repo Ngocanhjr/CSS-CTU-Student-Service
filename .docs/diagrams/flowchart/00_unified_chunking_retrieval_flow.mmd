@@ -1,0 +1,47 @@
+%% Canonical end-to-end flow.
+%% This diagram is the source-of-truth overview for parsing, chunking, publish, and retrieval.
+
+flowchart TD
+    A([Canonical Markdown body<br/>validated by markdown_reader])
+    B[split_body_by_page_markers]
+    C[PageBlock list<br/>markers/comments consumed]
+    D[structural_parser.parse_page_blocks]
+    E[StructuralParseResult<br/>blocks + validation reports]
+    F[parent_builder.build_parent_sections]
+    G[ParentSection list<br/>non-overlapping, multi-page aware]
+    H[child_builder.build_structural_child_units]
+    I[Atomic ChildUnit list]
+    J[oversized_unit_splitter.split_units]
+    K[chunk_factory<br/>Parent chunks + Child chunks]
+    L[embedding_text_builder<br/>Child only]
+    M[chunk_validator]
+    N{Any error?}
+    O([Stop publish<br/>return errors])
+    P[(PostgreSQL<br/>canonical Parent/Child content)]
+    Q{publish?}
+    R([Preview-only result])
+    S[Embed Child chunks]
+    T[(Qdrant<br/>vectors + structural payload)]
+    U([Published])
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M --> N
+    N -->|yes| O
+    N -->|no| P --> Q
+    Q -->|no| R
+    Q -->|yes| S --> T --> U
+
+    V([User query])
+    W[Initial filtered retrieval<br/>vector or hybrid as configured]
+    X[Qdrant candidates<br/>with structural metadata]
+    Y[Hydrate canonical content<br/>from PostgreSQL]
+    Z[Structural expansion<br/>parent, children, siblings, split neighbors]
+    AA[Deduplicate + source order<br/>rerank + context budget]
+    AB[Build citations]
+    AC([Answer context])
+
+    V --> W --> X --> Y --> Z --> AA --> AB --> AC
+    T -. searchable Child vectors .-> W
+    P -. canonical content .-> Y
+
+    D -. never reparses per Parent .-> H
+    E -. warnings continue by default<br/>errors block publish .-> M

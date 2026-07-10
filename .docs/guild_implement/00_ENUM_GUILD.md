@@ -396,3 +396,8 @@ asset enums ok
 core enums ok
 blocked not_required
 ```
+
+## Reconciliation Guide
+
+- `22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md` là normative contract cuối cho page-aware structural chunking, payload và retrieval expansion.
+- Nếu guide cũ mâu thuẫn với Guide 22, ưu tiên Guide 22.

@@ -1,4 +1,4 @@
-# 11. Part D - Hướng Dẫn Implement Chunk Preview
+﻿# 11. Part D - Hướng Dẫn Implement Chunk Preview
 
 **Last Updated:** 2026-06-20
 
@@ -109,7 +109,8 @@ from app.schemas.chunks import Chunk
 
 def build_chunk_preview(path: str | Path) -> dict[str, Any]:
     document = read_markdown_document(path)
-    chunks = chunk_markdown_document(document)
+    chunk_result = chunk_markdown_document(document)
+    chunks = [*chunk_result.parent_chunks, *chunk_result.child_chunks]
     warnings = validate_preview_chunks(chunks)
 
     parent_count = sum(1 for chunk in chunks if chunk.chunk_type == "parent")
@@ -122,9 +123,20 @@ def build_chunk_preview(path: str | Path) -> dict[str, Any]:
         "total_chunks": len(chunks),
         "parent_chunks": parent_count,
         "child_chunks": child_count,
-        "warnings": warnings,
+        "warnings": [*warnings, *format_reports(chunk_result.warnings)],
+        "errors": format_reports(chunk_result.errors),
         "chunks": [chunk_to_preview_item(chunk) for chunk in chunks],
     }
+```
+
+Validation reports từ structural parser phải hiện trong preview, không bị nuốt:
+
+```python
+def format_reports(reports: list[ValidationReport]) -> list[str]:
+    return [
+        f"Ambiguous page {report.page}: {report.reason}"
+        for report in reports
+    ]
 ```
 
 ---
@@ -133,17 +145,18 @@ def build_chunk_preview(path: str | Path) -> dict[str, Any]:
 
 ```python
 def chunk_to_preview_item(chunk: Chunk) -> dict[str, Any]:
+    metadata = chunk.metadata or {}
     return {
         "chunk_key": chunk.chunk_key,
         "parent_chunk_key": chunk.parent_chunk_key,
         "chunk_type": chunk.chunk_type,
         "chunk_index": chunk.chunk_index,
         "heading_path": chunk.heading_path,
-        "item_marker": getattr(chunk, "item_marker", None),
-        "item_level": getattr(chunk, "item_level", None),
-        "item_path": getattr(chunk, "item_path", []),
-        "legal_unit_type": getattr(chunk, "legal_unit_type", "none"),
-        "block_type": getattr(chunk, "block_type", None),
+        "item_marker": metadata.get("item_marker"),
+        "item_level": metadata.get("item_level"),
+        "item_path": metadata.get("item_path", []),
+        "legal_unit_type": metadata.get("legal_unit_type", "none"),
+        "block_type": metadata.get("block_type"),
         "page_start": chunk.page_start,
         "page_end": chunk.page_end,
         "token_count": chunk.token_count,
@@ -187,9 +200,10 @@ def validate_preview_chunks(chunks: list[Chunk]) -> list[str]:
             warnings.append(f"Chunk {chunk.chunk_key} has empty heading_path")
 
         if chunk.chunk_type == "child":
-            block_type = getattr(chunk, "block_type", None)
+            metadata = chunk.metadata or {}
+            block_type = metadata.get("block_type")
             if block_type in {"numbered_item", "lettered_item", "bullet_item"}:
-                item_path = getattr(chunk, "item_path", [])
+                item_path = metadata.get("item_path", [])
                 if not item_path:
                     warnings.append(f"Child {chunk.chunk_key} has empty item_path")
 
@@ -354,7 +368,7 @@ $OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8
 Nguyên nhân:
 
 ```text
-Chunker chua tao default heading_path ["Document"].
+Chunker chua tao default heading_path ["document-root"].
 ```
 
 Xử lý:
@@ -362,3 +376,9 @@ Xử lý:
 ```text
 Sua chunker, khong sua preview.
 ```
+
+## 12. Validation Severity Trong Preview
+
+Preview phải hiển thị `severity`, `code`, `page`, `reason`, `selected_owner` và `candidate_owners` nếu có.
+`warning` được hiển thị nhưng không tự động đánh dấu publish failed; `error` phải nổi bật và block publish theo default contract.
+Không flatten warning/error thành chuỗi mất cấu trúc trong output máy đọc; formatter chuỗi chỉ dùng cho giao diện người đọc.

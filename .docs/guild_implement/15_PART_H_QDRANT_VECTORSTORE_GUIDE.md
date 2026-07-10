@@ -1,6 +1,6 @@
 # 15. Part H - Hướng Dẫn Implement Qdrant Vectorstore
 
-**Last Updated:** 2026-06-20
+**Last Updated:** 2026-07-10
 
 File này tách chi tiết từ guide 07, phần H.
 
@@ -219,6 +219,9 @@ def build_chunk_payload(
     chunk_type: str,
     document_key: str,
     version_key: str,
+    title: str,
+    source_file: str,
+    source_url: str,
     document_type: str,
     domain: str,
     audience: list[str],
@@ -227,6 +230,19 @@ def build_chunk_payload(
     is_latest: bool,
     page_start: int | None,
     page_end: int | None,
+    heading_path: list[str] | None = None,
+    item_path: list[str] | None = None,
+    legal_unit_type: str = "none",
+    block_type: str | None = None,
+    logical_item_key: str | None = None,
+    parent_item_key: str | None = None,
+    logical_table_key: str | None = None,
+    logical_code_key: str | None = None,
+    split_index: int = 0,
+    split_count: int = 1,
+    chunk_index: int | None = None,
+    item_marker: str | None = None,
+    item_level: int | None = None,
 ) -> dict:
     return {
         "chunk_key": chunk_key,
@@ -236,6 +252,9 @@ def build_chunk_payload(
         "chunk_type": chunk_type,
         "document_key": document_key,
         "version_key": version_key,
+        "title": title,
+        "source_file": source_file,
+        "source_url": source_url,
         "document_type": document_type,
         "domain": domain,
         "audience": audience,
@@ -245,8 +264,36 @@ def build_chunk_payload(
         "is_latest": is_latest,
         "page_start": page_start,
         "page_end": page_end,
+        "heading_path": heading_path or [],
+        "item_path": item_path or [],
+        "legal_unit_type": legal_unit_type,
+        "block_type": block_type,
+        "logical_item_key": logical_item_key,
+        "parent_item_key": parent_item_key,
+        "logical_table_key": logical_table_key,
+        "logical_code_key": logical_code_key,
+        "split_index": split_index,
+        "split_count": split_count,
+        "chunk_index": chunk_index,
+        "item_marker": item_marker,
+        "item_level": item_level,
     }
 ```
+
+Mapping citation metadata:
+
+```text
+title       = DocumentMetadata.title
+source_file = canonical_markdown_path hoặc source_path portable
+source_url  = DocumentMetadata.source_url
+```
+
+Với child chunks, lấy `item_path`, `legal_unit_type`, `block_type`, `logical_item_key`,
+`parent_item_key`, `logical_table_key`, `logical_code_key`, `split_index`, `split_count`,
+`item_marker`, `item_level` từ `Chunk.metadata`;
+`chunk_index` lấy từ Chunk. Không dùng Qdrant payload làm canonical content; payload chỉ để
+filter/trace/rerank và tìm structural neighbors. `Chunk.metadata` là metadata trong memory,
+không phải bằng chứng các field đã persist PostgreSQL.
 
 ---
 
@@ -285,6 +332,8 @@ def upsert_points(
 
 ## 9. Metadata Filter Theo Ngữ Cảnh
 
+Student endpoint phải luôn giữ hard filter `review_status=approved`, `rag_status=published`, `audience_student=true` và `chunk_type=child`. Context filter như `document_key`/`version_key` được cộng thêm, không thay thế hard filter.
+
 ```python
 from dataclasses import dataclass
 
@@ -300,12 +349,8 @@ class RetrievalFilter:
     chunk_type: str | None = "child"
 
 
-def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | None:
-    if filters is None:
-        filters = RetrievalFilter()
-
-    conditions = []
-
+def _context_conditions(filters: RetrievalFilter) -> list[FieldCondition]:
+    conditions: list[FieldCondition] = []
     if filters.document_type:
         conditions.append(FieldCondition(key="document_type", match=MatchValue(value=filters.document_type)))
     if filters.domain:
@@ -316,14 +361,33 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
         conditions.append(FieldCondition(key="version_key", match=MatchValue(value=filters.version_key)))
     if filters.chunk_type:
         conditions.append(FieldCondition(key="chunk_type", match=MatchValue(value=filters.chunk_type)))
+    return conditions
 
-    if not conditions:
-        return None
 
+def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | None:
+    resolved = filters or RetrievalFilter()
+    conditions = _context_conditions(resolved)
+    return Filter(must=conditions) if conditions else None
+
+
+def build_student_filter(filters: RetrievalFilter | None = None) -> Filter:
+    resolved = filters or RetrievalFilter()
+    conditions = [
+        FieldCondition(key="review_status", match=MatchValue(value="approved")),
+        FieldCondition(key="rag_status", match=MatchValue(value="published")),
+        FieldCondition(key="audience_student", match=MatchValue(value=True)),
+        *_context_conditions(resolved),
+    ]
     return Filter(must=conditions)
 ```
 
-Student collection chỉ chứa chunks đã approved + published + audience_student. Status filter là guard riêng, không phải filter chính.
+Rule:
+
+```text
+- Student retrieval không cho caller tắt ba hard filter.
+- current_document_key/current_version_key từ QueryDecision được map vào RetrievalFilter.
+- Admin/internal search có thể dùng build_context_filter() theo policy endpoint riêng.
+```
 
 ---
 
@@ -340,8 +404,13 @@ def search_points(
     collection_name: str = DEFAULT_COLLECTION,
     top_k: int = DEFAULT_TOP_K,
     student_only: bool = True,
+    filters: RetrievalFilter | None = None,
 ) -> list[VectorSearchResult]:
-    query_filter = build_student_filter() if student_only else None
+    query_filter = (
+        build_student_filter(filters)
+        if student_only
+        else build_context_filter(filters)
+    )
 
     response = client.query_points(
         collection_name=collection_name,
@@ -419,6 +488,9 @@ def test_payload_contains_trace_fields():
         chunk_type="child",
         document_key="doc",
         version_key="doc-v1",
+        title="Quy trinh test",
+        source_file="test.md",
+        source_url="https://example.edu/test",
         document_type="quy_trinh",
         domain="dao_tao",
         audience=["student"],
@@ -427,11 +499,34 @@ def test_payload_contains_trace_fields():
         is_latest=True,
         page_start=1,
         page_end=1,
+        heading_path=["Dieu kien"],
+        item_path=["Khoan 1", "Diem a)"],
+        legal_unit_type="point",
+        block_type="lettered_item",
+        logical_item_key="item-a",
+        parent_item_key="item-1",
+        split_index=0,
+        split_count=1,
+        chunk_index=2,
+        item_marker="a)",
+        item_level=2,
     )
 
     assert payload["chunk_key"] == "doc-v1::c::0001"
+    assert payload["title"] == "Quy trinh test"
+    assert payload["source_file"] == "test.md"
+    assert payload["source_url"] == "https://example.edu/test"
     assert payload["postgres_chunk_id"] == 1
     assert payload["audience_student"] is True
+    assert payload["item_path"] == ["Khoan 1", "Diem a)"]
+    assert payload["legal_unit_type"] == "point"
+    assert payload["logical_item_key"] == "item-a"
+    assert payload["parent_item_key"] == "item-1"
+    assert payload["split_index"] == 0
+    assert payload["split_count"] == 1
+    assert payload["chunk_index"] == 2
+    assert payload["item_marker"] == "a)"
+    assert payload["item_level"] == 2
 ```
 
 Integration test Qdrant:
@@ -491,6 +586,7 @@ cd backend
 - [ ] Point ID stable theo `version_key + chunk_key`.
 - [ ] Ensure collection dùng vector size thực tế.
 - [ ] Payload có `postgres_chunk_id`, `chunk_key`, `parent_chunk_key`.
+- [ ] Payload có `title`, `source_file`, `source_url` để hydrate citation metadata.
 - [ ] Student filter có review_status=approved, rag_status=published, audience_student.
 - [ ] Upsert và search test được.
 - [ ] DB update được `qdrant_point_id`.

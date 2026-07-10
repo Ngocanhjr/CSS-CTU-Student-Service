@@ -1,6 +1,6 @@
 # 14A. Hướng Dẫn Smoke Test Embedding + Retrieval Không Qua DB
 
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-07-10
 
 > **Trước khi chạy guide này:** chunks phải đi qua pre-chunk structural parsing theo `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md`. Nếu chunker chưa parse đúng heading/item/table/code/page, smoke test ở đây có thể đánh giá sai chất lượng retrieval.
 
@@ -124,7 +124,7 @@ Markdown file
 Chỉ embed child chunks trong smoke test:
 
 ```python
-child_chunks = [chunk for chunk in chunks if chunk.chunk_type == "child"]
+child_chunks = chunk_result.child_chunks
 ```
 
 Parent chunks chưa cần embed trong smoke test. Parent sẽ dùng sau để mở rộng context/repository.
@@ -147,6 +147,14 @@ Mỗi point trong Qdrant cần có payload:
     "parent_chunk_key": chunk.parent_chunk_key,
     "chunk_type": chunk.chunk_type,
     "heading_path": chunk.heading_path,
+    "item_path": (chunk.metadata or {}).get("item_path", []),
+    "logical_item_key": (chunk.metadata or {}).get("logical_item_key"),
+    "parent_item_key": (chunk.metadata or {}).get("parent_item_key"),
+    "split_index": (chunk.metadata or {}).get("split_index", 0),
+    "split_count": (chunk.metadata or {}).get("split_count", 1),
+    "chunk_index": chunk.chunk_index,
+    "item_marker": (chunk.metadata or {}).get("item_marker"),
+    "item_level": (chunk.metadata or {}).get("item_level"),
     "page_start": chunk.page_start,
     "page_end": chunk.page_end,
     "content": chunk.content,
@@ -363,11 +371,13 @@ Helpers:
 ```python
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 
 CACHE_PATH = Path(".cache/embedding_vectors.json")
+HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
 def hash_text(text: str) -> str:
@@ -392,17 +402,27 @@ def build_smoke_embedding_text(document: MarkdownDocument, chunk: Chunk) -> str:
     metadata = document.metadata
     page = f"Trang: {chunk.page_start}-{chunk.page_end}"
     department = ", ".join(metadata.responsible_department or ["UNKNOWN"])
-    return "\n".join(
-        [
-            f"Tai lieu: {metadata.title}",
-            f"Don vi: {department}",
-            f"Loai: {metadata.document_type}",
-            f"Muc: {' > '.join(chunk.heading_path)}",
-            page,
-            "",
-            chunk.content.strip(),
-        ]
-    )
+    chunk_metadata = chunk.metadata or {}
+    item_path = chunk_metadata.get("item_path", [])
+    legal_unit_type = chunk_metadata.get("legal_unit_type", "none")
+    content = remove_html_comments(chunk.content).strip()
+    lines = [
+        f"Tai lieu: {metadata.title}",
+        f"Don vi: {department}",
+        f"Loai: {metadata.document_type}",
+        f"Muc: {' > '.join(chunk.heading_path)}",
+    ]
+    if legal_unit_type and legal_unit_type != "none":
+        lines.append(f"Don vi phap ly: {legal_unit_type}")
+    ancestor_item_path = item_path[:-1]
+    if ancestor_item_path:
+        lines.append(f"Ngu canh muc cha: {' > '.join(ancestor_item_path)}")
+    lines.extend([page, "", content])
+    return "\n".join(lines)
+
+
+def remove_html_comments(text: str) -> str:
+    return HTML_COMMENT_RE.sub("", text)
 
 
 def embed_chunks_with_cache(
@@ -521,17 +541,27 @@ def build_smoke_embedding_text(document: MarkdownDocument, chunk: Chunk) -> str:
     metadata = document.metadata
     page = f"Trang: {chunk.page_start}-{chunk.page_end}"
     department = ", ".join(metadata.responsible_department or ["UNKNOWN"])
-    return "\n".join(
-        [
-            f"Tai lieu: {metadata.title}",
-            f"Don vi: {department}",
-            f"Loai: {metadata.document_type}",
-            f"Muc: {' > '.join(chunk.heading_path)}",
-            page,
-            "",
-            chunk.content.strip(),
-        ]
-    )
+    chunk_metadata = chunk.metadata or {}
+    item_path = chunk_metadata.get("item_path", [])
+    legal_unit_type = chunk_metadata.get("legal_unit_type", "none")
+    content = remove_html_comments(chunk.content).strip()
+    lines = [
+        f"Tai lieu: {metadata.title}",
+        f"Don vi: {department}",
+        f"Loai: {metadata.document_type}",
+        f"Muc: {' > '.join(chunk.heading_path)}",
+    ]
+    if legal_unit_type and legal_unit_type != "none":
+        lines.append(f"Don vi phap ly: {legal_unit_type}")
+    ancestor_item_path = item_path[:-1]
+    if ancestor_item_path:
+        lines.append(f"Ngu canh muc cha: {' > '.join(ancestor_item_path)}")
+    lines.extend([page, "", content])
+    return "\n".join(lines)
+
+
+def remove_html_comments(text: str) -> str:
+    return HTML_COMMENT_RE.sub("", text)
 
 
 def embed_chunks_with_cache(
@@ -627,6 +657,14 @@ class QdrantChunkPayload(BaseModel):
     parent_chunk_key: str | None
     chunk_type: str
     heading_path: list[str]
+    item_path: list[str] = []
+    logical_item_key: str | None = None
+    parent_item_key: str | None = None
+    split_index: int = 0
+    split_count: int = 1
+    chunk_index: int | None = None
+    item_marker: str | None = None
+    item_level: int | None = None
     page_start: int
     page_end: int
     content: str
@@ -769,6 +807,14 @@ def build_smoke_payload(document: MarkdownDocument, chunk: Chunk) -> dict:
         parent_chunk_key=chunk.parent_chunk_key,
         chunk_type=chunk.chunk_type,
         heading_path=chunk.heading_path,
+        item_path=(chunk.metadata or {}).get("item_path", []),
+        logical_item_key=(chunk.metadata or {}).get("logical_item_key"),
+        parent_item_key=(chunk.metadata or {}).get("parent_item_key"),
+        split_index=(chunk.metadata or {}).get("split_index", 0),
+        split_count=(chunk.metadata or {}).get("split_count", 1),
+        chunk_index=chunk.chunk_index,
+        item_marker=(chunk.metadata or {}).get("item_marker"),
+        item_level=(chunk.metadata or {}).get("item_level"),
         page_start=chunk.page_start,
         page_end=chunk.page_end,
         content=chunk.content,
@@ -860,8 +906,8 @@ from app.vectorstore.repository import (
 
 def upsert_child_chunks(path: str | Path) -> int:
     document = read_markdown_document(path)
-    chunks = chunk_markdown_document(document)
-    child_chunks = [chunk for chunk in chunks if chunk.chunk_type == "child"]
+    chunk_result = chunk_markdown_document(document)
+    child_chunks = chunk_result.child_chunks
     if not child_chunks:
         raise ValueError("No child chunks generated")
 

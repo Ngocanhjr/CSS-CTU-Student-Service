@@ -34,7 +34,7 @@ Quy ước trạng thái:
 
 - [ ] Chunking nối với runtime settings.
 
-- [ ] Pre-chunk parsing/heading normalization trước chunking.
+- [ ] Pre-chunk structural parsing trước chunking.
 
 - [ ] Pipeline end-to-end.
 
@@ -42,35 +42,35 @@ Quy ước trạng thái:
 
 ## Checklist Theo Guide
 
-| Trạng thái | Guide | Làm gì | Ghi chú |
-| --- | --- | --- | --- |
-| \[x\] | `00_ENUM_GUILD.md` | Quy ước enum/schema value | Rà lại nếu thêm enum mới. |
-| \[x\] | `01_RAG_SCHEMA_IMPLEMENTATION_GUIDE.md` | Schema metadata tổng quan | Đã chốt bỏ field cũ, dùng `signer_name`, `responsible_department` list. |
-| \[\~\] | `02_SCHEMA_EXPORT_TEST_VALIDATOR_GUIDE.md` | Test/export schema | Cần chạy lại sau khi schema ổn. |
-| \[x\] | `03_SQLALCHEMY_9_TABLES_GUIDE.md` | SQLAlchemy models 9 bảng | Đã chốt contract chính. |
-| \[x\] | `04_ALEMBIC_MIGRATION_GUIDE.md` | Alembic setup/migration | Với DB trống dùng baseline mới; xác nhận migration mới trước khi tiếp tục. |
-| \[x\] | `05_DATABASE_TEST_AND_SMOKE_INSERT_GUIDE.md` | Smoke insert DB | Làm sau khi `alembic upgrade head` pass. |
-| \[\~\] | `06_GiaiDoanTiepTheo.md` | Roadmap tổng | Có thể cập nhật sau khi xong DB baseline. |
-| \[\~\] | `07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md` | Ingestion pipeline tổng thể | Là orchestration, làm sau Guide 9/10/12 cơ bản. |
-| \[\~\] | `08_PART_A_DB_SCHEMA_CONTRACT_GUIDE.md` | DB/schema contract | Đã chốt 9 bảng và nullable chính. |
-| \[ \] | `09_PART_B_MARKDOWN_READER_GUIDE.md` | Markdown reader/frontmatter | Làm trước repository để có `DocumentMetadata` sạch từ YAML/body. |
-| \[ \] | `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md` | Pre-chunk parsing + heading normalization | Làm sau Guide 9, trước Guide 10 để page/heading đúng trước chunk. |
-| \[ \] | `10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md` | Heading-aware chunker | Làm sau Guide 9 để biến body thành parent/child chunks. |
-| \[ \] | `10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md` | Page marker helper | Làm cùng chunking nếu cần page range. |
-| \[ \] | `10B_PART_C_PAGE_AWARE_CHUNKER_DECISIONS.md` | Quyết định page-aware chunking | Rà khi xử lý page markers. |
-| \[ \] | `11_PART_D_CHUNK_PREVIEW_GUIDE.md` | Preview chunks | Làm sau chunker cơ bản. |
-| \[ \] | `12_PART_E_POSTGRES_INGESTION_REPOSITORY_GUIDE.md` | Repository ghi PostgreSQL | Làm sau Guide 9/10 để có metadata + chunks làm input thật. |
-| \[ \] | `13_PART_F_PIPELINE_ORCHESTRATION_GUIDE.md` | Orchestration pipeline | Làm sau reader/chunker/repository. |
-| \[ \] | `14_PART_G_EMBEDDING_GUIDE.md` | Embedding | Làm sau chunks ổn. |
-| \[ \] | `14A_EMBEDDING_RETRIEVAL_SMOKE_TEST_GUIDE.md` | Smoke embedding/retrieval | Làm sau Qdrant insert/search. |
-| \[ \] | `15_PART_H_QDRANT_VECTORSTORE_GUIDE.md` | Qdrant vectorstore | Làm sau embedding model/payload ổn. |
-| \[ \] | `16_PART_I_RETRIEVAL_GUIDE.md` | Retrieval | Làm sau Qdrant search pass. |
-| \[ \] | `17_PART_J_E2E_TEST_AND_SMOKE_GUIDE.md` | E2E smoke | Làm sau pipeline + DB + Qdrant pass. |
-| \[ \] | `18_PART_K_RAG_ANSWER_CHAIN_GUIDE.md` | Answer chain | Làm cuối sau retrieval. |
-| \[\~\] | `19_MIGRATE_10_TO_9_TABLES_GUIDE.md` | Migrate 10 bảng sang 9 bảng | Đã cập nhật cho schema chốt. Với DB trống, dùng baseline mới thay vì migrate diff. |
-| \[x\] | `20_DOCKER_POSTGRES_QDRANT_RESET_GUIDE.md` | Reset Docker/Postgres/Qdrant | Đã dùng khi reset DB trống. |
-| \[x\] | `21_RUNTIME_SETTINGS_GUIDE.md` | Runtime settings | Đã thống nhất theo code: `child_chunk_size=1000`, `child_chunk_overlap=100`, `get_rag_settings()`. |
-| \[\~\] | `db.md` | Ghi chú DB/key mapping | Rà lại sau khi baseline DB pass. |
+| Trạng thái | Guide                                               | Làm gì                         | Ghi chú                                                                                            |
+| ---------- | --------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
+| \[x\]      | `00_ENUM_GUILD.md`                                  | Quy ước enum/schema value      | Rà lại nếu thêm enum mới.                                                                          |
+| \[x\]      | `01_RAG_SCHEMA_IMPLEMENTATION_GUIDE.md`             | Schema metadata tổng quan      | Đã chốt bỏ field cũ, dùng `signer_name`, `responsible_department` list.                            |
+| \[\~\]     | `02_SCHEMA_EXPORT_TEST_VALIDATOR_GUIDE.md`          | Test/export schema             | Cần chạy lại sau khi schema ổn.                                                                    |
+| \[x\]      | `03_SQLALCHEMY_9_TABLES_GUIDE.md`                   | SQLAlchemy models 9 bảng       | Đã chốt contract chính.                                                                            |
+| \[x\]      | `04_ALEMBIC_MIGRATION_GUIDE.md`                     | Alembic setup/migration        | Với DB trống dùng baseline mới; xác nhận migration mới trước khi tiếp tục.                         |
+| \[x\]      | `05_DATABASE_TEST_AND_SMOKE_INSERT_GUIDE.md`        | Smoke insert DB                | Làm sau khi `alembic upgrade head` pass.                                                           |
+| \[\~\]     | `06_GiaiDoanTiepTheo.md`                            | Roadmap tổng                   | Có thể cập nhật sau khi xong DB baseline.                                                          |
+| \[\~\]     | `07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md` | Ingestion pipeline tổng thể    | Là orchestration, làm sau Guide 9/10/12 cơ bản.                                                    |
+| \[\~\]     | `08_PART_A_DB_SCHEMA_CONTRACT_GUIDE.md`             | DB/schema contract             | Đã chốt 9 bảng và nullable chính.                                                                  |
+| \[ \]      | `09_PART_B_MARKDOWN_READER_GUIDE.md`                | Markdown reader/frontmatter    | Làm trước repository để có `DocumentMetadata` sạch từ YAML/body.                                   |
+| \[ x\]     | `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md`      | Pre-chunk structural parsing   | Làm sau Guide 9, trước Guide 10 để page/heading/item/table/code đúng trước chunk.                  |
+| \[ \]      | `10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md`          | Heading-aware chunker          | Làm sau Guide 9 để biến body thành parent/child chunks.                                            |
+| \[ x\]     | `10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md`            | Page marker helper             | Làm cùng chunking nếu cần page range.                                                              |
+| \[ \]      | `10B_PART_C_PAGE_AWARE_CHUNKER_DECISIONS.md`        | Quyết định page-aware chunking | Rà khi xử lý page markers.                                                                         |
+| \[ \]      | `11_PART_D_CHUNK_PREVIEW_GUIDE.md`                  | Preview chunks                 | Làm sau chunker cơ bản.                                                                            |
+| \[ \]      | `12_PART_E_POSTGRES_INGESTION_REPOSITORY_GUIDE.md`  | Repository ghi PostgreSQL      | Làm sau Guide 9/10 để có metadata + chunks làm input thật.                                         |
+| \[ \]      | `13_PART_F_PIPELINE_ORCHESTRATION_GUIDE.md`         | Orchestration pipeline         | Làm sau reader/chunker/repository.                                                                 |
+| \[ \]      | `14_PART_G_EMBEDDING_GUIDE.md`                      | Embedding                      | Làm sau chunks ổn.                                                                                 |
+| \[ \]      | `14A_EMBEDDING_RETRIEVAL_SMOKE_TEST_GUIDE.md`       | Smoke embedding/retrieval      | Làm sau Qdrant insert/search.                                                                      |
+| \[ \]      | `15_PART_H_QDRANT_VECTORSTORE_GUIDE.md`             | Qdrant vectorstore             | Làm sau embedding model/payload ổn.                                                                |
+| \[ \]      | `16_PART_I_RETRIEVAL_GUIDE.md`                      | Retrieval                      | Làm sau Qdrant search pass.                                                                        |
+| \[ \]      | `17_PART_J_E2E_TEST_AND_SMOKE_GUIDE.md`             | E2E smoke                      | Làm sau pipeline + DB + Qdrant pass.                                                               |
+| \[ \]      | `18_PART_K_RAG_ANSWER_CHAIN_GUIDE.md`               | Answer chain                   | Làm cuối sau retrieval.                                                                            |
+| \[\~\]     | `19_MIGRATE_10_TO_9_TABLES_GUIDE.md`                | Migrate 10 bảng sang 9 bảng    | Đã cập nhật cho schema chốt. Với DB trống, dùng baseline mới thay vì migrate diff.                 |
+| \[x\]      | `20_DOCKER_POSTGRES_QDRANT_RESET_GUIDE.md`          | Reset Docker/Postgres/Qdrant   | Đã dùng khi reset DB trống.                                                                        |
+| \[x\]      | `21_RUNTIME_SETTINGS_GUIDE.md`                      | Runtime settings               | Đã thống nhất theo code: `child_chunk_size=1000`, `child_chunk_overlap=100`, `get_rag_settings()`. |
+| \[\~\]     | `db.md`                                             | Ghi chú DB/key mapping         | Rà lại sau khi baseline DB pass.                                                                   |
 
 ## Việc Nên Làm Tiếp
 
@@ -87,7 +87,7 @@ docker compose exec postgres psql -U ct239h -d ctu_student_service_test -c "\dt 
 
 - [ ] 3\. Làm `09_PART_B_MARKDOWN_READER_GUIDE.md` để đọc Markdown, tách frontmatter/body, parse `DocumentMetadata`.
 
-- [ ] 4\. Làm `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md` để normalize page/heading trước khi chunk.
+- [ ] 4\. Làm `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md` để page-aware structural parsing trước khi chunk.
 
 - [ ] 5\. Làm `10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md`, kèm `10A`/`10B` nếu cần page marker/page-aware logic.
 
@@ -131,3 +131,22 @@ Quy tắc:
 - Không dùng `version_label`.
 - Không dùng `signer`, dùng `signer_name`.
 - `checksum` của `document_versions` bắt buộc.-
+
+## Reconciliation Checklist — Structural Chunking/Retrieval
+
+- [ ] `PageBlock.content` bắt đầu sau marker và kết thúc trước marker kế tiếp.
+- [ ] Page marker, HTML comment, OCR page-number artifact và `---` sát page boundary không thành Child/embedding.
+- [ ] Mỗi Markdown heading mở Parent mới; không merge qua heading boundary.
+- [ ] Parent heading-only có `heading_content` Child hoặc `context_only_reason`.
+- [ ] `Chương I` + tên chương liên tiếp giữ derived heading context.
+- [ ] Heading bất thường sinh canonical Markdown warning, không tự demote.
+- [ ] Table/code luôn là atomic Child riêng; table dài split theo row và lặp header; code dài split theo dòng, giữ fence và logical_code_key.
+- [ ] `legal_unit_type` chỉ gán khi có legal context; general list dùng `none`.
+- [ ] Warning không block publish mặc định; error mới block.
+- [ ] `Chunk.metadata` được phân biệt với metadata đã persist PostgreSQL.
+- [ ] Qdrant payload có title/source_file/source_url, logical/parent item key, split info, chunk order, marker và level.
+- [ ] Embedding chỉ prepend ancestor item labels, không lặp current item.
+- [ ] Retrieval expansion hỗ trợ parent/child/sibling/split, deduplicate, source-order và context budget.
+- [ ] Hydration không truy cập `chunk.parent_chunk_key`; fallback qua `parent_chunk_id`/parent row.
+- [ ] QueryDecision chạy trước retrieval; greeting/clarification khác no-result và không gọi Qdrant/LLM.
+- [ ] Golden test `test_3266.md` bao phủ toàn bộ contract trên.

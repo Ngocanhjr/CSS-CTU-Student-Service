@@ -1,6 +1,6 @@
-# 07. Hướng Dẫn Chi Tiết Implement Markdown Ingestion, Chunking, Embedding, Qdrant
+﻿# 07. Hướng Dẫn Chi Tiết Implement Markdown Ingestion, Chunking, Embedding, Qdrant
 
-**Last Updated:** 2026-06-20
+**Last Updated:** 2026-07-10
 
 File này nối tiếp sau:
 
@@ -402,7 +402,7 @@ test_reader_rejects_published_invalid_status
 ### 6.1. File Nên Tạo
 
 ```text
-chatbot/backend/app/ingestion/chunker.py
+chatbot/backend/app/ingestion/chunking/
 chatbot/backend/test/ingestion/test_chunker.py
 ```
 
@@ -418,7 +418,7 @@ Markdown body
 Output:
 
 ```text
-list[Chunk]
+ChunkingResult
 ```
 
 Dùng schema hiện có:
@@ -426,6 +426,20 @@ Dùng schema hiện có:
 ```python
 from app.schemas.chunks import Chunk
 ```
+
+`ChunkingResult` là public return contract của `chunk_markdown_body()` và
+`chunk_markdown_document()`:
+
+```python
+@dataclass(frozen=True)
+class ChunkingResult:
+    parent_chunks: list[Chunk]
+    child_chunks: list[Chunk]
+    warnings: list[ValidationReport]
+    errors: list[ValidationReport]
+```
+
+`make_child_chunks()` vẫn là helper nội bộ và vẫn trả `list[Chunk]`.
 
 ### 6.3. Markdown Pattern Cần Nhận Diện
 
@@ -488,8 +502,10 @@ heading_path = ["Quy dinh hoc vu", "Chuong II", "Dieu 5"]
 MVP đề xuất:
 
 ```text
-Mỗi section từ heading level 2 hoặc 3 tạo một parent chunk.
-Nếu tài liệu không có heading, tạo parent "Document".
+Mỗi Markdown heading bắt đầu một parent chunk mới.
+Parent hiện tại kết thúc ngay trước Markdown heading kế tiếp, bất kể heading cấp mấy.
+Nội dung trước heading đầu tiên thuộc parent gốc `heading_path = ["document-root"]`.
+Nếu tài liệu không có heading, tạo một parent `heading_path = ["document-root"]`.
 ```
 
 Parent chunk:
@@ -517,16 +533,27 @@ code
 paragraph ro rang doc lap
 ```
 
-`RecursiveCharacterTextSplitter` chỉ dùng khi một item/paragraph/table/code quá dài:
+Rule bắt buộc:
 
 ```text
-child_chunk_size = 1800 characters
-child_chunk_overlap = 200 characters
+Moi numbered_item, lettered_item, bullet_item luon tao it nhat mot Child rieng.
+Item ngan hoac item ket thuc bang ":" van tao Child.
+Item cha co item con van tao Child rieng; item con tao Child rieng.
+Item con link ve item cha bang parent_item_key trong Chunk.metadata in-memory va Qdrant payload; khong tu tao migration neu schema chua co cot/JSONB.
+item_path giu marker va nhan ngan tu dong item goc, vi du ["1. Ho so gom:", "a) Don dang ky."].
+Khong chi luu ["1.", "a)"] va khong sao chep toan bo noi dung dai cua item cha vao item_path.
 ```
 
-Hai giá trị này lấy từ runtime settings (xem `21_RUNTIME_SETTINGS_GUIDE.md`). Default nằm trong settings model, không dùng fallback kiểu `settings.value or 1800`.
+`RecursiveCharacterTextSplitter` chỉ dùng khi một item/paragraph quá dài. Table và code dùng splitter riêng:
 
-Không nên đưa raw LangChain Document ra ngoài chunker. Output public vẫn là `list[Chunk]`.
+```text
+child_chunk_size = 1000 characters
+child_chunk_overlap = 100 characters
+```
+
+Hai giá trị này lấy từ runtime settings (xem `21_RUNTIME_SETTINGS_GUIDE.md`). Default nằm trong settings model, không dùng fallback kiểu `settings.value or 1000`.
+
+Không nên đưa raw LangChain Document ra ngoài chunker. Output public là `ChunkingResult`.
 
 Với bảng Markdown:
 
@@ -542,19 +569,23 @@ Suggested design:
 
 ```text
 1. split_body_by_page_markers() de co PageBlock.
-2. parse_structural_blocks() theo thu tu: code, table, heading, item, paragraph.
-3. Dùng Markdown heading blocks để tạo parent sections.
-4. Rebuild heading_path từ heading blocks.
+2. parse_page_blocks() theo thu tu: page marker da consume, code, table, heading, item, paragraph.
+3. Dùng mọi Markdown heading block để tạo parent sections.
+4. Rebuild heading_path từ heading blocks; nội dung trước heading đầu tiên dùng `["document-root"]`.
 5. Từ section tạo parent Chunk với stable chunk_key.
 6. Từ structural item/table/code/paragraph tạo ChildUnit.
-7. Nếu ChildUnit quá dài, dùng RecursiveCharacterTextSplitter bên trong chính unit đó.
-8. Từ ChildUnit tạo child Chunk với parent_chunk_key là stable key của parent.
+7. Paragraph sau item gan vao Child hien tai; paragraph khong thuoc item nao tao paragraph Child.
+8. Nếu item/paragraph ChildUnit quá dài, dùng RecursiveCharacterTextSplitter bên trong chính unit đó.
+9. Table dài split theo row group và lặp header + separator; code dài split theo ranh giới dòng, mỗi split giữ opening/closing fence hợp lệ.
+10. Mọi split giữ logical_item_key/parent_item_key/item_path hoặc logical_table_key/logical_code_key cùng split_index/split_count.
+11. Từ ChildUnit tạo child Chunk với parent_chunk_key là stable key của parent.
+12. Page marker va HTML comment ky thuat khong dua vao embedding text.
 ```
 
 Import dùng:
 
 ```python
-from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 ```
 
 ### 6.8. chunk_key Đề Xuất
@@ -1474,3 +1505,22 @@ chatbot/backend/test/databases/test_database_models.py
 ```
 
 Guide 07 không thay thế các guide trước. Nó chỉ biến mục tiêu của guide 06 thành các phần implementation có thể code và test lần lượt.
+
+## 17. Final Structural Reconciliation
+
+Các guide 09A, 10A, 10B, 10, 13, 14, 15, 16 và 17 phải tuân theo contract cuối tại
+`22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md`. Nếu pseudocode cũ mâu thuẫn, contract 22 ưu tiên.
+
+Các điểm P0:
+
+```text
+- Page marker được consume và không nằm trong PageBlock.content.
+- Mỗi heading mở Parent mới; không merge qua heading boundary.
+- Heading-only content không bị mất embedding.
+- Table/code là atomic Child riêng.
+- legal_unit_type chỉ gán trong legal context.
+- warning không block publish; error mới block mặc định.
+- Chunk.metadata trong memory không đồng nghĩa đã persist PostgreSQL.
+- Qdrant payload có structural fields để retrieval expansion.
+- Retrieval có parent/child/sibling/split expansion trước rerank/context budget.
+```

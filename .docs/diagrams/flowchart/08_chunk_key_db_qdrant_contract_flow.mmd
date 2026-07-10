@@ -1,24 +1,33 @@
-%% Source: chatbot/.docs/guild_implement/08_PART_A_DB_SCHEMA_CONTRACT_GUIDE.md
-%% Contract: stable chunk_key crosses schema, preview, DB, and Qdrant.
+%% Source: 08_PART_A_DB_SCHEMA_CONTRACT_GUIDE.md
+%% Contract: stable keys cross preview, PostgreSQL, Qdrant, and retrieval.
 
 flowchart LR
-    A[Chunker creates Chunk<br/>chunk_key<br/>parent_chunk_key]
-    B[Repository inserts parent chunks<br/>by chunk_key]
-    C[Build map<br/>parent chunk_key -> DocumentChunk.id]
-    D[Repository inserts child chunks<br/>parent_chunk_id from map]
-    E[(PostgreSQL<br/>document_chunks)]
-    F[Build Qdrant payload]
-    G[(Qdrant point)]
-    H[Retriever uses<br/>postgres_chunk_id]
-    I[(PostgreSQL hydrate<br/>canonical content)]
+    A[Chunk factory creates<br/>Parent and Child chunks]
+    B[Stable chunk_key<br/>version::p/c::sequence]
+    C[Insert Parent chunks]
+    D[Map parent chunk_key<br/>to PostgreSQL id]
+    E[Insert Child chunks<br/>with parent_chunk_id]
+    F[(PostgreSQL<br/>canonical content + relations)]
+    G[Build deterministic point id<br/>from version_key + chunk_key]
+    H[Build Qdrant payload]
+    I[(Qdrant point<br/>Child vector + metadata)]
+    J[Initial retrieval candidate]
+    K[Hydrate canonical content<br/>from PostgreSQL]
+    L[Preserve Qdrant structural metadata]
+    M[Structural expansion]
 
-    A --> B --> C --> D --> E --> F --> G --> H --> I
+    A --> B --> C --> D --> E --> F
+    B --> G
+    F --> H
+    G --> I
+    H --> I --> J --> K --> L --> M
 
-    A -. stable external key .-> F
-    E -. internal source of truth .-> F
-    F -. includes .-> P["chunk_key<br/>parent_chunk_key<br/>postgres_chunk_id"]
+    H -. trace fields .-> P[postgres_chunk_id<br/>chunk_key<br/>parent_chunk_key]
+    H -. structural fields .-> Q[logical_item_key<br/>parent_item_key<br/>heading_path<br/>item_path<br/>item_marker + item_level<br/>split_index + split_count<br/>chunk_index or source_order<br/>block_type + legal_unit_type<br/>page_start + page_end]
 
-    J{{Do not use<br/>random point id}}
-    F --> K["make_point_id(version_key,<br/>chunk_key)"]
-    K --> G
-    J -. avoided by .-> K
+    R{{No schema migration<br/>in current task}}
+    F -. canonical source of truth .-> R
+    Q -. may exist only in<br/>in-memory Chunk and Qdrant payload .-> R
+
+    S{{Do not use random<br/>Qdrant point ids}}
+    G -. satisfies .-> S

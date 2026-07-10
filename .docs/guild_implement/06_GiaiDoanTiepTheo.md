@@ -220,15 +220,16 @@ Done khi:
 Module đề xuất:
 
 ```text
-chatbot/backend/app/ingestion/chunker.py
+chatbot/backend/app/ingestion/chunking/
 ```
 
 Chunker dùng structural parser trước, LangChain splitter sau:
 
-- Markdown heading tạo parent section.
+- Mỗi Markdown heading tạo parent section mới.
+- Nội dung trước heading đầu tiên thuộc `heading_path = ["document-root"]`.
 - `numbered_item`, `lettered_item`, `bullet_item` tạo child boundary.
 - Table/code được detect trước item regex.
-- `RecursiveCharacterTextSplitter` chỉ split bên trong item/paragraph/table/code quá dài.
+- `RecursiveCharacterTextSplitter` chỉ split bên trong item/paragraph quá dài; table/code dùng logic riêng.
 
 Chunker cần hiểu:
 

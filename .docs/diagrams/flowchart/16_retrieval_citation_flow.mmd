@@ -1,21 +1,33 @@
-%% Source: chatbot/.docs/guild_implement/16_PART_I_RETRIEVAL_GUIDE.md
-%% Retrieval: clarify query first, then Qdrant with student filter, hydrate content from PostgreSQL.
+%% Sources:
+%% - 16_PART_I_RETRIEVAL_GUIDE.md
+%% - 22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md
+%% Retrieval keeps Qdrant structural metadata while hydrating canonical content from PostgreSQL.
 
 flowchart TD
-    A([user query])
-    B{greeting or blank?}
-    C[return greeting / empty result<br/>no retrieval]
-    D{ambiguous without context?}
-    E[ask clarification<br/>no Qdrant search]
-    F[complete or rewrite query<br/>using current document or recent topic]
-    G[embed query]
-    H[LangChain Qdrant retriever]
-    I[student hard filter<br/>review_status=approved<br/>rag_status=published<br/>audience_student=true]
-    J[(Qdrant results<br/>payload metadata)]
-    K[read postgres_chunk_id]
-    L[(PostgreSQL<br/>DocumentChunk content)]
-    M["build_citation()"]
-    N(["RetrievalResult<br/>content + citation"])
+    A([User query])
+    B{Greeting or blank?}
+    C[Return greeting or empty result<br/>without retrieval]
+    D{Needs clarification?}
+    E[Ask clarification<br/>without retrieval]
+    F[Complete or rewrite query<br/>from conversation context]
+    G[Embed or prepare hybrid query]
+    H[Initial filtered retrieval]
+    I[Hard filters<br/>approved + published + student audience]
+    J[(Qdrant candidates<br/>score + structural payload)]
+    K[Read postgres_chunk_id]
+    L[(PostgreSQL canonical content)]
+    M[Hydrate content while preserving<br/>candidate structural metadata]
+    N[Structural expansion]
+    O[Hit child item<br/>add logical parent]
+    P[Hit parent item + list query<br/>add direct children]
+    Q[List-intent query<br/>optionally add siblings]
+    R[Hit split<br/>add related split neighbors]
+    S[Deduplicate by chunk_key]
+    T[Sort by source order]
+    U[Optional rerank]
+    V[Apply context budget]
+    W[Build citations from canonical content<br/>and page ranges]
+    X([RetrievalResult])
 
     A --> B
     B -->|yes| C
@@ -24,6 +36,16 @@ flowchart TD
     D -->|no| F --> G --> H
     I --> H
     H --> J --> K --> L --> M --> N
+    N --> O
+    N --> P
+    N --> Q
+    N --> R
+    O --> S
+    P --> S
+    Q --> S
+    R --> S
+    S --> T --> U --> V --> W --> X
 
-    J -. payload is trace only .-> K
-    L -. canonical content .-> N
+    J -. metadata retained .-> Y[logical_item_key + parent_item_key<br/>split_index + split_count<br/>chunk_index/source_order<br/>heading_path + item_path<br/>item_marker + item_level<br/>block_type + legal_unit_type]
+    L -. canonical content only .-> M
+    Z{{Do not expand entire Parent<br/>when one item branch is enough}} -. budget rule .-> V

@@ -1,6 +1,6 @@
 # 17. Part J - Hướng Dẫn Test Và Smoke Test End-To-End
 
-**Last Updated:** 2026-06-20
+**Last Updated:** 2026-07-10
 
 File này tách chi tiết từ guide 07, phần J.
 
@@ -155,7 +155,7 @@ canonical_markdown_path: "test/fixtures/markdown/smoke_test.md"
 file_type: "md"
 language: "vi"
 issuing_authority: "PDT"
-checksum: "smoke-test-checksum"
+checksum: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 ocr_status: "done"
 review_status: "approved"
 rag_status: "published"
@@ -201,20 +201,19 @@ Nếu warnings có heading/page, sửa chunker trước khi tiếp.
 ..\..\.venv\Scripts\python.exe -m app.ingestion.pipeline test\fixtures\markdown\smoke_test.md
 ```
 
-Mong đợi:
+Mong đợi theo contract “mỗi Markdown heading mở một Parent”:
 
-```json
-{
-  "document_key": "smoke-quy-trinh-cap-bang-diem",
-  "version_key": "smoke-quy-trinh-cap-bang-diem-v1",
-  "document_version_id": 1,
-  "total_chunks": 4,
-  "parent_chunks": 2,
-  "child_chunks": 2,
-  "embedded_chunks": 0,
-  "indexed_chunks": 0
-}
+```python
+assert result.document_key == "smoke-quy-trinh-cap-bang-diem"
+assert result.version_key == "smoke-quy-trinh-cap-bang-diem-v1"
+assert result.parent_chunks == 3
+assert result.child_chunks >= 2
+assert result.total_chunks == result.parent_chunks + result.child_chunks
+assert result.embedded_chunks == 0
+assert result.indexed_chunks == 0
 ```
+
+`# Quy trinh cap bang diem`, `## Dieu 1` và `## Dieu 2` tạo ba Parent. Heading title có thể tạo thêm `heading_content` Child theo classifier bảo thủ, nên không hardcode `child_chunks == 2`.
 
 Kiểm tra DB:
 
@@ -313,7 +312,10 @@ async def test_markdown_to_retrieval_smoke(tmp_path):
             qdrant_client=get_qdrant_client(),
             collection_name="css_qdrant",
         )
-        results = await retriever.search(session, query="cap bang diem nop o dau")
+        results = await retriever.search_resolved_query(
+            session,
+            query="cap bang diem nop o dau",
+        )
 
     assert results
     assert results[0].citation
@@ -351,6 +353,46 @@ client.delete_collection("css_qdrant")
 ```
 
 Chỉ dùng với collection test.
+
+---
+
+
+## 11.1 Test Contract Bổ Sung
+
+Các test không chỉ kiểm tra số lượng chunk mà phải kiểm tra invariant:
+
+```text
+Long item:
+- force split bằng fixture thật;
+- cùng logical_item_key/parent_item_key;
+- split_index/split_count đúng;
+- không spill sang item kế tiếp.
+
+Table:
+- table nhỏ atomic;
+- table lớn split theo row group;
+- mỗi split lặp header + separator;
+- cùng logical_table_key;
+- không cắt giữa row.
+
+Fenced code:
+- atomic Child;
+- marker trong code không thành heading/item;
+- code dài split theo dòng, mỗi split có fence hợp lệ;
+- cùng logical_code_key.
+
+Heading-only:
+- normative/independent heading -> heading_content Child;
+- structural heading -> context_only_reason;
+- uncertain heading -> heading_content + warning.
+
+Hydration/expansion:
+- content lấy từ PostgreSQL;
+- structural metadata giữ từ Qdrant;
+- parent_chunk_key fallback qua parent_chunk_id/parent row;
+- child/parent/sibling/split expansion đúng;
+- deduplicate, source-order và context budget đúng.
+```
 
 ---
 
@@ -424,3 +466,50 @@ Xử lý:
 ```text
 Sua chunker/page marker truoc khi debug retriever.
 ```
+
+## 14. Golden Fixture `test_3266.md`
+
+Ngoài smoke fixture nhỏ, phải có golden test runnable cho tài liệu 3266.
+
+Fixture path:
+
+```text
+chatbot/backend/test/fixtures/markdown/test_3266.md
+```
+
+Snapshot path:
+
+```text
+chatbot/backend/test/fixtures/snapshots/test_3266_chunks.json
+```
+
+Pytest command:
+
+```powershell
+cd E:\RHNA\1Visual\NLCS\CTU-Service\chatbot\backend
+..\..\.venv\Scripts\python.exe -m pytest test/ingestion/test_3266_golden.py test/retrieval/test_structural_expansion.py
+```
+
+Concrete assertions:
+
+```text
+- standalone OCR page number và dấu --- ở page boundary không thành Child;
+- page marker/HTML comment không nằm trong raw content hoặc embedding_text;
+- mỗi Markdown heading mở Parent mới, không merge qua heading boundary;
+- heading-only Điều 1/Điều 2/Điều 3 tạo heading_content Child hoặc context_only đúng rule;
+- Chương I + NHỮNG VẤN ĐỀ CHUNG giữ derived heading_path kết hợp;
+- heading bất thường "## Sau thời hạn đóng học phí..." sinh canonical_markdown_warning, không tự demote;
+- Điều 18 tạo numbered/lettered/bullet Child riêng, có parent_item_key và cross-page context;
+- paragraph ownership mơ hồ tạo warning, không phải error mặc định;
+- table Điều 19 là atomic table Child;
+- legal_unit_type của legal list đúng và general list là none;
+- logical_item_key/parent_item_key/split_index/split_count/item_path/page range đúng;
+- Qdrant payload có đủ structural fields;
+- retrieval expansion parent/child/sibling/split chạy đúng và giữ source order.
+```
+
+Golden snapshot phải kiểm tra Parent, Child, `heading_path`, `item_path`, `logical_item_key`,
+`parent_item_key`, `page_start/page_end`, `split_index/split_count`, warnings/errors và block type.
+
+Không yêu cầu fenced-code assertion trong `test_3266.md`, vì fixture này không có fenced code.
+Fenced code dùng synthetic test riêng trong `test_chunker.py`.

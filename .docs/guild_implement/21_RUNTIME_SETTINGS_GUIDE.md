@@ -121,7 +121,7 @@ Chunker:
 
 ```python
 settings = get_rag_settings()
-chunks = chunk_markdown_body(
+chunk_result = chunk_markdown_body(
     body=body,
     document_key=document_key,
     version_key=version_key,
@@ -134,14 +134,16 @@ Retriever:
 
 ```python
 settings = get_rag_settings()
-results = await retriever.search(
+results = await retriever.search_resolved_query(
     session,
-    query=query,
+    query=resolved_query,
+    document_key=decision.document_key,
+    version_key=decision.version_key,
     top_k=settings.retrieval.top_k,
 )
 ```
 
-Function signatures may keep explicit parameters for tests, but callers should pass values from `settings`.
+`resolved_query` chỉ được tạo sau `complete_or_clarify_query()`. Greeting/clarification không gọi Retriever. Function signatures may keep explicit parameters for tests, but callers should pass values from `settings`.
 
 ---
 

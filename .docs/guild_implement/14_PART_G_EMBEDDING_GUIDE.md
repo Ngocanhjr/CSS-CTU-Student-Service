@@ -84,14 +84,14 @@ Don vi: <department>
 Loai: <document_type>
 Muc: <heading_path>
 Don vi phap ly: <legal_unit_type>
-Duong dan muc: <item_path>
+Ngu canh muc cha: <item_path[:-1]>
 Trang: <page_start>-<page_end>
 
 <content>
 ```
 
 Raw child content phải giữ nguyên. `embedding_text` chỉ là text phụ để embed, không ghi đè `content`.
-Không đưa page marker vào `embedding_text`. Không thêm thông tin suy diễn.
+Không đưa page marker hoặc HTML comment kỹ thuật khác vào `embedding_text`. Không thêm thông tin suy diễn.
 
 Function:
 
@@ -122,13 +122,14 @@ def build_embedding_text(
     ]
     if legal_unit_type and legal_unit_type != "none":
         lines.append(f"Don vi phap ly: {legal_unit_type}")
-    if item_path:
-        lines.append(f"Duong dan muc: {' > '.join(item_path)}")
+    ancestor_item_path = (item_path or [])[:-1]
+    if ancestor_item_path:
+        lines.append(f"Ngu canh muc cha: {' > '.join(ancestor_item_path)}")
     if page:
         lines.append(page)
 
     lines.append("")
-    lines.append(remove_page_markers(content).strip())
+    lines.append(remove_html_comments(content).strip())
     return "\n".join(line for line in lines if line is not None)
 ```
 
@@ -137,11 +138,11 @@ Helper:
 ```python
 import re
 
-PAGE_RE = re.compile(r"<!--\s*page:\s*\d+\s*-->", re.IGNORECASE)
+HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
-def remove_page_markers(text: str) -> str:
-    return PAGE_RE.sub("", text)
+def remove_html_comments(text: str) -> str:
+    return HTML_COMMENT_RE.sub("", text)
 ```
 
 ---
@@ -243,24 +244,29 @@ Neu package LangChain NVIDIA doi signature, uu tien version package dang cai.
 
 ---
 
-## 7. Embed Child Chunks Từ DB Rows
+## 7. Embed Child Chunks
 
-Sau guide 12, DB đã có `DocumentChunk` rows.
+Ưu tiên embed từ `Chunk` object trong pipeline trước khi upsert Qdrant, vì `Chunk.metadata`
+đang giữ `item_path`, `legal_unit_type`, `block_type`.
+
+Không thêm cột DB mới chỉ để lưu metadata này. Nếu sau này cần persist lâu dài trong
+PostgreSQL, dùng JSON metadata field khi schema đã có; hiện tại giữ trong `Chunk.metadata`
+và Qdrant payload.
 
 Function để format input:
 
 ```python
-from app.databases.models import DocumentChunk, DocumentVersion
+from app.schemas.chunks import Chunk
 
 
-def build_embedding_text_from_row(
+def build_embedding_text_from_chunk(
     *,
-    chunk: DocumentChunk,
-    version: DocumentVersion,
+    chunk: Chunk,
     document_title: str,
     department: str,
     document_type: str,
 ) -> str:
+    metadata = chunk.metadata or {}
     return build_embedding_text(
         title=document_title,
         department=department,
@@ -269,12 +275,8 @@ def build_embedding_text_from_row(
         page_start=chunk.page_start,
         page_end=chunk.page_end,
         content=chunk.content,
-        item_path=chunk.extra_metadata.get("item_path", []) if chunk.extra_metadata else [],
-        legal_unit_type=(
-            chunk.extra_metadata.get("legal_unit_type", "none")
-            if chunk.extra_metadata
-            else "none"
-        ),
+        item_path=metadata.get("item_path", []),
+        legal_unit_type=metadata.get("legal_unit_type", "none"),
     )
 ```
 
@@ -316,7 +318,8 @@ def test_build_embedding_text_contains_context():
 
     assert "Tai lieu: Quy trinh cap bang diem" in text
     assert "Muc: Quy trinh > Buoc 1" in text
-    assert "Duong dan muc: Khoan 1 > Diem a)" in text
+    assert "Ngu canh muc cha: Khoan 1" in text
+    assert "Diem a)" not in text.split("Noi dung chunk")[0]
     assert "Noi dung chunk" in text
 
 
@@ -403,7 +406,7 @@ cd E:\RHNA\#Visual\NLCS\CTU-Service\chatbot\backend
 - [ ] Có `TextEmbedder` Protocol.
 - [ ] Có `FakeEmbedder` cho unit test.
 - [ ] Có `LangChainNvidiaEmbedder` cho NVIDIA/BGE-M3.
-- [ ] `build_embedding_text` thêm context title/heading/page.
+- [ ] `build_embedding_text` thêm context title/heading/item_path/legal_unit_type/page.
 - [ ] `embeder.py` re-export để tránh import cũ bị lỗi.
 - [ ] Unit test pass không cần tải model thật.
 
@@ -437,3 +440,9 @@ Xử lý:
 ```text
 Giu embeder.py wrapper re-export den khi refactor import xong.
 ```
+
+## 13. Tránh Lặp Current Item
+
+`item_path` metadata vẫn giữ đầy đủ marker + nhãn của ancestor và current item. Khi tạo
+`embedding_text`, chỉ prepend `item_path[:-1]`; raw child content đã chứa current item.
+Không đưa toàn bộ item cha dài vào mọi item con và không dùng LLM để rút nhãn.

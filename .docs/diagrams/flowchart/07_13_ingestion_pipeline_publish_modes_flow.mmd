@@ -1,37 +1,49 @@
 %% Sources:
-%% - chatbot/.docs/guild_implement/07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md
-%% - chatbot/.docs/guild_implement/13_PART_F_PIPELINE_ORCHESTRATION_GUIDE.md
+%% - 07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md
+%% - 13_PART_F_PIPELINE_ORCHESTRATION_GUIDE.md
+%% - 22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md
 
 flowchart TD
-    A(["Markdown canonical file"])
-    B["read_markdown_document()"]
-    C["validate YAML metadata"]
-    D["chunk_markdown_document()"]
-    E["preview chunks"]
-    F["save metadata + chunks<br/>to PostgreSQL"]
-    G{publish?}
-    H(["IngestionResult<br/>publish=false"])
-    I["embed child chunks"]
-    J["upsert Qdrant"]
-    K["update chunk index_status<br/>and version rag_status"]
-    L(["Published for retrieval"])
-    X["mark failed:<br/>job current_step + error<br/>version rag_status=failed"]
+    A([Canonical Markdown file])
+    B[read_markdown_document]
+    C[Validate YAML metadata<br/>and Markdown body]
+    D[chunk_markdown_body]
+    E[ChunkingResult<br/>parents + children + warnings + errors]
+    F{errors present?}
+    G[Mark ingestion failed<br/>persist error details]
+    H{strict mode and<br/>warnings present?}
+    I[Stop before publish<br/>request review]
+    J[Preview chunks and warnings]
+    K[Save Parent and Child chunks<br/>to PostgreSQL]
+    L{publish?}
+    M([IngestionResult<br/>publish=false])
+    N[Build embedding text<br/>for Child chunks only]
+    O[Embed Child chunks]
+    P[Build structural Qdrant payload]
+    Q[Upsert deterministic points]
+    R[Update chunk index_status<br/>and version rag_status]
+    S([Published for retrieval])
 
-    A --> B --> C --> D --> E --> F --> G
-    G -->|false| H
-    G -->|true| I --> J --> K --> L
+    A --> B --> C --> D --> E --> F
+    F -->|yes| G
+    F -->|no| H
+    H -->|yes| I
+    H -->|no| J --> K --> L
+    L -->|false| M
+    L -->|true| N --> O --> P --> Q --> R --> S
 
-    B -. exception .-> X
-    C -. exception .-> X
-    D -. exception .-> X
-    F -. exception .-> X
-    I -. exception .-> X
-    J -. exception .-> X
+    E -. warnings do not block<br/>in default mode .-> J
+    B -. exception .-> G
+    C -. exception .-> G
+    D -. exception .-> G
+    K -. exception .-> G
+    O -. exception .-> G
+    Q -. exception .-> G
 
-    subgraph Pipeline_is_orchestrator_only
+    subgraph Orchestrator_only
         B
         D
-        F
-        I
-        J
+        K
+        O
+        Q
     end

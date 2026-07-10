@@ -1,0 +1,34 @@
+%% Oversized atomic unit splitting contract.
+
+flowchart TD
+    A[Atomic ChildUnit]
+    B{Within size limit?}
+    C[Keep one Child]
+    D{Unit type?}
+
+    E[Item or paragraph]
+    F[Split only inside this unit<br/>using safe text boundaries]
+    G[Keep logical_item_key,<br/>parent_item_key, heading_path,<br/>item_path, split_index/count]
+
+    H[Markdown table]
+    I[Split by row groups]
+    J[Repeat header + separator]
+    K[Do not cut a row<br/>share logical_table_key]
+
+    L[Fenced code]
+    M[Split at line boundaries]
+    N[Repeat valid opening/closing fence]
+    O[Do not parse code internals<br/>share logical_code_key]
+
+    P[Emit split ChildUnits<br/>in source order]
+
+    A --> B
+    B -->|yes| C --> P
+    B -->|no| D
+    D -->|item or paragraph| E --> F --> G --> P
+    D -->|table| H --> I --> J --> K --> P
+    D -->|code| L --> M --> N --> O --> P
+
+    Q{{Never cross Parent boundary}} -. invariant .-> P
+    R{{Never merge two item markers}} -. invariant .-> P
+    S{{No generic splitter<br/>across table rows or code lines}} -. invariant .-> P

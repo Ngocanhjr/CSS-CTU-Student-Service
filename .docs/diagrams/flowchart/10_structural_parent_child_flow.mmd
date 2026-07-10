@@ -1,0 +1,53 @@
+%% Sources:
+%% - 10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md
+%% - 22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md
+%% Parent/Child construction from a shared StructuralBlock stream.
+
+flowchart TD
+    A[StructuralBlock stream]
+    B{Block type?}
+
+    C[Markdown heading]
+    D[Close current Parent]
+    E[Open new Parent<br/>regardless of heading level]
+    F[Update derived heading_path]
+
+    G[numbered / lettered / bullet item]
+    H[Create a separate ChildUnit]
+    I[Assign logical_item_key]
+    J[Resolve parent_item_key<br/>from item stack]
+    K[Build item_path<br/>marker + short source label]
+
+    L[Paragraph]
+    M{Active item context?}
+    N[Attach paragraph to current<br/>item Child until next item/heading]
+    O[Create paragraph ChildUnit]
+
+    P[Markdown table or fenced code]
+    Q[Create atomic ChildUnit]
+    R[Inherit heading_path, item_path,<br/>and parent_item_key if nested]
+    S[Keep item context for following content]
+
+    T[End of Parent scan]
+    U{Any ChildUnit?}
+    V{Heading definitely<br/>structural only?}
+    W[Set context_only=true<br/>with context_only_reason]
+    X[Create heading_content Child<br/>from original heading text]
+    Y[Add warning if classification<br/>is uncertain]
+
+    A --> B
+    B -->|heading| C --> D --> E --> F --> A
+    B -->|item| G --> H --> I --> J --> K --> A
+    B -->|paragraph| L --> M
+    M -->|yes| N --> A
+    M -->|no| O --> A
+    B -->|table or code| P --> Q --> R --> S --> A
+    A --> T --> U
+    U -->|yes| Z([ParentSection + ChildUnits])
+    U -->|no| V
+    V -->|yes| W --> Z
+    V -->|no or uncertain| X --> Y --> Z
+
+    AA{{Never include child item<br/>raw content in parent item Child}} -. invariant .-> H
+    AB{{Every item marker creates<br/>at least one Child}} -. invariant .-> H
+    AC[Chapter label + chapter title<br/>same level and consecutive] -. derived context .-> F
