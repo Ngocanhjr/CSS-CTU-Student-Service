@@ -143,7 +143,7 @@ Quy tắc:
 - [ ] Table/code luôn là atomic Child riêng; table dài split theo row và lặp header; code dài split theo dòng, giữ fence và logical_code_key.
 - [ ] `legal_unit_type` chỉ gán khi có legal context; general list dùng `none`.
 - [ ] Warning không block publish mặc định; error mới block.
-- [ ] `Chunk.metadata` được phân biệt với metadata đã persist PostgreSQL.
+- [ ] `Chunk.metadata` được persist vào `document_chunks.structural_metadata` và Qdrant payload rebuild được từ PostgreSQL.
 - [ ] Qdrant payload có title/source_file/source_url, logical/parent item key, split info, chunk order, marker và level.
 - [ ] Embedding chỉ prepend ancestor item labels, không lặp current item.
 - [ ] Retrieval expansion hỗ trợ parent/child/sibling/split, deduplicate, source-order và context budget.

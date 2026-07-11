@@ -503,7 +503,7 @@ Parent khong embed trong MVP.
 Child:
 
 ```text
-numbered_item, lettered_item, bullet_item luon tao it nhat mot Child rieng.
+numbered_item va lettered_item luon tao Child rieng. Bullet ngan lien ke cung heading_path + parent_item_key co the group va luu logical_item_keys.
 Moi Child deu duoc embedding, ke ca item ngan hoac item ket thuc bang ":".
 Khong gop noi dung cua hai item khac nhau de dat child_chunk_size.
 RecursiveCharacterTextSplitter chi chay sau structural parsing.

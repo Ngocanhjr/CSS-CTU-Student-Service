@@ -7,8 +7,8 @@
 flowchart TD
     A([Markdown body validated<br/>by markdown_reader])
     B[split_body_by_page_markers]
-    C[Consume page markers<br/>and technical HTML comments]
-    D[Drop standalone OCR page number<br/>and --- only at page boundary]
+    C[page_markers.py consumes page markers<br/>into PageBlock metadata]
+    D[page_markers.py drops boundary artifacts<br/>standalone OCR page number + ---]
     E[PageBlock list]
     F[structural_parser.parse_page_blocks<br/>stateful across all pages]
     G[Recognition precedence]
@@ -21,7 +21,9 @@ flowchart TD
     N[chunk_validator]
     O([ChunkingResult])
 
-    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M --> N --> O
+    U[structural_parser.py ignores<br/>technical HTML comments]
+
+    A --> B --> C --> D --> E --> F --> U --> G --> H --> I --> J --> K --> L --> M --> N --> O
 
     G -. order .-> P[page artifact<br/>fenced code<br/>Markdown table<br/>Markdown heading<br/>numbered item<br/>lettered item<br/>bullet item<br/>paragraph]
 

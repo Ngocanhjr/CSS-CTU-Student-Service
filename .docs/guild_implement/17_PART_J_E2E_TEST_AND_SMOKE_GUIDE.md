@@ -499,7 +499,7 @@ Concrete assertions:
 - heading-only Điều 1/Điều 2/Điều 3 tạo heading_content Child hoặc context_only đúng rule;
 - Chương I + NHỮNG VẤN ĐỀ CHUNG giữ derived heading_path kết hợp;
 - heading bất thường "## Sau thời hạn đóng học phí..." sinh canonical_markdown_warning, không tự demote;
-- Điều 18 tạo numbered/lettered/bullet Child riêng, có parent_item_key và cross-page context;
+- Điều 18 tạo numbered/lettered Child riêng; bullet group đúng rule, có `logical_item_keys`, parent relation và cross-page context;
 - paragraph ownership mơ hồ tạo warning, không phải error mặc định;
 - table Điều 19 là atomic table Child;
 - legal_unit_type của legal list đúng và general list là none;

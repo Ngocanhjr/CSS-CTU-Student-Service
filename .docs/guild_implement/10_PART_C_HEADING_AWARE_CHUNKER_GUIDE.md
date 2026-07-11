@@ -126,7 +126,7 @@ Chunk.chunk_key = stable key trong memory/preview/PostgreSQL/Qdrant
 Chunk.parent_chunk_key = stable parent key trong memory/preview/repository input/Qdrant
 DocumentChunk.id = internal PostgreSQL primary key sau khi insert DB
 DocumentChunk.parent_chunk_id = internal FK sau khi repository map parent_chunk_key -> DB id
-PostgreSQL không có cột parent_chunk_key; không tuyên bố structural metadata đã persist nếu schema chưa có JSONB/cột tương ứng
+PostgreSQL persist structural metadata trong document_chunks.structural_metadata JSONB; parent relation vẫn dùng parent_chunk_id
 ```
 
 Chunker tạo stable key, không tạo DB id.
@@ -173,7 +173,7 @@ Layer 2: Parent chunker
 
 Layer 3: Child chunker
   -> nhan ParentSection.blocks
-  -> tao child theo numbered_item / lettered_item / bullet_item / table / code / paragraph boundary
+  -> numbered/lettered tạo Child riêng; bullet ngắn cùng heading_path + parent_item_key có thể group
   -> RecursiveCharacterTextSplitter chi split ben trong mot child unit qua dai
 
 Project code
@@ -614,6 +614,7 @@ class ChildUnit:
     item_level: int | None
     item_path: list[str]
     logical_item_key: str | None
+    logical_item_keys: list[str]
     parent_item_key: str | None
     logical_table_key: str | None = None
     logical_code_key: str | None = None
@@ -625,12 +626,14 @@ class ChildUnit:
 Rule cho item:
 
 ```text
-numbered_item, lettered_item, bullet_item luon tao it nhat mot Child rieng.
+numbered_item va lettered_item luon tao Child rieng.
+bullet_item ngan lien ke, cung heading_path va parent_item_key co the group vao mot Child.
+Bullet group luu logical_item_keys cua tat ca marker thanh vien theo source order.
 Item ngan va item ket thuc bang ":" van tao Child.
 Item cha co item con van tao Child rieng; item con tao Child rieng.
 Item con link ve item cha bang parent_item_key.
 Child item cha khong gom noi dung item con.
-Khong gop hai marker khac nhau vao cung mot Child.
+Khong gop hai numbered/lettered marker; bullet chi group khi dung grouping rule.
 ```
 
 `item_path` lấy xác định từ dòng item gốc:
@@ -1424,7 +1427,7 @@ Các rule dưới đây ghi đè pseudocode cũ nếu có mâu thuẫn:
 7. Table dài split theo row group và lặp header; code dài split theo dòng, giữ fence hợp lệ và logical_code_key.
 8. legal_unit_type chỉ gán khi có legal context, không suy ra chỉ từ marker.
 9. Validation report có severity; warning không block publish, error mới block theo mặc định.
-10. Chunk.metadata là metadata trong memory; không đồng nghĩa đã persist PostgreSQL.
+10. Chunk.metadata phải persist vào `document_chunks.structural_metadata` trước indexing; PostgreSQL là source of truth.
 ```
 
 `embedding_text` của item con prepend `heading_path` và ancestor item labels (`item_path[:-1]`).

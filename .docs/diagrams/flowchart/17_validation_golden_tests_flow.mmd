@@ -21,7 +21,7 @@ flowchart TD
     G -->|yes| H
     G -->|no| I
 
-    B -. invariants .-> J[Every item marker has Child<br/>no Parent-boundary spill<br/>item child has parent_item_key<br/>page marker/comment absent<br/>table/code atomic<br/>split metadata consistent<br/>Parent has Child or context_only_reason]
+    B -. invariants .-> J[Every marker is represented<br/>no Parent-boundary spill<br/>nested item requires parent_item_key<br/>top-level item may have parent_item_key=None<br/>page marker/comment absent<br/>table/code atomic<br/>bullet group has logical_item_keys<br/>split metadata consistent<br/>Parent has Child or context_only_reason]
 
     K[Runnable regression suite]
     L[Long-item fixture<br/>forces multiple splits]

@@ -254,10 +254,10 @@ item_path giu marker va nhan ngu nghia ngan lay tu dong item goc.
 Khong chi luu ["1.", "a)"].
 Khong sao chep toan bo noi dung dai cua item cha vao item_path.
 Khong dung LLM de tom tat hoac tu sinh nhan.
-logical_item_key va parent_item_key luu trong `Chunk.metadata` trong memory va truyen sang Qdrant payload.
+logical_item_key/logical_item_keys va parent_item_key persist trong `document_chunks.structural_metadata` rồi mirror sang Qdrant payload.
 Khong duoc noi PostgreSQL da persist cac field nay neu schema `document_chunks` chua co JSONB metadata.
 Khong tao migration trong pham vi guide nay.
-Khong tu tao migration.
+Migration `document_chunks.structural_metadata JSONB` là bắt buộc để re-index sau restart.
 ```
 
 Nếu item nhảy cấp, mất parent, hoặc page mới làm mất context, ghi ValidationReport warning/error tuy muc do.

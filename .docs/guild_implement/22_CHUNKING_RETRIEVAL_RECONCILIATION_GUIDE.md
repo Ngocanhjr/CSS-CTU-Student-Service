@@ -1,7 +1,7 @@
 # 22. Chunking–Retrieval Reconciliation Guide
 
 **Status:** Normative final contract  
-**Scope:** Documentation/guild only. Không sửa backend code, không migration, không đổi DB schema.
+**Scope:** Normative target contract. Backend implementation và migration phải theo contract này.
 
 Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu thuẫn, file này ưu tiên.
 
@@ -9,7 +9,8 @@ Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu t
 
 - `PageBlock.content` bắt đầu sau `current_match.end()` và kết thúc trước `next_match.start()`.
 - `<!-- page: n -->` đã được consume thành `PageBlock.page_number`; không thành StructuralBlock, paragraph hoặc embedding text.
-- HTML comment kỹ thuật bị bỏ qua.
+- `page_markers.py` chỉ consume page marker và boundary artifact để tạo `PageBlock` sạch.
+- `structural_parser.py` chịu trách nhiệm bỏ qua HTML comment kỹ thuật.
 - Số trang OCR đứng riêng và `---` chỉ bỏ khi nằm sát page boundary đã xác định; không xóa ở nội dung bình thường.
 
 ## 2. Parent Boundary — Phương Án A
@@ -46,6 +47,14 @@ Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu t
 - Table dài split theo row group, lặp header + separator, không cắt row.
 - Code dài split theo ranh giới dòng; mỗi split giữ opening/closing fence hợp lệ, cùng `logical_code_key` và `split_index/split_count`; không dùng generic splitter.
 
+## 6.1 Item Và Bullet Grouping
+
+- `numbered_item` và `lettered_item` luôn tạo Child riêng; không merge hai marker khác nhau.
+- Các `bullet_item` ngắn, liền kề, có cùng `heading_path` và cùng `parent_item_key` có thể group vào một Child.
+- Bullet group giữ thứ tự nguồn và `logical_item_keys` chứa stable key của mọi bullet thành viên.
+- Bullet không thỏa điều kiện grouping vẫn tạo Child riêng và dùng `logical_item_key`.
+- Split chỉ chạy sau grouping và không được thay đổi membership của bullet group.
+
 ## 7. `legal_unit_type`
 
 - `block_type` phản ánh hình thức marker.
@@ -59,12 +68,13 @@ Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu t
 - Paragraph ownership, heading context kép, heading dài bất thường là warning.
 - Missing page range, duplicate logical key, child thiếu parent chunk hoặc split phá boundary là error.
 
-## 9. In-Memory Metadata Và PostgreSQL
+## 9. Structural Metadata Và PostgreSQL
 
 - `Chunk.metadata` là metadata trong memory của pipeline.
-- Không tuyên bố PostgreSQL đã persist structural metadata nếu schema hiện tại không có JSONB field.
-- Structural metadata được truyền sang Qdrant payload trong task hiện tại.
-- Persist đầy đủ về PostgreSQL là future migration, ngoài phạm vi.
+- `document_chunks.structural_metadata JSONB NOT NULL DEFAULT '{}'` persist đầy đủ structural metadata trước khi index.
+- PostgreSQL là source of truth cho canonical content, relations và structural metadata.
+- Qdrant payload được rebuild từ PostgreSQL; restart/re-index không được phụ thuộc metadata chỉ còn trong process memory.
+- Migration thêm `structural_metadata` là bắt buộc trước khi contract này được xem là implemented.
 
 ## 10. Qdrant Payload
 
@@ -83,6 +93,7 @@ postgres_parent_chunk_id
 heading_path
 page_start/page_end
 logical_item_key
+logical_item_keys
 parent_item_key
 logical_table_key
 logical_code_key
@@ -96,7 +107,7 @@ legal_unit_type
 block_type
 ```
 
-Qdrant không giữ canonical content; content cuối hydrate từ PostgreSQL. PostgreSQL không có cột `parent_chunk_key`; fallback hydration đi qua `parent_chunk_id`/parent row.
+Qdrant không giữ canonical content; content cuối và structural metadata chuẩn hydrate từ PostgreSQL. `parent_chunk_key` có thể derive qua `parent_chunk_id`/parent row khi rebuild payload.
 
 ## 11. Embedding Text
 
@@ -108,13 +119,14 @@ Qdrant không giữ canonical content; content cuối hydrate từ PostgreSQL. P
 ## 12. Retrieval Structural Expansion
 
 ```text
-vector search
-→ hydrate direct hits
+Qdrant dense + PostgreSQL FTS/BM25
+→ RRF hoặc weighted fusion
+→ hydrate fused candidates từ PostgreSQL
+→ rerank
 → parent/child/sibling/split expansion
 → hydrate expanded neighbors
 → deduplicate
 → source-order
-→ optional rerank
 → context budget
 ```
 
@@ -147,6 +159,8 @@ Sau khi cập nhật phải search toàn guild để bảo đảm không còn:
 - table/code append vào Child item;
 - mọi numbered item mặc định là legal clause;
 - mọi warning đều block publish;
-- tuyên bố PostgreSQL đã persist metadata chưa có schema;
+- structural metadata chỉ tồn tại trong memory/Qdrant;
+- migration thiếu `document_chunks.structural_metadata`;
 - Qdrant payload thiếu structural fields;
+- retrieval thiếu PostgreSQL FTS/BM25 hoặc fusion;
 - retrieval chỉ vector search + hydrate mà không structural expansion.

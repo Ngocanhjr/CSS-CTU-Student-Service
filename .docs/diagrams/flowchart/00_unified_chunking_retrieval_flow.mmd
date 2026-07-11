@@ -17,7 +17,7 @@ flowchart TD
     M[chunk_validator]
     N{Any error?}
     O([Stop publish<br/>return errors])
-    P[(PostgreSQL<br/>canonical Parent/Child content)]
+    P[(PostgreSQL<br/>canonical content + structural metadata)]
     Q{publish?}
     R([Preview-only result])
     S[Embed Child chunks]
@@ -31,17 +31,26 @@ flowchart TD
     Q -->|yes| S --> T --> U
 
     V([User query])
-    W[Initial filtered retrieval<br/>vector or hybrid as configured]
-    X[Qdrant candidates<br/>with structural metadata]
-    Y[Hydrate canonical content<br/>from PostgreSQL]
-    Z[Structural expansion<br/>parent, children, siblings, split neighbors]
-    AA[Deduplicate + source order<br/>rerank + context budget]
-    AB[Build citations]
-    AC([Answer context])
+    W[Apply shared hard filters]
+    X[(Qdrant dense candidates)]
+    Y[(PostgreSQL FTS/BM25 candidates)]
+    Z[RRF or weighted fusion]
+    AA[Hydrate fused canonical content<br/>and structural metadata from PostgreSQL]
+    AB[Rerank fused candidates]
+    AC[Structural expansion<br/>parent, children, siblings, split neighbors]
+    AD[Deduplicate + source order<br/>context budget]
+    AE[Build citations]
+    AF([Answer context])
 
-    V --> W --> X --> Y --> Z --> AA --> AB --> AC
-    T -. searchable Child vectors .-> W
-    P -. canonical content .-> Y
+    V --> W
+    W --> X
+    W --> Y
+    X --> Z
+    Y --> Z
+    Z --> AA --> AB --> AC --> AD --> AE --> AF
+    T -. searchable Child vectors .-> X
+    P -. FTS corpus + canonical source .-> Y
+    P -. canonical content + structural metadata .-> AA
 
     D -. never reparses per Parent .-> H
     E -. warnings continue by default<br/>errors block publish .-> M

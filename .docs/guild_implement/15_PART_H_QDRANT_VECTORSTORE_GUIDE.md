@@ -235,6 +235,7 @@ def build_chunk_payload(
     legal_unit_type: str = "none",
     block_type: str | None = None,
     logical_item_key: str | None = None,
+    logical_item_keys: list[str] | None = None,
     parent_item_key: str | None = None,
     logical_table_key: str | None = None,
     logical_code_key: str | None = None,
@@ -269,6 +270,7 @@ def build_chunk_payload(
         "legal_unit_type": legal_unit_type,
         "block_type": block_type,
         "logical_item_key": logical_item_key,
+        "logical_item_keys": logical_item_keys or [],
         "parent_item_key": parent_item_key,
         "logical_table_key": logical_table_key,
         "logical_code_key": logical_code_key,
@@ -288,12 +290,12 @@ source_file = canonical_markdown_path hoặc source_path portable
 source_url  = DocumentMetadata.source_url
 ```
 
-Với child chunks, lấy `item_path`, `legal_unit_type`, `block_type`, `logical_item_key`,
+Với child chunks, lấy `item_path`, `legal_unit_type`, `block_type`, `logical_item_key`, `logical_item_keys`,
 `parent_item_key`, `logical_table_key`, `logical_code_key`, `split_index`, `split_count`,
 `item_marker`, `item_level` từ `Chunk.metadata`;
 `chunk_index` lấy từ Chunk. Không dùng Qdrant payload làm canonical content; payload chỉ để
-filter/trace/rerank và tìm structural neighbors. `Chunk.metadata` là metadata trong memory,
-không phải bằng chứng các field đã persist PostgreSQL.
+filter/trace/rerank và tìm structural neighbors. Trước upsert, structural metadata phải được persist
+trong `document_chunks.structural_metadata`; payload phải có thể rebuild chỉ từ PostgreSQL.
 
 ---
 

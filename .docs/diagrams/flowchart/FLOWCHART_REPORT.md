@@ -9,8 +9,10 @@ validated Markdown
 → ParentBuilder + ChildBuilder dùng chung StructuralBlock[]
 → split chỉ trong atomic unit
 → Parent/Child Chunk
+→ persist canonical content + structural metadata vào PostgreSQL
 → Child embedding + structural Qdrant payload
-→ PostgreSQL hydration
+→ Qdrant dense + PostgreSQL FTS/BM25
+→ RRF/weighted fusion + rerank + PostgreSQL hydration
 → structural retrieval expansion
 ```
 
@@ -26,7 +28,7 @@ validated Markdown
 | `07_13_ingestion_pipeline_publish_modes_flow.mmd` | Orchestration, warning/error severity, preview và publish modes. |
 | `08_chunk_key_db_qdrant_contract_flow.mmd` | Stable keys, PostgreSQL canonical content, Qdrant structural metadata và hydration. |
 | `14_15_embedding_qdrant_indexing_flow.mmd` | Child embedding text, deterministic point id và payload đầy đủ. |
-| `16_retrieval_citation_flow.mmd` | Retrieval, PostgreSQL hydration, parent/child/sibling/split expansion và citation. |
+| `16_retrieval_citation_flow.mmd` | Hybrid retrieval thật sự, fusion, rerank, PostgreSQL hydration, structural expansion và citation. |
 | `17_validation_golden_tests_flow.mmd` | Validation severity, invariants và runnable regression/golden tests. |
 
 ## Flow cũ đã loại bỏ
@@ -47,10 +49,10 @@ validated Markdown
 - Mỗi Markdown heading mở một Parent mới; Parent cũ đóng trước heading tiếp theo.
 - Heading-only Parent: nội dung độc lập tạo `heading_content` Child; heading cấu trúc dùng `context_only_reason`.
 - `Chương I` + tên chương cùng cấp có derived context kết hợp nhưng không sửa raw Markdown.
-- Mọi numbered/lettered/bullet item tạo Child riêng và có logical relation.
+- Numbered/lettered item tạo Child riêng; bullet ngắn liền kề cùng `heading_path` + `parent_item_key` có thể group và giữ `logical_item_keys`.
 - Table/code luôn là atomic Child riêng, kể cả khi nằm trong item.
 - Table dài split theo row group; code dài split theo line và giữ fence hợp lệ.
-- PostgreSQL cung cấp canonical content; Qdrant giữ structural metadata trong giai đoạn chưa migration schema.
+- PostgreSQL là source of truth cho canonical content, relations và `structural_metadata`; Qdrant payload phải rebuild được sau restart.
 - Retrieval expansion có điều kiện, sau đó deduplicate, source-order, rerank và context budget.
 
 ## Lưu ý triển khai

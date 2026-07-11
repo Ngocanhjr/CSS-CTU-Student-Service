@@ -6,7 +6,7 @@
 flowchart TD
     A([Canonical Markdown file])
     B[read_markdown_document]
-    C[Validate YAML metadata<br/>and Markdown body]
+    C[Validate YAML/body + index eligibility<br/>ocr_status = done AND<br/>review_status = approved]
     D[chunk_markdown_body]
     E[ChunkingResult<br/>parents + children + warnings + errors]
     F{errors present?}

@@ -6,9 +6,9 @@ flowchart TD
     C[Keep one Child]
     D{Unit type?}
 
-    E[Item or paragraph]
+    E[Numbered/lettered item,<br/>bullet group, or paragraph]
     F[Split only inside this unit<br/>using safe text boundaries]
-    G[Keep logical_item_key,<br/>parent_item_key, heading_path,<br/>item_path, split_index/count]
+    G[Keep logical_item_key or logical_item_keys,<br/>parent_item_key, heading_path,<br/>item_path, split_index/count]
 
     H[Markdown table]
     I[Split by row groups]
@@ -30,5 +30,5 @@ flowchart TD
     D -->|code| L --> M --> N --> O --> P
 
     Q{{Never cross Parent boundary}} -. invariant .-> P
-    R{{Never merge two item markers}} -. invariant .-> P
+    R{{Never merge numbered/lettered markers<br/>bullet grouping only occurs before split<br/>under the grouping rule}} -. invariant .-> P
     S{{No generic splitter<br/>across table rows or code lines}} -. invariant .-> P

@@ -183,6 +183,9 @@ Domain = Literal[
     "vh_xh",
     "ne_nep",
     "unknown"
+    
+    "nghi_hoc"
+    "dinh_chi"
 ]
 
 signer_name = Literal[

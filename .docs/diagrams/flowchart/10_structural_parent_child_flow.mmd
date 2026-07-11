@@ -12,11 +12,16 @@ flowchart TD
     E[Open new Parent<br/>regardless of heading level]
     F[Update derived heading_path]
 
-    G[numbered / lettered / bullet item]
+    G[numbered or lettered item]
     H[Create a separate ChildUnit]
     I[Assign logical_item_key]
     J[Resolve parent_item_key<br/>from item stack]
     K[Build item_path<br/>marker + short source label]
+
+    BA[bullet item]
+    BB{Short adjacent bullets with same<br/>heading_path + parent_item_key?}
+    BC[Group bullets into one ChildUnit]
+    BD[Assign logical_item_keys<br/>for all grouped bullets]
 
     L[Paragraph]
     M{Active item context?}
@@ -37,7 +42,10 @@ flowchart TD
 
     A --> B
     B -->|heading| C --> D --> E --> F --> A
-    B -->|item| G --> H --> I --> J --> K --> A
+    B -->|numbered or lettered| G --> H --> I --> J --> K --> A
+    B -->|bullet| BA --> BB
+    BB -->|yes| BC --> BD --> J
+    BB -->|no| H
     B -->|paragraph| L --> M
     M -->|yes| N --> A
     M -->|no| O --> A
@@ -49,5 +57,5 @@ flowchart TD
     V -->|no or uncertain| X --> Y --> Z
 
     AA{{Never include child item<br/>raw content in parent item Child}} -. invariant .-> H
-    AB{{Every item marker creates<br/>at least one Child}} -. invariant .-> H
+    AB{{Every marker is represented<br/>numbered/lettered stay separate<br/>eligible bullets may share a Child}} -. invariant .-> H
     AC[Chapter label + chapter title<br/>same level and consecutive] -. derived context .-> F

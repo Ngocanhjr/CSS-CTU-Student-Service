@@ -97,6 +97,7 @@ class RetrievalResult:
     legal_unit_type: str
     block_type: str | None = None
     logical_item_key: str | None = None
+    logical_item_keys: list[str] | None = None
     parent_item_key: str | None = None
     logical_table_key: str | None = None
     logical_code_key: str | None = None
@@ -108,7 +109,21 @@ class RetrievalResult:
     expansion_reason: ExpansionReason = "direct_hit"
 ```
 
-Không thêm các structural field này vào PostgreSQL trong task hiện tại. Chúng được giữ trong Qdrant payload và truyền xuyên suốt hydration/expansion.
+Các structural field được persist trong `document_chunks.structural_metadata` và mirror sang Qdrant payload. Hydration lấy PostgreSQL làm source of truth.
+
+### Hybrid retrieval bắt buộc
+
+```text
+resolved query + shared hard filters
+→ Qdrant dense candidates
+  + PostgreSQL FTS/BM25 candidates
+→ RRF hoặc weighted fusion
+→ hydrate fused candidates từ PostgreSQL
+→ rerank
+→ structural expansion và context budget
+```
+
+Không gọi luồng chỉ-Qdrant là hybrid retrieval. Dense và sparse phải dùng cùng eligibility/student filters trước fusion.
 
 ---
 
@@ -468,6 +483,7 @@ item_path
 legal_unit_type
 block_type
 logical_item_key
+logical_item_keys
 parent_item_key
 logical_table_key
 logical_code_key
@@ -512,6 +528,7 @@ async def hydrate_langchain_documents(
         legal_unit_type = metadata.get("legal_unit_type", "none")
         block_type = metadata.get("block_type")
         logical_item_key = metadata.get("logical_item_key")
+        logical_item_keys = metadata.get("logical_item_keys") or []
         parent_item_key = metadata.get("parent_item_key")
         logical_table_key = metadata.get("logical_table_key")
         logical_code_key = metadata.get("logical_code_key")
@@ -560,6 +577,7 @@ async def hydrate_langchain_documents(
                 legal_unit_type=legal_unit_type,
                 block_type=block_type,
                 logical_item_key=logical_item_key,
+                logical_item_keys=logical_item_keys,
                 parent_item_key=parent_item_key,
                 logical_table_key=logical_table_key,
                 logical_code_key=logical_code_key,
@@ -882,13 +900,14 @@ Fallback sang heading_path trong build_citation.
 Flow production bắt buộc:
 
 ```text
-vector search
-→ hydrate canonical direct hits từ PostgreSQL
+Qdrant dense + PostgreSQL FTS/BM25
+→ RRF hoặc weighted fusion
+→ hydrate fused candidates từ PostgreSQL
+→ rerank
 → structural expansion bằng Qdrant structural payload
 → hydrate expanded neighbors từ PostgreSQL
 → deduplicate theo chunk_key
 → source-order theo chunk_index
-→ optional rerank
 → enforce context budget
 ```
 

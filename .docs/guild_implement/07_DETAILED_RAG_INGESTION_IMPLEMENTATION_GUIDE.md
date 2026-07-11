@@ -536,10 +536,10 @@ paragraph ro rang doc lap
 Rule bắt buộc:
 
 ```text
-Moi numbered_item, lettered_item, bullet_item luon tao it nhat mot Child rieng.
+Moi numbered_item va lettered_item luon tao Child rieng. Bullet ngan lien ke cung heading_path + parent_item_key co the group va luu logical_item_keys.
 Item ngan hoac item ket thuc bang ":" van tao Child.
 Item cha co item con van tao Child rieng; item con tao Child rieng.
-Item con link ve item cha bang parent_item_key trong Chunk.metadata in-memory va Qdrant payload; khong tu tao migration neu schema chua co cot/JSONB.
+Item con link ve item cha bang parent_item_key; structural metadata phai persist trong document_chunks.structural_metadata JSONB truoc khi build Qdrant payload.
 item_path giu marker va nhan ngan tu dong item goc, vi du ["1. Ho so gom:", "a) Don dang ky."].
 Khong chi luu ["1.", "a)"] va khong sao chep toan bo noi dung dai cua item cha vao item_path.
 ```
@@ -1520,7 +1520,7 @@ Các điểm P0:
 - Table/code là atomic Child riêng.
 - legal_unit_type chỉ gán trong legal context.
 - warning không block publish; error mới block mặc định.
-- Chunk.metadata trong memory không đồng nghĩa đã persist PostgreSQL.
+- PostgreSQL persist `Chunk.metadata` chuẩn trong `document_chunks.structural_metadata`; Qdrant payload phải rebuild được sau restart.
 - Qdrant payload có structural fields để retrieval expansion.
 - Retrieval có parent/child/sibling/split expansion trước rerank/context budget.
 ```
