@@ -97,6 +97,7 @@ class RetrievalResult:
     legal_unit_type: str
     block_type: str | None = None
     logical_item_key: str | None = None
+    logical_item_keys: list[str] | None = None
     parent_item_key: str | None = None
     logical_table_key: str | None = None
     logical_code_key: str | None = None
@@ -468,6 +469,7 @@ item_path
 legal_unit_type
 block_type
 logical_item_key
+logical_item_keys
 parent_item_key
 logical_table_key
 logical_code_key
@@ -512,6 +514,7 @@ async def hydrate_langchain_documents(
         legal_unit_type = metadata.get("legal_unit_type", "none")
         block_type = metadata.get("block_type")
         logical_item_key = metadata.get("logical_item_key")
+        logical_item_keys = metadata.get("logical_item_keys") or ([logical_item_key] if logical_item_key else [])
         parent_item_key = metadata.get("parent_item_key")
         logical_table_key = metadata.get("logical_table_key")
         logical_code_key = metadata.get("logical_code_key")
@@ -560,6 +563,7 @@ async def hydrate_langchain_documents(
                 legal_unit_type=legal_unit_type,
                 block_type=block_type,
                 logical_item_key=logical_item_key,
+                logical_item_keys=logical_item_keys,
                 parent_item_key=parent_item_key,
                 logical_table_key=logical_table_key,
                 logical_code_key=logical_code_key,
@@ -863,18 +867,18 @@ Xử lý:
 Endpoint student khong cho override filter.
 ```
 
-### Lỗi: citation không có page
+### Citation Fallback Page 1
 
 Nguyên nhân:
 
 ```text
-Markdown thieu page marker.
+Markdown khong co page marker nen fallback citation page 1.
 ```
 
 Xử lý:
 
 ```text
-Fallback sang heading_path trong build_citation.
+Trả citation page 1. Với tài liệu nhiều trang, bổ sung marker khi review để citation chính xác hơn.
 ```
 
 ## 15. Structural Expansion Sau Initial Retrieval
@@ -1002,6 +1006,7 @@ Rules:
 
 ```text
 - Hit child lấy logical item cha bằng parent_item_key.
+- Hit bullet_group dùng parent_item_key để expansion; logical_item_keys chỉ trace/citation từng bullet.
 - Hit item cha + list query lấy direct children.
 - List query có thể lấy siblings cùng parent_item_key.
 - Hit split lấy adjacent/cùng logical_item_key trong budget.

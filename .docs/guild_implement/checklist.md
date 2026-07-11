@@ -53,7 +53,7 @@ Quy ước trạng thái:
 | \[\~\]     | `06_GiaiDoanTiepTheo.md`                            | Roadmap tổng                   | Có thể cập nhật sau khi xong DB baseline.                                                          |
 | \[\~\]     | `07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md` | Ingestion pipeline tổng thể    | Là orchestration, làm sau Guide 9/10/12 cơ bản.                                                    |
 | \[\~\]     | `08_PART_A_DB_SCHEMA_CONTRACT_GUIDE.md`             | DB/schema contract             | Đã chốt 9 bảng và nullable chính.                                                                  |
-| \[ \]      | `09_PART_B_MARKDOWN_READER_GUIDE.md`                | Markdown reader/frontmatter    | Làm trước repository để có `DocumentMetadata` sạch từ YAML/body.                                   |
+| \[x\]      | `09_PART_B_MARKDOWN_READER_GUIDE.md`                | Markdown reader/frontmatter    | Làm trước repository để có `DocumentMetadata` sạch từ YAML/body.                                   |
 | \[ x\]     | `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md`      | Pre-chunk structural parsing   | Làm sau Guide 9, trước Guide 10 để page/heading/item/table/code đúng trước chunk.                  |
 | \[ \]      | `10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md`          | Heading-aware chunker          | Làm sau Guide 9 để biến body thành parent/child chunks.                                            |
 | \[ x\]     | `10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md`            | Page marker helper             | Làm cùng chunking nếu cần page range.                                                              |
@@ -144,7 +144,7 @@ Quy tắc:
 - [ ] `legal_unit_type` chỉ gán khi có legal context; general list dùng `none`.
 - [ ] Warning không block publish mặc định; error mới block.
 - [ ] `Chunk.metadata` được phân biệt với metadata đã persist PostgreSQL.
-- [ ] Qdrant payload có title/source_file/source_url, logical/parent item key, split info, chunk order, marker và level.
+- [ ] Qdrant payload có title/source_file/source_url, logical/parent item key, logical_item_keys cho bullet group, split info, chunk order, marker và level.
 - [ ] Embedding chỉ prepend ancestor item labels, không lặp current item.
 - [ ] Retrieval expansion hỗ trợ parent/child/sibling/split, deduplicate, source-order và context budget.
 - [ ] Hydration không truy cập `chunk.parent_chunk_key`; fallback qua `parent_chunk_id`/parent row.

@@ -38,8 +38,8 @@ Markdown body da validate tu markdown_reader
        - parent_chunk_key = None
   -> child_chunker.build_child_units()
        - nhan ParentSection.blocks, khong parse lai parent_chunk.content
-       - child boundary theo numbered_item / lettered_item / bullet_item
-       - moi item tao Child rieng, ke ca item ngan hoac ket thuc bang ":"
+       - StructuralBlock boundary theo numbered_item / lettered_item / bullet_item
+       - numbered/lettered tao Child rieng; bullet ngan lien ke co the gop khi cung heading_path/parent_item_key
        - table/code tao atomic Child rieng; paragraph gan theo ownership/context da chot
        - item_path, logical_item_key, parent_item_key va legal_unit_type duoc tinh truoc split
   -> child_chunker.make_child_chunks()
@@ -83,7 +83,7 @@ chatbot/backend/app/ingestion/parsing/structural_parser.py
 - ValidationReport
 - StructuralParseResult
 - parse_page_blocks()
-- classify_line()
+- `_classify_line()`
 - build_item_path()
 
 chatbot/backend/app/ingestion/chunking/parent_chunker.py
@@ -186,25 +186,14 @@ Parser nhận `PageBlock[]` đã tách sẵn. Trong từng `PageBlock`, order b�
 8. paragraph
 ```
 
-Page marker không đi vào `classify_line()`: nó đã được consume thành `PageBlock.page_number`.
+Page marker không đi vào `_classify_line()`: nó đã được consume thành `PageBlock.page_number`.
 HTML comment khác không thành paragraph và không được đưa vào embedding.
 
-Code/table da duoc consume atomic truoc classifier. Classifier chi xu ly mot dong thuong:
-
-```python
-def classify_line(line: str) -> str:
-    if is_html_comment(line):
-        return "comment"
-    if MARKDOWN_HEADING_RE.match(line):
-        return "heading"
-    if NUMBERED_ITEM_RE.match(line):
-        return "numbered_item"
-    if LETTERED_ITEM_RE.match(line):
-        return "lettered_item"
-    if BULLET_ITEM_RE.match(line):
-        return "bullet_item"
-    return "paragraph"
-```
+Code/table/comment/paragraph da duoc outer loop xu ly truoc classifier.
+`_classify_line()` chi nhan heading/item va tra
+`tuple[StructuralBlock, ValidationReport | None]`. Implementation chuan, gom regex order,
+`item_level`, `parent_item_key`, `item_path`, legal context va warning
+`item_level_jump`, nam trong Guide 09A. Khong duy tri classifier thu hai tai file nay.
 
 `MARKDOWN_HEADING_RE` phải chạy trước item regex.
 
@@ -254,7 +243,7 @@ item_path giu marker va nhan ngu nghia ngan lay tu dong item goc.
 Khong chi luu ["1.", "a)"].
 Khong sao chep toan bo noi dung dai cua item cha vao item_path.
 Khong dung LLM de tom tat hoac tu sinh nhan.
-logical_item_key va parent_item_key luu trong `Chunk.metadata` trong memory va truyen sang Qdrant payload.
+logical_item_key, logical_item_keys va parent_item_key luu trong `Chunk.metadata` trong memory va truyen sang Qdrant payload.
 Khong duoc noi PostgreSQL da persist cac field nay neu schema `document_chunks` chua co JSONB metadata.
 Khong tao migration trong pham vi guide nay.
 Khong tu tao migration.
@@ -277,8 +266,10 @@ bullet_item
 Rule:
 
 ```text
-Moi item la mot child unit rieng, ke ca item ngan hoac ket thuc bang ":".
-Khong gop hai item khac nhau de dat chunk_size.
+StructuralBlock khong phai Chunk. numbered_item/lettered_item la ChildUnit rieng, ke ca item ngan hoac ket thuc bang ":".
+Chi gop bullet ngan lien ke khi cung heading_path, parent_item_key va tong content khong vuot chunk_size.
+Khong gop numbered/lettered; khong gop bullet khac parent, qua table/code/paragraph/heading.
+Bullet group giu logical_item_keys cua tat ca bullet thanh vien.
 Item cha co item con van tao Child rieng.
 Item con tao Child rieng va link ve item cha bang parent_item_key.
 Item cha dong thoi lam context cho item con trong embedding_text co gioi han.
@@ -335,6 +326,7 @@ page_end
 parent_chunk_key
 block_type
 logical_item_key
+logical_item_keys
 parent_item_key
 split_index
 split_count
@@ -375,7 +367,7 @@ Không thêm thông tin suy diễn, không tự tóm tắt. Raw content của Ch
 
 ## 10. Tests Cần Có
 
-- [ ] Danh sách 5 mục dưới một heading tạo 1 parent và 5 child.
+- [ ] Danh sách 5 numbered/lettered item dưới một heading tạo 1 parent và 5 child.
 - [ ] Item không bị convert thành heading.
 - [ ] `### 1. Mục đích` vẫn là heading.
 - [ ] `### 1) Phạm vi` vẫn là heading.
@@ -389,10 +381,10 @@ Không thêm thông tin suy diễn, không tự tóm tắt. Raw content của Ch
 - [ ] Item cha có item con không chứa nội dung item con.
 - [ ] Item con có `parent_item_key`.
 - [ ] `item_path` giữ marker và nhãn ngắn, không chỉ lưu marker.
-- [ ] Bullet `-`, `+`, `*` tạo atomic child.
+- [ ] Mỗi bullet tạo StructuralBlock; bullet ngắn đủ điều kiện có thể gộp Child và giữ `logical_item_keys`.
 - [ ] Item quá dài chỉ split nội bộ và giữ `logical_item_key`.
 - [ ] Split child có `split_index` và `split_count`.
-- [ ] Không child nào chứa nội dung của hai item khác nhau.
+- [ ] Không Child chứa hai numbered/lettered item hoặc bullet khác parent; bullet group hợp lệ là ngoại lệ.
 - [ ] Marker trong table không bị parse thành item.
 - [ ] Marker trong fenced code không bị parse thành item.
 - [ ] Nội dung trước heading đầu tiên thuộc `document-root` parent.

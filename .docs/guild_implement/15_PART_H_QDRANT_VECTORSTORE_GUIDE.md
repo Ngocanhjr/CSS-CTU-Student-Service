@@ -235,6 +235,7 @@ def build_chunk_payload(
     legal_unit_type: str = "none",
     block_type: str | None = None,
     logical_item_key: str | None = None,
+    logical_item_keys: list[str] | None = None,
     parent_item_key: str | None = None,
     logical_table_key: str | None = None,
     logical_code_key: str | None = None,
@@ -269,6 +270,7 @@ def build_chunk_payload(
         "legal_unit_type": legal_unit_type,
         "block_type": block_type,
         "logical_item_key": logical_item_key,
+        "logical_item_keys": logical_item_keys or ([logical_item_key] if logical_item_key else []),
         "parent_item_key": parent_item_key,
         "logical_table_key": logical_table_key,
         "logical_code_key": logical_code_key,
@@ -288,7 +290,7 @@ source_file = canonical_markdown_path hoặc source_path portable
 source_url  = DocumentMetadata.source_url
 ```
 
-Với child chunks, lấy `item_path`, `legal_unit_type`, `block_type`, `logical_item_key`,
+Với child chunks, lấy `item_path`, `legal_unit_type`, `block_type`, `logical_item_key`, `logical_item_keys`,
 `parent_item_key`, `logical_table_key`, `logical_code_key`, `split_index`, `split_count`,
 `item_marker`, `item_level` từ `Chunk.metadata`;
 `chunk_index` lấy từ Chunk. Không dùng Qdrant payload làm canonical content; payload chỉ để
@@ -521,6 +523,7 @@ def test_payload_contains_trace_fields():
     assert payload["item_path"] == ["Khoan 1", "Diem a)"]
     assert payload["legal_unit_type"] == "point"
     assert payload["logical_item_key"] == "item-a"
+    assert payload["logical_item_keys"] == ["item-a"]
     assert payload["parent_item_key"] == "item-1"
     assert payload["split_index"] == 0
     assert payload["split_count"] == 1

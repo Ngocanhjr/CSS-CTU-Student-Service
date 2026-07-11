@@ -60,7 +60,7 @@ class DocumentVersionStatusFields(StrictSchema):
     ocr_status: OcrStatus = "not_started"
     review_status: ReviewStatus = "not_reviewed"
     rag_status: RagStatus = "not_indexed"
-    status_note: str = ""
+    status_note: str | None = None
     
 class DocumentVersionMetadata(DocumentVersionStatusFields):   
     """

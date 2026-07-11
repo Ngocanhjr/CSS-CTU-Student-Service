@@ -231,4 +231,14 @@ responsible_department = Literal[
     "NHCSXH"    # Ngân hàng Chính sách xã hội
 ]
 
+BlockType = Literal[
+    "heading",
+    "numbered_item",
+    "lettered_item",
+    "bullet_item",
+    "paragraph",
+    "table",
+    "code",
+]
 
+Severity = Literal["warning", "error"]

@@ -149,6 +149,7 @@ Mỗi point trong Qdrant cần có payload:
     "heading_path": chunk.heading_path,
     "item_path": (chunk.metadata or {}).get("item_path", []),
     "logical_item_key": (chunk.metadata or {}).get("logical_item_key"),
+    "logical_item_keys": (chunk.metadata or {}).get("logical_item_keys", []),
     "parent_item_key": (chunk.metadata or {}).get("parent_item_key"),
     "split_index": (chunk.metadata or {}).get("split_index", 0),
     "split_count": (chunk.metadata or {}).get("split_count", 1),
@@ -659,6 +660,7 @@ class QdrantChunkPayload(BaseModel):
     heading_path: list[str]
     item_path: list[str] = []
     logical_item_key: str | None = None
+    logical_item_keys: list[str] = []
     parent_item_key: str | None = None
     split_index: int = 0
     split_count: int = 1
@@ -809,6 +811,7 @@ def build_smoke_payload(document: MarkdownDocument, chunk: Chunk) -> dict:
         heading_path=chunk.heading_path,
         item_path=(chunk.metadata or {}).get("item_path", []),
         logical_item_key=(chunk.metadata or {}).get("logical_item_key"),
+        logical_item_keys=(chunk.metadata or {}).get("logical_item_keys", []),
         parent_item_key=(chunk.metadata or {}).get("parent_item_key"),
         split_index=(chunk.metadata or {}).get("split_index", 0),
         split_count=(chunk.metadata or {}).get("split_count", 1),

@@ -43,7 +43,7 @@ Quy ước:
 
 ```text
 page_start/page_end/token_count khong duoc null trong Chunk.
-Neu khong tim duoc page marker va khong co fallback, helper phai raise ValueError.
+Neu Markdown body khong co page marker, tao mot PageBlock(page_number=1, content=body).
 Khong tao module rieng page_blocks.py; PageBlock nam chung trong page_markers.py.
 ```
 
@@ -123,21 +123,19 @@ def extract_page_range(text: str) -> tuple[int | None, int | None]:
 def require_page_range(
     text: str,
     *,
-    fallback: tuple[int, int] | None = None,
+    fallback: tuple[int, int] = (1, 1),
 ) -> tuple[int, int]:
     """Legacy/debug helper; normative chunking propagates page metadata from blocks."""
     page_start, page_end = extract_page_range(text)
     if page_start is not None and page_end is not None:
         return page_start, page_end
-    if fallback is not None:
-        return fallback
-    raise ValueError("Chunk content requires page marker before chunking")
+    return fallback
 
 
 def split_body_by_page_markers(body: str) -> list[PageBlock]:
     matches = list(PAGE_RE.finditer(body))
     if not matches:
-        raise ValueError("Markdown body requires page marker before chunking")
+        return [PageBlock(page_number=1, content=body.strip())] if body.strip() else []
 
     blocks: list[PageBlock] = []
     for index, match in enumerate(matches):
@@ -200,8 +198,6 @@ chatbot/backend/test/ingestion/test_page_markers.py
 Tests:
 
 ```python
-import pytest
-
 from app.ingestion.parsing.page_markers import (
     extract_page_numbers,
     extract_page_range,
@@ -230,9 +226,14 @@ def test_require_page_range_uses_fallback():
     assert require_page_range("No marker", fallback=(3, 4)) == (3, 4)
 
 
-def test_require_page_range_rejects_missing_marker_without_fallback():
-    with pytest.raises(ValueError, match="page marker"):
-        require_page_range("No marker")
+def test_require_page_range_defaults_to_page_one():
+    assert require_page_range("No marker") == (1, 1)
+
+
+def test_split_body_without_marker_defaults_to_page_one():
+    blocks = split_body_by_page_markers("Noi dung Markdown native")
+
+    assert blocks == [PageBlock(page_number=1, content="Noi dung Markdown native")]
 
 
 def test_split_body_by_page_markers():
@@ -299,55 +300,3 @@ HTML comment kỹ thuật không tạo StructuralBlock, paragraph Child hoặc e
 Số trang OCR đứng riêng và dấu --- chỉ được bỏ khi nằm sát page boundary đã xác định.
 Không được xóa standalone number hoặc horizontal rule ở nội dung bình thường.
 ```
-
-
-
-Note done
-Được. Theo guild hiện tại, **nên bỏ luôn `require_page_range()` khỏi 10A**.
-
-Vì flow mới đã chốt:
-
-```
-Markdown body
--> split_body_by_page_markers()
--> PageBlock(page_number, content không còn marker)
--> parse_page_blocks()
--> StructuralBlock.page_start/page_end
--> ParentSection/ChildUnit/Chunk kế thừa page metadata
-```
-
-Nên không còn chỗ hợp lý để gọi:
-
-```
-require_page_range(content)
-```
-
-Nếu giữ lại, nó gây nhiễu vì người implement dễ hiểu nhầm là parent/child content vẫn cần dò `<!-- page: n -->`.
-
-Nên trong `10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md`, sửa như sau:
-
-- Xóa hàm `extract_page_range()`.
-- Xóa hàm `require_page_range()`.
-- Xóa tests:
-    - `test_extract_page_range`
-    - `test_extract_page_range_missing_marker`
-    - `test_require_page_range_uses_fallback`
-    - `test_require_page_range_rejects_missing_marker_without_fallback`
-- Giữ:
-    - `PAGE_RE`
-    - `PageBlock`
-    - `strip_page_boundary_artifacts()`
-    - `extract_page_numbers()` nếu còn muốn test marker detection
-    - `split_body_by_page_markers()`
-
-Sau khi bỏ, contract 10A sạch hơn:
-
-```
-page_markers.py chỉ làm:
-- nhận diện page marker;
-- split Markdown body thành PageBlock;
-- consume marker khỏi PageBlock.content;
-- giữ page_number làm metadata.
-```
-
-Không còn page-range parsing từ text nữa.

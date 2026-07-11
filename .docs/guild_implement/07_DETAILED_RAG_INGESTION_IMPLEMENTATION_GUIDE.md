@@ -258,7 +258,7 @@ DocumentChunk.token_count
 Nếu DB bắt buộc non-null, chunker phải luôn gán giá trị fallback. Khuyến nghị MVP:
 
 ```text
-Cho phép NULL, log warning nếu không có page marker.
+Khong co page marker: fallback page_start/page_end = 1.
 ```
 
 ### 4.5. Done khi
@@ -536,8 +536,10 @@ paragraph ro rang doc lap
 Rule bắt buộc:
 
 ```text
-Moi numbered_item, lettered_item, bullet_item luon tao it nhat mot Child rieng.
-Item ngan hoac item ket thuc bang ":" van tao Child.
+StructuralBlock khong phai Chunk. Parser tao moi numbered_item, lettered_item, bullet_item thanh block rieng.
+numbered_item/lettered_item, ke ca item ngan hoac ket thuc bang ":", luon tao Child rieng.
+bullet ngan lien ke chi duoc gop boi child_chunker khi cung heading_path va parent_item_key;
+chunk gop giu logical_item_keys cua tat ca bullet thanh vien.
 Item cha co item con van tao Child rieng; item con tao Child rieng.
 Item con link ve item cha bang parent_item_key trong Chunk.metadata in-memory va Qdrant payload; khong tu tao migration neu schema chua co cot/JSONB.
 item_path giu marker va nhan ngan tu dong item goc, vi du ["1. Ho so gom:", "a) Don dang ky."].

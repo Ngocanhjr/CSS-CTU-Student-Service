@@ -9,6 +9,7 @@ Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu t
 
 - `PageBlock.content` bắt đầu sau `current_match.end()` và kết thúc trước `next_match.start()`.
 - `<!-- page: n -->` đã được consume thành `PageBlock.page_number`; không thành StructuralBlock, paragraph hoặc embedding text.
+- Markdown không có page marker tạo một `PageBlock(page_number=1, content=body)`; citation dùng page 1.
 - HTML comment kỹ thuật bị bỏ qua.
 - Số trang OCR đứng riêng và `---` chỉ bỏ khi nằm sát page boundary đã xác định; không xóa ở nội dung bình thường.
 
@@ -45,6 +46,14 @@ Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu t
 - Fenced code không có closing fence tạo `unclosed_code_fence` error; không được parse các dòng bên trong thành item.
 - Table dài split theo row group, lặp header + separator, không cắt row.
 - Code dài split theo ranh giới dòng; mỗi split giữ opening/closing fence hợp lệ, cùng `logical_code_key` và `split_index/split_count`; không dùng generic splitter.
+
+## 6.1 StructuralBlock Và Child Chunk
+
+- `StructuralBlock` là đơn vị parser, không phải Chunk.
+- numbered_item/lettered_item luôn thành Child riêng.
+- Child chunker chỉ gộp bullet ngắn liền kề khi cùng `heading_path`, `parent_item_key` và tổng content không vượt `child_chunk_size`.
+- Không gộp bullet qua heading, parent item, paragraph, table hoặc code.
+- Bullet group có `block_type=bullet_group`, `logical_item_key=None`, `logical_item_keys` chứa key từng bullet; `item_path` là path item cha chung.
 
 ## 7. `legal_unit_type`
 
@@ -83,6 +92,7 @@ postgres_parent_chunk_id
 heading_path
 page_start/page_end
 logical_item_key
+logical_item_keys
 parent_item_key
 logical_table_key
 logical_code_key
@@ -118,6 +128,7 @@ vector search
 → context budget
 ```
 
+- Hit bullet group → lấy parent context bằng `parent_item_key`; `logical_item_keys` chỉ dùng trace/citation member.
 - Hit child → lấy parent context.
 - Hit parent với query liệt kê → lấy direct children.
 - Query “gồm gì/các trường hợp nào/cần gì” → có thể lấy siblings.

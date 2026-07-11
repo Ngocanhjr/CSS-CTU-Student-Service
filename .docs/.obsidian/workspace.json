@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "guild_implement/09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md",
-                "mode": "source",
+                "file": "guild_implement/10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE"
+              "title": "10_PART_C_HEADING_AWARE_CHUNKER_GUIDE"
             }
           }
         ]
@@ -78,8 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "38e669c65d0c5c77",
@@ -186,10 +185,11 @@
   },
   "active": "d7898b18978c30e9",
   "lastOpenFiles": [
-    "guild_implement/10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md",
-    "guild_implement/15_PART_H_QDRANT_VECTORSTORE_GUIDE.md",
-    "guild_implement/checklist.md",
     "guild_implement/09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md",
-    "guild_implement/10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md"
+    "guild_implement/10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md",
+    "guild_implement/10B_PART_C_PAGE_AWARE_CHUNKER_DECISIONS.md",
+    "guild_implement/10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md",
+    "guild_implement/checklist.md",
+    "guild_implement/15_PART_H_QDRANT_VECTORSTORE_GUIDE.md"
   ]
 }

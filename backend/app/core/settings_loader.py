@@ -7,6 +7,10 @@ from typing import Any
 
 import yaml
 
+DEFAULT_RUNTIME_CONFIG = (
+    Path(__file__).resolve().parents[1] / "config" / "runtime.yaml"
+)
+
 #default value 
 @dataclass(frozen=True)
 class ChunkingSettings:
@@ -23,7 +27,8 @@ class ChunkingSettings:
 @dataclass(frozen=True)
 class RetrievalSettings:
     top_k: int = 5
-    candidate_k : int = 30
+    candidate_k: int = 30
+    score_threshold: float = 0.5
     
 @dataclass(frozen=True)
 class AppSettings:
@@ -48,8 +53,8 @@ def load_settings(path: str | Path) -> AppSettings:
 
 @lru_cache
 def get_rag_settings() -> AppSettings:
-    return load_settings(Path("config/runtime.yaml"))
-    
+    return load_settings(DEFAULT_RUNTIME_CONFIG)
+  
 def validate_settings(settings: AppSettings) -> None:
     if settings.chunking.child_chunk_size <= 0:
         raise ValueError("chunking.child_chunk_size must be > 0")
@@ -61,3 +66,5 @@ def validate_settings(settings: AppSettings) -> None:
         raise ValueError("retrieval.top_k must be > 0")
     if settings.retrieval.candidate_k < settings.retrieval.top_k:
         raise ValueError("retrieval.candidate_k must be >= retrieval.top_k")
+    if not 0 <= settings.retrieval.score_threshold <= 1:
+        raise ValueError("retrieval.score_threshold must be between 0 and 1")

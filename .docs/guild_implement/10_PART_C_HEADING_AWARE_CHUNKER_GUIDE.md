@@ -32,6 +32,7 @@ chatbot/backend/app/ingestion/chunking/text_stats.py
 chatbot/backend/app/ingestion/parsing/__init__.py
 chatbot/backend/app/ingestion/parsing/page_markers.py
 chatbot/backend/app/ingestion/parsing/structural_parser.py
+chatbot/backend/test/ingestion/test_page_markers.py
 chatbot/backend/test/ingestion/test_chunker.py
 chatbot/backend/test/ingestion/test_structural_parser.py
 chatbot/backend/requirements.txt
@@ -99,10 +100,8 @@ child_chunker.py
 - make_child_chunks()
 
 table_blocks.py
-- TextBlock dataclass
-- split_markdown_table_blocks()
 - split_large_table_block()
-- protect Markdown table truoc khi child splitter cat text
+- split table content theo row group; structural_parser.py da detect table
 
 text_stats.py
 - count_units()
@@ -111,11 +110,300 @@ parsing/structural_parser.py
 - StructuralBlock dataclass
 - ValidationReport dataclass
 - parse_page_blocks()
-- classify_line()
+- `_classify_line()`
 - build_item_path()
 ```
 
 Không tách nhỏ hơn nữa trong MVP. Các file này đủ để clean code mà không làm structure quá phân mảnh.
+
+## 1.2 Hướng Dẫn Implement Từng File
+
+Implement theo dependency direction này để tránh circular import:
+
+```text
+page_markers.py
+  -> structural_parser.py
+  -> parent_chunker.py + table_blocks.py + text_stats.py
+  -> child_chunker.py
+  -> chunker.py
+  -> package __init__.py
+  -> tests
+```
+
+### 1.2.1 `parsing/page_markers.py`
+
+Input/output:
+
+```text
+str Markdown body -> list[PageBlock]
+```
+
+Implement:
+
+```text
+PAGE_RE
+PageBlock
+strip_page_boundary_artifacts()
+split_body_by_page_markers()
+```
+
+Rule:
+
+```text
+Marker duoc consume, khong nam trong PageBlock.content.
+Khong co marker: tra mot PageBlock(page_number=1, content=body).
+Module nay khong detect heading/item/table/code va khong tao Chunk.
+```
+
+Checkpoint:
+
+```python
+blocks = split_body_by_page_markers("Noi dung")
+assert blocks == [PageBlock(page_number=1, content="Noi dung")]
+```
+
+Code chi tiết: `10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md`.
+
+### 1.2.2 `parsing/structural_parser.py`
+
+Input/output:
+
+```text
+list[PageBlock] -> StructuralParseResult(blocks, reports)
+```
+
+Implement theo thứ tự:
+
+```text
+1. regex heading/item/fence/table separator
+2. StructuralBlock, ValidationReport, StructuralParseResult
+3. helper consume HTML comment/code/table/paragraph
+4. `_classify_line()` theo implementation chuẩn trong Guide 09A
+5. update heading_stack/item_stack
+6. parse_page_blocks()
+```
+
+Hard rule:
+
+```text
+Parser chay mot lan tren tat ca PageBlock.
+Parser tao StructuralBlock, khong tao Chunk va khong biet child_chunk_size.
+Detection order: code, table, heading, numbered, lettered, bullet, paragraph.
+```
+
+Checkpoint:
+
+```text
+Heading tao heading block.
+Moi item tao block rieng.
+Code/table qua page giu page_start/page_end.
+Paragraph khong nuot structural block ke tiep.
+```
+
+Code chi tiết helper và parser: `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md`.
+
+### 1.2.3 `parsing/__init__.py`
+
+Giữ trống trong lúc implement để tránh circular import. Khi tests parser pass, chỉ export contract dùng bên ngoài:
+
+```python
+from .page_markers import PageBlock, split_body_by_page_markers
+from .structural_parser import StructuralParseResult, parse_page_blocks
+
+__all__ = [
+    "PageBlock",
+    "StructuralParseResult",
+    "parse_page_blocks",
+    "split_body_by_page_markers",
+]
+```
+
+Không đặt logic trong `__init__.py`.
+
+### 1.2.4 `chunking/text_stats.py`
+
+Chỉ cần helper hiện tại:
+
+```python
+def count_units(text: str) -> int:
+    return len(text.split())
+```
+
+Không thêm tokenizer dependency trong MVP. Đổi tokenizer khi `token_count` cần khớp model thật.
+
+### 1.2.5 `chunking/parent_chunker.py`
+
+Input/output:
+
+```text
+list[StructuralBlock] -> list[ParentSection]
+ParentSection -> parent Chunk
+```
+
+Implement:
+
+```text
+ParentSection
+update_heading_path()
+make_parent_section()
+build_parent_sections()
+make_parent_chunk()
+```
+
+Rule:
+
+```text
+Moi Markdown heading mo Parent moi, bat ke heading level.
+Noi dung truoc heading dau tien thuoc document-root Parent.
+Parent content lay tu raw_content cua blocks theo source order.
+page_start/page_end lay min/max cua blocks.
+Khong parse lai Markdown va khong goi split_body_by_page_markers().
+```
+
+Checkpoint: hai heading nguồn phải tạo hai Parent, không merge qua heading boundary.
+
+### 1.2.6 `chunking/table_blocks.py`
+
+Module thuần text. Không import `ChildUnit` để tránh cycle với `child_chunker.py`.
+
+Input/output:
+
+```text
+Markdown table content + max_size -> list[str] table parts
+```
+
+Implement:
+
+```text
+parse header + separator + rows
+group rows theo max_size
+lap lai header + separator cho moi part
+```
+
+Rule:
+
+```text
+Table trong gioi han tra [content] khong doi.
+Khong cat ngang row.
+Khong detect table trong full document; structural_parser.py da lam viec do.
+Khong dung RecursiveCharacterTextSplitter cho table.
+```
+
+`child_chunker.py` dùng `dataclasses.replace()` để bọc mỗi table part trở lại `ChildUnit` và giữ `logical_table_key`, `split_index`, `split_count`.
+
+### 1.2.7 `chunking/child_chunker.py`
+
+Input/output:
+
+```text
+ParentSection -> list[ChildUnit] -> list[Chunk]
+```
+
+Implement theo thứ tự:
+
+```text
+1. ChildUnit
+2. child_unit_from_item()/child_unit_from_block()
+3. build_structural_child_units()
+4. group_short_bullet_units()
+5. split_long_child_unit()
+6. split table/code bang helper rieng
+7. build_child_units()
+8. make_child_chunks()
+```
+
+Rule:
+
+```text
+numbered/lettered item luon rieng.
+Bullet ngan lien ke chi gop khi cung heading_path va parent_item_key.
+Bullet group giu logical_item_keys.
+Table/code la atomic unit; chi split khi vuot limit.
+Generic RecursiveCharacterTextSplitter chi dung trong item/paragraph qua dai.
+Khong parse lai parent content.
+```
+
+Checkpoint:
+
+```text
+3 bullet cung parent -> co the thanh bullet_group.
+Bullet khac parent -> hai ChildUnit.
+Long item split van giu logical_item_key va split metadata.
+```
+
+### 1.2.8 `chunking/chunker.py`
+
+Đây là orchestration và public API, không chứa regex hoặc split algorithm.
+
+Implement:
+
+```text
+ChunkingResult
+chunk_markdown_document()
+chunk_markdown_body()
+```
+
+Flow trong `chunk_markdown_body()`:
+
+```text
+validate body/settings
+split_body_by_page_markers(body)
+parse_page_blocks(page_blocks) mot lan
+build_parent_sections(parse_result.blocks)
+make parent Chunk
+build child units/chunks cho tung Parent
+gan parent_index, child_index, chunk_index
+tach reports thanh warnings/errors
+return ChunkingResult
+```
+
+`chunker.py` là file duy nhất gọi `split_body_by_page_markers()`.
+
+### 1.2.9 `chunking/__init__.py`
+
+Sau khi orchestration tests pass, chỉ export public API:
+
+```python
+from .chunker import ChunkingResult, chunk_markdown_body, chunk_markdown_document
+
+__all__ = [
+    "ChunkingResult",
+    "chunk_markdown_body",
+    "chunk_markdown_document",
+]
+```
+
+Không export internal helper nếu caller ngoài package không cần.
+
+### 1.2.10 `requirements.txt`
+
+Chỉ thêm nếu package chưa tồn tại:
+
+```text
+langchain-text-splitters>=0.2
+```
+
+Không thêm Markdown parser dependency cho các regex/block rule hiện tại.
+
+### 1.2.11 Tests
+
+```text
+test_page_markers.py       -> marker consume + fallback page 1
+test_structural_parser.py  -> detection order + state cross-page + helper atomic
+test_chunker.py            -> Parent/Child boundary + bullet group + split metadata
+test_3266_golden.py        -> fixture production contract
+```
+
+Chạy checkpoint nhỏ sau mỗi file:
+
+```powershell
+cd chatbot/backend
+..\..\.venv\Scripts\python.exe -m pytest test/ingestion/test_page_markers.py
+..\..\.venv\Scripts\python.exe -m pytest test/ingestion/test_structural_parser.py
+..\..\.venv\Scripts\python.exe -m pytest test/ingestion/test_chunker.py
+```
+
+Không đợi viết xong toàn bộ chunker mới chạy tests.
 
 ## 2. Contract Quan Trọng
 
@@ -336,7 +624,7 @@ Parent page_start/page_end lay tu min/max page cua StructuralBlock trong parent.
 Child page_start/page_end lay tu ChildUnit.
 Neu ChildUnit thieu page nhung parent co page range, fallback sang parent range.
 Moi chunk phai resolve duoc page range, khong duoc tra `None`.
-Neu toan bo document khong co page marker thi chunker fail som de khong tao chunk sai contract.
+Neu toan bo document khong co page marker thi page helper tao PageBlock page 1; chunker van resolve duoc page range.
 ```
 
 ---
@@ -493,9 +781,11 @@ def make_parent_chunk(
 
 ---
 
-## 9. Protect Markdown Table Blocks Trước Khi Split Child
+## 9. Split Markdown Table Child Theo Row Group
 
-Markdown table không được để `RecursiveCharacterTextSplitter` cắt tùy ý theo từng dòng, vì row table mất header sẽ mất ngữ cảnh retrieval.
+`structural_parser.py` đã detect table và tạo atomic `StructuralBlock(block_type="table")`.
+`table_blocks.py` chỉ split content của table quá dài; không scan lại full document.
+Không dùng `RecursiveCharacterTextSplitter` vì row mất header sẽ mất ngữ cảnh retrieval.
 
 Ví dụ cần bảo vệ:
 
@@ -513,7 +803,7 @@ Bang ngan hon child_chunk_size thi giu nguyen thanh 1 child text rieng.
 Bang khong duoc tron chung voi cau truoc/sau neu co the tach rieng.
 Bang dai hon child_chunk_size thi split theo nhom row, moi child table phai lap lai header + separator.
 Khong split ngang mot row table.
-Page marker nam gan bang phai duoc giu de child table resolve page_start/page_end.
+page_start/page_end ke thua tu table StructuralBlock/ChildUnit, khong do lai page marker trong content.
 ```
 
 File nên đặt helper:
@@ -522,41 +812,9 @@ File nên đặt helper:
 chatbot/backend/app/ingestion/chunking/table_blocks.py
 ```
 
-Dataclass gợi ý:
-
-```python
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class TextBlock:
-    content: str
-    block_type: str  # "text" | "table"
-```
-
-Detect Markdown table block:
-
-```python
-TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
-TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$")
-```
-
-Heuristic:
-
-```text
-Mot table block can co it nhat:
-- 1 dong header bat dau/ket thuc bang "|"
-- 1 dong separator ngay sau header
-- 0..n dong data lien tiep bat dau/ket thuc bang "|"
-```
-
 API gợi ý:
 
 ```python
-def split_markdown_table_blocks(text: str) -> list[TextBlock]:
-    ...
-
-
 def split_large_table_block(
     table: str,
     *,
@@ -596,12 +854,14 @@ code
 paragraph ro rang doc lap
 ```
 
-Không gộp hai item khác nhau chỉ để đạt `child_chunk_size`.
+`StructuralBlock` chỉ mô tả cấu trúc. `ChildUnit`/Chunk là quyết định của child chunker.
+Không gộp numbered_item/lettered_item. Chỉ gộp bullet ngắn liền kề cùng parent item,
+không qua heading/paragraph/table/code, và không vượt `child_chunk_size`.
 
 Dataclass gợi ý:
 
 ```python
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -615,9 +875,10 @@ class ChildUnit:
     item_path: list[str]
     logical_item_key: str | None
     parent_item_key: str | None
+    legal_unit_type: str
+    logical_item_keys: list[str] | None = None
     logical_table_key: str | None = None
     logical_code_key: str | None = None
-    legal_unit_type: str
     split_index: int = 0
     split_count: int = 1
 ```
@@ -625,12 +886,15 @@ class ChildUnit:
 Rule cho item:
 
 ```text
-numbered_item, lettered_item, bullet_item luon tao it nhat mot Child rieng.
-Item ngan va item ket thuc bang ":" van tao Child.
+Parser luôn tạo StructuralBlock riêng cho numbered_item, lettered_item, bullet_item.
+numbered_item/lettered_item luôn tạo Child riêng, kể cả item ngắn hoặc kết thúc bằng ":".
+bullet ngắn liền kề có thể gộp sau khi đã tạo ChildUnit nếu cùng parent_item_key.
 Item cha co item con van tao Child rieng; item con tao Child rieng.
 Item con link ve item cha bang parent_item_key.
 Child item cha khong gom noi dung item con.
-Khong gop hai marker khac nhau vao cung mot Child.
+Không gộp bullet qua heading/paragraph/table/code hoặc khác parent_item_key.
+Bullet group dùng block_type = "bullet_group", logical_item_key = None,
+logical_item_keys = key của từng bullet và item_path = path item cha chung.
 ```
 
 `item_path` lấy xác định từ dòng item gốc:
@@ -761,6 +1025,61 @@ def build_structural_child_units(section: ParentSection) -> tuple[list[ChildUnit
     return units, reports
 
 
+def group_short_bullet_units(
+    units: list[ChildUnit],
+    *,
+    child_chunk_size: int,
+) -> list[ChildUnit]:
+    result: list[ChildUnit] = []
+    group: list[ChildUnit] = []
+
+    def flush() -> None:
+        if len(group) == 1:
+            result.append(group[0])
+        elif group:
+            first = group[0]
+            keys = [
+                key
+                for unit in group
+                for key in (unit.logical_item_keys or [unit.logical_item_key])
+                if key is not None
+            ]
+            result.append(
+                replace(
+                    first,
+                    content="\n".join(unit.content for unit in group),
+                    block_type="bullet_group",
+                    page_start=min(unit.page_start for unit in group),
+                    page_end=max(unit.page_end for unit in group),
+                    item_marker=None,
+                    item_level=None,
+                    item_path=first.item_path[:-1],
+                    logical_item_key=None,
+                    logical_item_keys=keys,
+                )
+            )
+        group.clear()
+
+    for unit in units:
+        same_parent = group and unit.parent_item_key == group[0].parent_item_key
+        merged_size = sum(len(member.content) for member in group) + len(group) + len(unit.content)
+        if (
+            unit.block_type == "bullet_item"
+            and len(unit.content) <= child_chunk_size
+            and (not group or (same_parent and merged_size <= child_chunk_size))
+        ):
+            group.append(unit)
+            continue
+        flush()
+        if unit.block_type == "bullet_item" and len(unit.content) <= child_chunk_size:
+            group.append(unit)
+        else:
+            result.append(unit)
+
+    flush()
+    return result
+
+
 def build_child_units(
     section: ParentSection,
     *,
@@ -768,6 +1087,7 @@ def build_child_units(
     child_chunk_overlap: int,
 ) -> tuple[list[ChildUnit], list[ValidationReport]]:
     units, reports = build_structural_child_units(section)
+    units = group_short_bullet_units(units, child_chunk_size=child_chunk_size)
     result: list[ChildUnit] = []
 
     for unit in units:
@@ -827,7 +1147,7 @@ Lưu ý về table:
 
 ```text
 RecursiveCharacterTextSplitter khong hieu semantic table cua du an.
-Phai detect table truoc item regex va truoc recursive splitter.
+structural_parser.py phai detect table truoc item regex; child_chunker chi nhan table block da parse.
 Table ngan thanh 1 child chunk rieng.
 Table dai split theo row group va lap lai header/separator.
 ```
@@ -925,6 +1245,7 @@ def make_child_chunks(
                     "item_level": unit.item_level,
                     "item_path": unit.item_path,
                     "logical_item_key": unit.logical_item_key,
+                    "logical_item_keys": unit.logical_item_keys or ([unit.logical_item_key] if unit.logical_item_key else []),
                     "parent_item_key": unit.parent_item_key,
                     "logical_table_key": unit.logical_table_key,
                     "logical_code_key": unit.logical_code_key,
@@ -1152,13 +1473,16 @@ def test_chunker_rejects_empty_body():
         chunk_markdown_body(body="", document_key="doc", version_key="doc-v1")
 
 
-def test_chunker_rejects_missing_page_marker():
-    with pytest.raises(ValueError):
-        chunk_markdown_body(
-            body="# Title\n\nNo page marker.",
-            document_key="doc",
-            version_key="doc-v1",
-        )
+def test_chunker_falls_back_to_page_one_without_marker():
+    result = chunk_markdown_body(
+        body="# Title\n\nNo page marker.",
+        document_key="doc",
+        version_key="doc-v1",
+    )
+
+    assert all(chunk.page_start == chunk.page_end == 1 for chunk in (
+        result.parent_chunks + result.child_chunks
+    ))
 ```
 
 Table test:
@@ -1297,7 +1621,7 @@ Noi dung sau code.
 Structural parser/chunker tests bắt buộc:
 
 ```text
-1. Danh sách 5 mục dưới một heading tạo 1 parent và 5 child.
+1. Danh sách 5 numbered/lettered item dưới một heading tạo 1 parent và 5 child.
 2. Item không bị convert thành heading.
 3. `### 1. Mục đích` vẫn là heading.
 4. `### 1) Phạm vi` vẫn là heading.
@@ -1311,10 +1635,10 @@ Structural parser/chunker tests bắt buộc:
 12. Item cha có item con không chứa nội dung item con.
 13. Item con có parent_item_key.
 14. item_path giữ marker và nhãn ngắn, không chỉ lưu marker.
-15. Bullet -, +, * tạo atomic child.
+15. Mỗi bullet tạo StructuralBlock; bullet ngắn cùng parent có thể gộp Child với logical_item_keys.
 16. Item quá dài chỉ split nội bộ và giữ logical_item_key.
 17. Split child có split_index/split_count.
-18. Không child nào chứa nội dung của hai item khác nhau.
+18. Không Child chứa hai numbered/lettered item hoặc bullet khác parent; bullet group hợp lệ là ngoại lệ.
 19. Marker trong table/code không bị parse thành item.
 20. Nội dung trước heading đầu tiên thuộc document-root parent.
 21. Table/code trong item kế thừa đúng context.

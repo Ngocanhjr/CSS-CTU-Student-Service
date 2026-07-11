@@ -499,7 +499,7 @@ Concrete assertions:
 - heading-only Điều 1/Điều 2/Điều 3 tạo heading_content Child hoặc context_only đúng rule;
 - Chương I + NHỮNG VẤN ĐỀ CHUNG giữ derived heading_path kết hợp;
 - heading bất thường "## Sau thời hạn đóng học phí..." sinh canonical_markdown_warning, không tự demote;
-- Điều 18 tạo numbered/lettered/bullet Child riêng, có parent_item_key và cross-page context;
+- Điều 18 tạo numbered/lettered Child riêng; bullet ngắn cùng parent có thể thành bullet group, giữ logical_item_keys và cross-page context;
 - paragraph ownership mơ hồ tạo warning, không phải error mặc định;
 - table Điều 19 là atomic table Child;
 - legal_unit_type của legal list đúng và general list là none;
@@ -508,7 +508,7 @@ Concrete assertions:
 - retrieval expansion parent/child/sibling/split chạy đúng và giữ source order.
 ```
 
-Golden snapshot phải kiểm tra Parent, Child, `heading_path`, `item_path`, `logical_item_key`,
+Golden snapshot phải kiểm tra Parent, Child, `heading_path`, `item_path`, `logical_item_key`, `logical_item_keys`,
 `parent_item_key`, `page_start/page_end`, `split_index/split_count`, warnings/errors và block type.
 
 Không yêu cầu fenced-code assertion trong `test_3266.md`, vì fixture này không có fenced code.

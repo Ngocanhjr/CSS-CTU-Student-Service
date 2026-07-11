@@ -227,7 +227,7 @@ Chunker dùng structural parser trước, LangChain splitter sau:
 
 - Mỗi Markdown heading tạo parent section mới.
 - Nội dung trước heading đầu tiên thuộc `heading_path = ["document-root"]`.
-- `numbered_item`, `lettered_item`, `bullet_item` tạo child boundary.
+- `numbered_item`, `lettered_item`, `bullet_item` tạo StructuralBlock boundary; child chunker chỉ có thể gộp bullet ngắn cùng heading và cùng item cha.
 - Table/code được detect trước item regex.
 - `RecursiveCharacterTextSplitter` chỉ split bên trong item/paragraph quá dài; table/code dùng logic riêng.
 
