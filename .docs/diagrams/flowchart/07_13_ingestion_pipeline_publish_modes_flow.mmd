@@ -6,7 +6,9 @@
 flowchart TD
     A([Canonical Markdown file])
     B[read_markdown_document]
-    C[Validate YAML/body + index eligibility<br/>ocr_status = done AND<br/>review_status = approved]
+    C[Validate YAML metadata<br/>and Markdown body]
+    T{Index eligible?<br/>ocr_status = done AND<br/>review_status = approved}
+    U([Not eligible<br/>stop before chunk/index<br/>request OCR or review])
     D[chunk_markdown_body]
     E[ChunkingResult<br/>parents + children + warnings + errors]
     F{errors present?}
@@ -14,17 +16,19 @@ flowchart TD
     H{strict mode and<br/>warnings present?}
     I[Stop before publish<br/>request review]
     J[Preview chunks and warnings]
-    K[Save Parent and Child chunks<br/>to PostgreSQL]
+    K[PostgreSQL transaction<br/>replace Parent/Child chunks<br/>canonical content + parent relations]
     L{publish?}
-    M([IngestionResult<br/>publish=false])
+    M([IngestionResult publish=false<br/>chunks saved, no Qdrant upsert])
     N[Build embedding text<br/>for Child chunks only]
     O[Embed Child chunks]
-    P[Build structural Qdrant payload]
+    P[Build Qdrant payload<br/>Chunk.metadata structural fields<br/>+ PostgreSQL IDs]
     Q[Upsert deterministic points]
-    R[Update chunk index_status<br/>and version rag_status]
+    R[Update chunk index_status = indexed<br/>and version rag_status = published]
     S([Published for retrieval])
 
-    A --> B --> C --> D --> E --> F
+    A --> B --> C --> T
+    T -->|no| U
+    T -->|yes| D --> E --> F
     F -->|yes| G
     F -->|no| H
     H -->|yes| I
@@ -42,6 +46,7 @@ flowchart TD
 
     subgraph Orchestrator_only
         B
+        T
         D
         K
         O

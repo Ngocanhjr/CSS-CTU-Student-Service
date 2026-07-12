@@ -86,8 +86,8 @@ const manualRows = {
     ["AF", "AE", "AD", "AC"]
   ],
   "07_13_ingestion_pipeline_publish_modes_flow.mmd": [
-    ["A", "B", "C", "D", "E"],
-    ["G", "F", "H", "I"],
+    ["A", "B", "C", "T", "D", "E"],
+    ["U", "G", "F", "H", "I"],
     ["J", "K", "L", "M"],
     ["S", "R", "Q", "P", "O", "N"]
   ],
@@ -252,7 +252,10 @@ function routeDashed(a, b, edgeIndex, bounds, boxes, edge, usedSegments) {
 
   let selected = candidates.sort((x, y) => x.score - y.score)[0];
   if (!selected) {
-    const sx = a.x; const sy = a.y + a.height / 2 + startOffset; const ex = b.x; const ey = b.y + b.height / 2 + endOffset;
+    const laneJitter = ((edgeIndex % 11) - 5) * 4;
+    const fallbackStartOffset = Math.max(-a.height / 2 + 18, Math.min(a.height / 2 - 18, startOffset + laneJitter));
+    const fallbackEndOffset = Math.max(-b.height / 2 + 18, Math.min(b.height / 2 - 18, endOffset - laneJitter));
+    const sx = a.x; const sy = a.y + a.height / 2 + fallbackStartOffset; const ex = b.x; const ey = b.y + b.height / 2 + fallbackEndOffset;
     const channel = bounds.left - 70 - edgeIndex * 14;
     selected = { points: [[sx, sy], [channel, sy], [channel, ey], [ex, ey]] };
   }
@@ -324,6 +327,7 @@ function convert(name, source) {
     autoResize: true, lineHeight: 1.25 });
   for (const node of nodes.values()) {
     const pos = positions.get(node.id); const label = wrap(node.label); const lines = label.split("\n").length;
+    if (!pos) throw new Error(`Missing layout position for node ${node.id} in ${name}`);
     const width = node.kind === "decision" ? 250 : 260; const height = Math.max(86, 28 + lines * 22);
     const shapeType = node.kind === "decision" ? "diamond" : node.kind === "terminal" ? "ellipse" : "rectangle";
     const shape = base(`node-${node.id}`, shapeType, pos.x, pos.y, width, height, index++, palette[node.kind]);
