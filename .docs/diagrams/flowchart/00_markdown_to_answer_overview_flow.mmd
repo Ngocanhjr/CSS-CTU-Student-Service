@@ -1,0 +1,42 @@
+%% Sources:
+%% - 07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md
+%% - 09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md
+%% - 10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md
+%% - 12_PART_E_POSTGRES_INGESTION_REPOSITORY_GUIDE.md
+%% - 15_PART_H_QDRANT_VECTORSTORE_GUIDE.md
+%% - 16_PART_I_RETRIEVAL_GUIDE.md
+%% One overview from reviewed Markdown to grounded answer; detailed flowcharts zoom into each step.
+
+flowchart TD
+    A([Reviewed canonical Markdown<br/>YAML front matter + body])
+    B[read_markdown_document]
+    C[YAML -> DocumentMetadata<br/>validate keys, status, audience,<br/>departments and effective date]
+    D[Markdown body -> page markers<br/>then one StructuralParser]
+    E[Metadata use<br/>document/version/recipient rows<br/>citation and retrieval filters]
+    F[StructuralBlock stream<br/>heading, items, paragraphs,<br/>table/code, page ranges]
+    G[Parent/Child chunker]
+    H[Parent + Child chunks<br/>trace keys and relations]
+    I[(PostgreSQL<br/>canonical metadata, content,<br/>Parent/Child relations)]
+    J[Embed Child chunks only]
+    K[(Qdrant<br/>Child vectors + structural payload)]
+    L([Student question])
+    M[Normalize query<br/>approved + published + audience filter]
+    N[Dense Qdrant + PostgreSQL FTS]
+    O[Fusion -> hydrate direct hits<br/>from PostgreSQL -> rerank]
+    P[Structural expansion<br/>parent/children/siblings/splits]
+    Q[Hydrate neighbors -> deduplicate<br/>source order -> context budget]
+    R[Grounded LLM answer]
+    S([Answer + citations + assets])
+
+    A --> B
+    B --> C --> E --> I
+    B --> D --> F --> G --> H --> I
+    H --> J --> K
+    L --> M --> N
+    K --> N
+    I --> N
+    N --> O --> P --> Q --> R --> S
+
+    E -. document/version filters .-> M
+    I -. canonical hydration .-> O
+    K -. vector candidates + payload .-> O

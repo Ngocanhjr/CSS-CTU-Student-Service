@@ -1,0 +1,38 @@
+%% Sources:
+%% - 09_PART_B_MARKDOWN_READER_GUIDE.md
+%% - 12_PART_E_POSTGRES_INGESTION_REPOSITORY_GUIDE.md
+%% - 03_SQLALCHEMY_9_TABLES_GUIDE.md
+%% Markdown and YAML metadata are consumed separately before one PostgreSQL transaction.
+
+flowchart TD
+    A([Reviewed canonical Markdown file<br/>YAML front matter + Markdown body])
+    B[read_markdown_document]
+    C[Split YAML metadata<br/>from unchanged Markdown body]
+    D[DocumentMetadata validation<br/>document_key, version_key, checksum,<br/>document_type, audience, departments]
+    E{Metadata valid?}
+    F[Return validation errors<br/>for review]
+    G[chunk_markdown_body<br/>body only]
+    H[ChunkingResult<br/>Parent + Child chunks]
+    I[Begin one PostgreSQL transaction]
+    J[Upsert document_types]
+    K[Upsert documents<br/>document_key, domain, audience]
+    L[Upsert document_versions<br/>status + canonical Markdown path<br/>no effective_date column]
+    M[Resolve recipient date<br/>metadata.effective_date<br/>or issued_date fallback]
+    N{Recipient date available?}
+    O[Return review error]
+    P[Replace document_recipients<br/>one row per responsible_department<br/>same effective_date]
+    Q[Insert Parent chunks]
+    R[Insert Child chunks<br/>with resolved parent_chunk_id]
+    S[Commit]
+    T([SavedDocumentVersion<br/>canonical chunks + relations])
+
+    A --> B --> C --> D --> E
+    E -->|no| F
+    E -->|yes| G --> H --> I
+    I --> J --> K --> L --> M --> N
+    N -->|no| O
+    N -->|yes| P --> Q --> R --> S --> T
+
+    C -. YAML only .-> M
+    C -. Markdown body only .-> G
+    H -. chunks ready .-> Q

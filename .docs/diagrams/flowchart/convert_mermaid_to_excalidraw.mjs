@@ -75,6 +75,14 @@ function parse(source) {
 }
 
 const manualRows = {
+  "00_markdown_to_answer_overview_flow.mmd": [
+    ["A", "B"],
+    ["C", "D"],
+    ["E", "F"],
+    ["G", "H", "I", "J", "K"],
+    ["L", "M", "N", "O", "P"],
+    ["Q", "R", "S"]
+  ],
   "00_unified_chunking_retrieval_flow.mmd": [
     ["A", "B", "C", "D", "E"],
     ["K", "I", "H", "G", "F"],
@@ -112,6 +120,12 @@ const manualRows = {
     ["K", "T", "U"],
     ["V", "W", "X", "Y", "Z"],
     ["AA", "AB", "AC"]
+  ],
+  "11_markdown_metadata_postgres_ingestion_flow.mmd": [
+    ["A", "B", "C", "D", "E"],
+    ["F", "G", "H", "I"],
+    ["J", "K", "L", "M", "N"],
+    ["O", "P", "Q", "R", "S", "T"]
   ],
   "14_15_embedding_qdrant_indexing_flow.mmd": [
     ["A", "B", "C", "D", "E"],

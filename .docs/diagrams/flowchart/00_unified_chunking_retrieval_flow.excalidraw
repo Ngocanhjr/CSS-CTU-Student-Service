@@ -1,13 +1,13 @@
 {
   "type": "excalidraw",
   "version": 2,
-  "source": "https://github.com/excalidraw/excalidraw",
+  "source": "https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor",
   "elements": [
     {
       "id": "diagram-title",
       "type": "text",
-      "x": 100,
-      "y": 45,
+      "x": 204,
+      "y": 16,
       "width": 900,
       "height": 45,
       "angle": 0,
@@ -22,11 +22,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 101,
-      "version": 1,
-      "versionNonce": 1001,
+      "version": 77,
+      "versionNonce": 1342718611,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879656549,
       "link": null,
       "locked": false,
       "text": "00 unified chunking retrieval flow",
@@ -38,7 +38,8 @@
       "containerId": null,
       "originalText": "00 unified chunking retrieval flow",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "a0"
     },
     {
       "id": "node-A",
@@ -59,8 +60,8 @@
       "frameId": null,
       "roundness": null,
       "seed": 102,
-      "version": 1,
-      "versionNonce": 1002,
+      "version": 2,
+      "versionNonce": 664430429,
       "isDeleted": false,
       "boundElements": [
         {
@@ -68,9 +69,10 @@
           "id": "text-A"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651103,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "a1"
     },
     {
       "id": "text-A",
@@ -91,11 +93,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 103,
-      "version": 1,
-      "versionNonce": 1003,
+      "version": 2,
+      "versionNonce": 52955379,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651103,
       "link": null,
       "locked": false,
       "text": "Canonical Markdown body\nvalidated by\nmarkdown_reader",
@@ -107,7 +109,8 @@
       "containerId": "node-A",
       "originalText": "Canonical Markdown body\nvalidated by markdown_reader",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "a2"
     },
     {
       "id": "node-B",
@@ -130,8 +133,8 @@
         "type": 3
       },
       "seed": 104,
-      "version": 1,
-      "versionNonce": 1004,
+      "version": 2,
+      "versionNonce": 703558589,
       "isDeleted": false,
       "boundElements": [
         {
@@ -139,9 +142,10 @@
           "id": "text-B"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651103,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "a3"
     },
     {
       "id": "text-B",
@@ -162,11 +166,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 105,
-      "version": 1,
-      "versionNonce": 1005,
+      "version": 2,
+      "versionNonce": 1170240147,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651103,
       "link": null,
       "locked": false,
       "text": "split_body_by_page_markers",
@@ -178,7 +182,8 @@
       "containerId": "node-B",
       "originalText": "split_body_by_page_markers",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "a4"
     },
     {
       "id": "node-C",
@@ -201,8 +206,8 @@
         "type": 3
       },
       "seed": 106,
-      "version": 1,
-      "versionNonce": 1006,
+      "version": 2,
+      "versionNonce": 1252258845,
       "isDeleted": false,
       "boundElements": [
         {
@@ -210,9 +215,10 @@
           "id": "text-C"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651103,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "a5"
     },
     {
       "id": "text-C",
@@ -233,11 +239,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 107,
-      "version": 1,
-      "versionNonce": 1007,
+      "version": 2,
+      "versionNonce": 416983091,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651103,
       "link": null,
       "locked": false,
       "text": "PageBlock list\npage markers consumed",
@@ -249,7 +255,8 @@
       "containerId": "node-C",
       "originalText": "PageBlock list\npage markers consumed",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "a6"
     },
     {
       "id": "node-D",
@@ -272,8 +279,8 @@
         "type": 3
       },
       "seed": 108,
-      "version": 1,
-      "versionNonce": 1008,
+      "version": 2,
+      "versionNonce": 1974036605,
       "isDeleted": false,
       "boundElements": [
         {
@@ -281,9 +288,10 @@
           "id": "text-D"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "a7"
     },
     {
       "id": "text-D",
@@ -304,11 +312,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 109,
-      "version": 1,
-      "versionNonce": 1009,
+      "version": 2,
+      "versionNonce": 576530899,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "structural_parser.parse_\npage_blocks",
@@ -320,7 +328,8 @@
       "containerId": "node-D",
       "originalText": "structural_parser.parse_page_blocks",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "a8"
     },
     {
       "id": "node-E",
@@ -343,8 +352,8 @@
         "type": 3
       },
       "seed": 110,
-      "version": 1,
-      "versionNonce": 1010,
+      "version": 2,
+      "versionNonce": 482431197,
       "isDeleted": false,
       "boundElements": [
         {
@@ -352,9 +361,10 @@
           "id": "text-E"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "a9"
     },
     {
       "id": "text-E",
@@ -375,11 +385,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 111,
-      "version": 1,
-      "versionNonce": 1011,
+      "version": 2,
+      "versionNonce": 123631475,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "StructuralParseResult\nblocks + validation reports",
@@ -391,7 +401,8 @@
       "containerId": "node-E",
       "originalText": "StructuralParseResult\nblocks + validation reports",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aA"
     },
     {
       "id": "node-F",
@@ -414,8 +425,8 @@
         "type": 3
       },
       "seed": 112,
-      "version": 1,
-      "versionNonce": 1012,
+      "version": 2,
+      "versionNonce": 2105355581,
       "isDeleted": false,
       "boundElements": [
         {
@@ -423,9 +434,10 @@
           "id": "text-F"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aB"
     },
     {
       "id": "text-F",
@@ -446,11 +458,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 113,
-      "version": 1,
-      "versionNonce": 1013,
+      "version": 2,
+      "versionNonce": 103092499,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "parent_chunker.build_\nparent_sections",
@@ -462,7 +474,8 @@
       "containerId": "node-F",
       "originalText": "parent_chunker.build_parent_sections",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aC"
     },
     {
       "id": "node-G",
@@ -485,8 +498,8 @@
         "type": 3
       },
       "seed": 114,
-      "version": 1,
-      "versionNonce": 1014,
+      "version": 2,
+      "versionNonce": 658406813,
       "isDeleted": false,
       "boundElements": [
         {
@@ -494,9 +507,10 @@
           "id": "text-G"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aD"
     },
     {
       "id": "text-G",
@@ -517,11 +531,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 115,
-      "version": 1,
-      "versionNonce": 1015,
+      "version": 2,
+      "versionNonce": 1344763571,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "ParentSection list\nnon-overlapping, multi-page\naware",
@@ -533,7 +547,8 @@
       "containerId": "node-G",
       "originalText": "ParentSection list\nnon-overlapping, multi-page aware",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aE"
     },
     {
       "id": "node-H",
@@ -556,8 +571,8 @@
         "type": 3
       },
       "seed": 116,
-      "version": 1,
-      "versionNonce": 1016,
+      "version": 2,
+      "versionNonce": 1094107645,
       "isDeleted": false,
       "boundElements": [
         {
@@ -565,9 +580,10 @@
           "id": "text-H"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aF"
     },
     {
       "id": "text-H",
@@ -588,11 +604,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 117,
-      "version": 1,
-      "versionNonce": 1017,
+      "version": 2,
+      "versionNonce": 604776531,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "child_chunker.build_child_\nunits\ngroup + safe oversized\nsplit",
@@ -604,7 +620,8 @@
       "containerId": "node-H",
       "originalText": "child_chunker.build_child_units\ngroup + safe oversized split",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aG"
     },
     {
       "id": "node-I",
@@ -627,8 +644,8 @@
         "type": 3
       },
       "seed": 118,
-      "version": 1,
-      "versionNonce": 1018,
+      "version": 2,
+      "versionNonce": 275216989,
       "isDeleted": false,
       "boundElements": [
         {
@@ -636,9 +653,10 @@
           "id": "text-I"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aH"
     },
     {
       "id": "text-I",
@@ -659,11 +677,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 119,
-      "version": 1,
-      "versionNonce": 1019,
+      "version": 2,
+      "versionNonce": 665429491,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "ChildUnit list",
@@ -675,7 +693,8 @@
       "containerId": "node-I",
       "originalText": "ChildUnit list",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aI"
     },
     {
       "id": "node-K",
@@ -698,8 +717,8 @@
         "type": 3
       },
       "seed": 120,
-      "version": 1,
-      "versionNonce": 1020,
+      "version": 2,
+      "versionNonce": 1034036925,
       "isDeleted": false,
       "boundElements": [
         {
@@ -707,9 +726,10 @@
           "id": "text-K"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aJ"
     },
     {
       "id": "text-K",
@@ -730,11 +750,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 121,
-      "version": 1,
-      "versionNonce": 1021,
+      "version": 2,
+      "versionNonce": 33976211,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "child_chunker.make_child_\nchunks\nParent chunks + Child\nchunks",
@@ -746,7 +766,8 @@
       "containerId": "node-K",
       "originalText": "child_chunker.make_child_chunks\nParent chunks + Child chunks",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aK"
     },
     {
       "id": "node-M",
@@ -769,8 +790,8 @@
         "type": 3
       },
       "seed": 122,
-      "version": 1,
-      "versionNonce": 1022,
+      "version": 2,
+      "versionNonce": 1535657757,
       "isDeleted": false,
       "boundElements": [
         {
@@ -778,9 +799,10 @@
           "id": "text-M"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aL"
     },
     {
       "id": "text-M",
@@ -801,11 +823,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 123,
-      "version": 1,
-      "versionNonce": 1023,
+      "version": 2,
+      "versionNonce": 895026483,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "ChunkingResult validation\nreports",
@@ -817,7 +839,8 @@
       "containerId": "node-M",
       "originalText": "ChunkingResult validation reports",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aM"
     },
     {
       "id": "node-N",
@@ -838,8 +861,8 @@
       "frameId": null,
       "roundness": null,
       "seed": 124,
-      "version": 1,
-      "versionNonce": 1024,
+      "version": 2,
+      "versionNonce": 747330429,
       "isDeleted": false,
       "boundElements": [
         {
@@ -847,9 +870,10 @@
           "id": "text-N"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aN"
     },
     {
       "id": "text-N",
@@ -870,11 +894,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 125,
-      "version": 1,
-      "versionNonce": 1025,
+      "version": 2,
+      "versionNonce": 956819155,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Any error?",
@@ -886,7 +910,8 @@
       "containerId": "node-N",
       "originalText": "Any error?",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aO"
     },
     {
       "id": "node-O",
@@ -907,8 +932,8 @@
       "frameId": null,
       "roundness": null,
       "seed": 126,
-      "version": 1,
-      "versionNonce": 1026,
+      "version": 2,
+      "versionNonce": 686613469,
       "isDeleted": false,
       "boundElements": [
         {
@@ -916,9 +941,10 @@
           "id": "text-O"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aP"
     },
     {
       "id": "text-O",
@@ -939,11 +965,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 127,
-      "version": 1,
-      "versionNonce": 1027,
+      "version": 2,
+      "versionNonce": 1403622515,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Stop publish\nreturn errors",
@@ -955,7 +981,8 @@
       "containerId": "node-O",
       "originalText": "Stop publish\nreturn errors",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aQ"
     },
     {
       "id": "node-P",
@@ -978,8 +1005,8 @@
         "type": 3
       },
       "seed": 128,
-      "version": 1,
-      "versionNonce": 1028,
+      "version": 2,
+      "versionNonce": 1153327165,
       "isDeleted": false,
       "boundElements": [
         {
@@ -987,9 +1014,10 @@
           "id": "text-P"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aR"
     },
     {
       "id": "text-P",
@@ -1010,11 +1038,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 129,
-      "version": 1,
-      "versionNonce": 1029,
+      "version": 2,
+      "versionNonce": 889490963,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "PostgreSQL\ncanonical content +\nrelations",
@@ -1026,7 +1054,8 @@
       "containerId": "node-P",
       "originalText": "PostgreSQL\ncanonical content + relations",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aS"
     },
     {
       "id": "node-Q",
@@ -1047,8 +1076,8 @@
       "frameId": null,
       "roundness": null,
       "seed": 130,
-      "version": 1,
-      "versionNonce": 1030,
+      "version": 2,
+      "versionNonce": 1977700509,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1056,9 +1085,10 @@
           "id": "text-Q"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aT"
     },
     {
       "id": "text-Q",
@@ -1079,11 +1109,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 131,
-      "version": 1,
-      "versionNonce": 1031,
+      "version": 2,
+      "versionNonce": 1343181747,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "publish?",
@@ -1095,7 +1125,8 @@
       "containerId": "node-Q",
       "originalText": "publish?",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aU"
     },
     {
       "id": "node-R",
@@ -1116,8 +1147,8 @@
       "frameId": null,
       "roundness": null,
       "seed": 132,
-      "version": 1,
-      "versionNonce": 1032,
+      "version": 2,
+      "versionNonce": 2047292669,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1125,9 +1156,10 @@
           "id": "text-R"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aV"
     },
     {
       "id": "text-R",
@@ -1148,11 +1180,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 133,
-      "version": 1,
-      "versionNonce": 1033,
+      "version": 2,
+      "versionNonce": 1961911635,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Preview-only result",
@@ -1164,7 +1196,8 @@
       "containerId": "node-R",
       "originalText": "Preview-only result",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aW"
     },
     {
       "id": "node-S",
@@ -1187,8 +1220,8 @@
         "type": 3
       },
       "seed": 134,
-      "version": 1,
-      "versionNonce": 1034,
+      "version": 2,
+      "versionNonce": 1555139933,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1196,9 +1229,10 @@
           "id": "text-S"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aX"
     },
     {
       "id": "text-S",
@@ -1219,11 +1253,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 135,
-      "version": 1,
-      "versionNonce": 1035,
+      "version": 2,
+      "versionNonce": 721306355,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Build embedding text +\nembed Child chunks",
@@ -1235,7 +1269,8 @@
       "containerId": "node-S",
       "originalText": "Build embedding text +\nembed Child chunks",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aY"
     },
     {
       "id": "node-T",
@@ -1258,8 +1293,8 @@
         "type": 3
       },
       "seed": 136,
-      "version": 1,
-      "versionNonce": 1036,
+      "version": 2,
+      "versionNonce": 1026677181,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1267,9 +1302,10 @@
           "id": "text-T"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aZ"
     },
     {
       "id": "text-T",
@@ -1290,11 +1326,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 137,
-      "version": 1,
-      "versionNonce": 1037,
+      "version": 2,
+      "versionNonce": 1254059155,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Qdrant\nvectors + structural\npayload",
@@ -1306,7 +1342,8 @@
       "containerId": "node-T",
       "originalText": "Qdrant\nvectors + structural payload",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aa"
     },
     {
       "id": "node-U",
@@ -1327,8 +1364,8 @@
       "frameId": null,
       "roundness": null,
       "seed": 138,
-      "version": 1,
-      "versionNonce": 1038,
+      "version": 2,
+      "versionNonce": 1420401181,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1336,9 +1373,10 @@
           "id": "text-U"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "ab"
     },
     {
       "id": "text-U",
@@ -1359,11 +1397,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 139,
-      "version": 1,
-      "versionNonce": 1039,
+      "version": 2,
+      "versionNonce": 1474978355,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Published",
@@ -1375,7 +1413,8 @@
       "containerId": "node-U",
       "originalText": "Published",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "ac"
     },
     {
       "id": "node-V",
@@ -1396,8 +1435,8 @@
       "frameId": null,
       "roundness": null,
       "seed": 140,
-      "version": 1,
-      "versionNonce": 1040,
+      "version": 2,
+      "versionNonce": 1007308413,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1405,9 +1444,10 @@
           "id": "text-V"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "ad"
     },
     {
       "id": "text-V",
@@ -1428,11 +1468,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 141,
-      "version": 1,
-      "versionNonce": 1041,
+      "version": 2,
+      "versionNonce": 459645907,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "User query",
@@ -1444,7 +1484,8 @@
       "containerId": "node-V",
       "originalText": "User query",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "ae"
     },
     {
       "id": "node-W",
@@ -1467,8 +1508,8 @@
         "type": 3
       },
       "seed": 142,
-      "version": 1,
-      "versionNonce": 1042,
+      "version": 2,
+      "versionNonce": 1914009309,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1476,9 +1517,10 @@
           "id": "text-W"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "af"
     },
     {
       "id": "text-W",
@@ -1499,11 +1541,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 143,
-      "version": 1,
-      "versionNonce": 1043,
+      "version": 2,
+      "versionNonce": 2101850483,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Apply shared hard filters",
@@ -1515,7 +1557,8 @@
       "containerId": "node-W",
       "originalText": "Apply shared hard filters",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "ag"
     },
     {
       "id": "node-X",
@@ -1538,8 +1581,8 @@
         "type": 3
       },
       "seed": 144,
-      "version": 1,
-      "versionNonce": 1044,
+      "version": 2,
+      "versionNonce": 559715133,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1547,9 +1590,10 @@
           "id": "text-X"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "ah"
     },
     {
       "id": "text-X",
@@ -1570,11 +1614,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 145,
-      "version": 1,
-      "versionNonce": 1045,
+      "version": 2,
+      "versionNonce": 517409555,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Qdrant dense candidates",
@@ -1586,7 +1630,8 @@
       "containerId": "node-X",
       "originalText": "Qdrant dense candidates",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "ai"
     },
     {
       "id": "node-Y",
@@ -1609,8 +1654,8 @@
         "type": 3
       },
       "seed": 146,
-      "version": 1,
-      "versionNonce": 1046,
+      "version": 2,
+      "versionNonce": 641803165,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1618,9 +1663,10 @@
           "id": "text-Y"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "aj"
     },
     {
       "id": "text-Y",
@@ -1641,11 +1687,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 147,
-      "version": 1,
-      "versionNonce": 1047,
+      "version": 2,
+      "versionNonce": 881471667,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "PostgreSQL FTS/BM25\ncandidates",
@@ -1657,7 +1703,8 @@
       "containerId": "node-Y",
       "originalText": "PostgreSQL FTS/BM25 candidates",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "ak"
     },
     {
       "id": "node-Z",
@@ -1680,8 +1727,8 @@
         "type": 3
       },
       "seed": 148,
-      "version": 1,
-      "versionNonce": 1048,
+      "version": 2,
+      "versionNonce": 1425319933,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1689,9 +1736,10 @@
           "id": "text-Z"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "al"
     },
     {
       "id": "text-Z",
@@ -1712,11 +1760,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 149,
-      "version": 1,
-      "versionNonce": 1049,
+      "version": 2,
+      "versionNonce": 537371219,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Fetch Qdrant payload for\nsparse-only candidates by\npoint id",
@@ -1728,7 +1776,8 @@
       "containerId": "node-Z",
       "originalText": "Fetch Qdrant payload for\nsparse-only candidates by point id",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "am"
     },
     {
       "id": "node-ZA",
@@ -1751,8 +1800,8 @@
         "type": 3
       },
       "seed": 150,
-      "version": 1,
-      "versionNonce": 1050,
+      "version": 2,
+      "versionNonce": 2138611805,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1760,9 +1809,10 @@
           "id": "text-ZA"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "an"
     },
     {
       "id": "text-ZA",
@@ -1783,11 +1833,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 151,
-      "version": 1,
-      "versionNonce": 1051,
+      "version": 2,
+      "versionNonce": 1243996147,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "RRF or weighted fusion",
@@ -1799,7 +1849,8 @@
       "containerId": "node-ZA",
       "originalText": "RRF or weighted fusion",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "ao"
     },
     {
       "id": "node-AA",
@@ -1822,8 +1873,8 @@
         "type": 3
       },
       "seed": 152,
-      "version": 1,
-      "versionNonce": 1052,
+      "version": 2,
+      "versionNonce": 1000246461,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1831,9 +1882,10 @@
           "id": "text-AA"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "ap"
     },
     {
       "id": "text-AA",
@@ -1854,11 +1906,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 153,
-      "version": 1,
-      "versionNonce": 1053,
+      "version": 2,
+      "versionNonce": 1022060947,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Hydrate fused canonical\ncontent\nfrom PostgreSQL; keep\nQdrant metadata",
@@ -1870,7 +1922,8 @@
       "containerId": "node-AA",
       "originalText": "Hydrate fused canonical content\nfrom PostgreSQL; keep Qdrant metadata",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aq"
     },
     {
       "id": "node-AB",
@@ -1893,8 +1946,8 @@
         "type": 3
       },
       "seed": 154,
-      "version": 1,
-      "versionNonce": 1054,
+      "version": 2,
+      "versionNonce": 1762127133,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1902,9 +1955,10 @@
           "id": "text-AB"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "ar"
     },
     {
       "id": "text-AB",
@@ -1925,11 +1979,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 155,
-      "version": 1,
-      "versionNonce": 1055,
+      "version": 2,
+      "versionNonce": 2106507059,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Rerank fused candidates",
@@ -1941,7 +1995,8 @@
       "containerId": "node-AB",
       "originalText": "Rerank fused candidates",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "as"
     },
     {
       "id": "node-AC",
@@ -1964,8 +2019,8 @@
         "type": 3
       },
       "seed": 156,
-      "version": 1,
-      "versionNonce": 1056,
+      "version": 2,
+      "versionNonce": 1998995837,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1973,9 +2028,10 @@
           "id": "text-AC"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "at"
     },
     {
       "id": "text-AC",
@@ -1996,11 +2052,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 157,
-      "version": 1,
-      "versionNonce": 1057,
+      "version": 2,
+      "versionNonce": 645292243,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Structural expansion\nparent, children, siblings,\nsplit neighbors",
@@ -2012,7 +2068,8 @@
       "containerId": "node-AC",
       "originalText": "Structural expansion\nparent, children, siblings, split neighbors",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "au"
     },
     {
       "id": "node-AD",
@@ -2035,8 +2092,8 @@
         "type": 3
       },
       "seed": 158,
-      "version": 1,
-      "versionNonce": 1058,
+      "version": 2,
+      "versionNonce": 1799031261,
       "isDeleted": false,
       "boundElements": [
         {
@@ -2044,9 +2101,10 @@
           "id": "text-AD"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "av"
     },
     {
       "id": "text-AD",
@@ -2067,11 +2125,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 159,
-      "version": 1,
-      "versionNonce": 1059,
+      "version": 2,
+      "versionNonce": 1094241907,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Deduplicate + source order\ncontext budget",
@@ -2083,7 +2141,8 @@
       "containerId": "node-AD",
       "originalText": "Deduplicate + source order\ncontext budget",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "aw"
     },
     {
       "id": "node-AE",
@@ -2106,8 +2165,8 @@
         "type": 3
       },
       "seed": 160,
-      "version": 1,
-      "versionNonce": 1060,
+      "version": 2,
+      "versionNonce": 643286589,
       "isDeleted": false,
       "boundElements": [
         {
@@ -2115,9 +2174,10 @@
           "id": "text-AE"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "ax"
     },
     {
       "id": "text-AE",
@@ -2138,11 +2198,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 161,
-      "version": 1,
-      "versionNonce": 1061,
+      "version": 2,
+      "versionNonce": 1620871187,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Build citations",
@@ -2154,7 +2214,8 @@
       "containerId": "node-AE",
       "originalText": "Build citations",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "ay"
     },
     {
       "id": "node-AF",
@@ -2175,8 +2236,8 @@
       "frameId": null,
       "roundness": null,
       "seed": 162,
-      "version": 1,
-      "versionNonce": 1062,
+      "version": 2,
+      "versionNonce": 1801320093,
       "isDeleted": false,
       "boundElements": [
         {
@@ -2184,9 +2245,10 @@
           "id": "text-AF"
         }
       ],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "az"
     },
     {
       "id": "text-AF",
@@ -2207,11 +2269,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 163,
-      "version": 1,
-      "versionNonce": 1063,
+      "version": 2,
+      "versionNonce": 2056785331,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "Answer context",
@@ -2223,13 +2285,14 @@
       "containerId": "node-AF",
       "originalText": "Answer context",
       "autoResize": true,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b00"
     },
     {
       "id": "edge-63",
       "type": "arrow",
       "x": 560,
-      "y": 203,
+      "y": 207,
       "width": 60,
       "height": 4,
       "angle": 0,
@@ -2244,36 +2307,37 @@
       "frameId": null,
       "roundness": null,
       "seed": 164,
-      "version": 1,
-      "versionNonce": 1064,
+      "version": 2,
+      "versionNonce": 620698365,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
           0,
-          4
-        ],
-        [
-          30,
-          4
+          0
         ],
         [
           30,
           0
+        ],
+        [
+          30,
+          -4
         ],
         [
           60,
-          0
+          -4
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b01"
     },
     {
       "id": "edge-64",
@@ -2294,11 +2358,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 165,
-      "version": 1,
-      "versionNonce": 1065,
+      "version": 2,
+      "versionNonce": 38920019,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -2315,7 +2379,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b02"
     },
     {
       "id": "edge-65",
@@ -2336,11 +2401,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 166,
-      "version": 1,
-      "versionNonce": 1066,
+      "version": 2,
+      "versionNonce": 1807528797,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -2357,7 +2422,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b03"
     },
     {
       "id": "edge-66",
@@ -2378,11 +2444,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 167,
-      "version": 1,
-      "versionNonce": 1067,
+      "version": 2,
+      "versionNonce": 1109425395,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -2407,7 +2473,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b04"
     },
     {
       "id": "edge-67",
@@ -2428,11 +2495,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 168,
-      "version": 1,
-      "versionNonce": 1068,
+      "version": 2,
+      "versionNonce": 1273511869,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -2457,12 +2524,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b05"
     },
     {
       "id": "edge-68",
       "type": "arrow",
-      "x": 1520,
+      "x": 1580,
       "y": 413,
       "width": 60,
       "height": 4,
@@ -2478,28 +2546,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 169,
-      "version": 1,
-      "versionNonce": 1069,
+      "version": 2,
+      "versionNonce": 1972004499,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          30,
+          -30,
           0
         ],
         [
-          30,
+          -30,
           4
         ],
         [
-          0,
+          -60,
           4
         ]
       ],
@@ -2507,12 +2575,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b06"
     },
     {
       "id": "edge-69",
       "type": "arrow",
-      "x": 1200,
+      "x": 1260,
       "y": 417,
       "width": 60,
       "height": 6,
@@ -2528,28 +2597,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 170,
-      "version": 1,
-      "versionNonce": 1070,
+      "version": 2,
+      "versionNonce": 1268989981,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          30,
+          -30,
           0
         ],
         [
-          30,
+          -30,
           6
         ],
         [
-          0,
+          -60,
           6
         ]
       ],
@@ -2557,13 +2626,14 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b07"
     },
     {
       "id": "edge-70",
       "type": "arrow",
-      "x": 880,
-      "y": 413,
+      "x": 940,
+      "y": 428,
       "width": 60,
       "height": 15,
       "angle": 0,
@@ -2578,41 +2648,42 @@
       "frameId": null,
       "roundness": null,
       "seed": 171,
-      "version": 1,
-      "versionNonce": 1071,
+      "version": 2,
+      "versionNonce": 591797299,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
-          15
-        ],
-        [
-          30,
-          15
-        ],
-        [
-          30,
-          0
-        ],
-        [
           0,
           0
+        ],
+        [
+          -30,
+          0
+        ],
+        [
+          -30,
+          -15
+        ],
+        [
+          -60,
+          -15
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b08"
     },
     {
       "id": "edge-71",
       "type": "arrow",
-      "x": 560,
+      "x": 620,
       "y": 413,
       "width": 60,
       "height": 15,
@@ -2628,28 +2699,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 172,
-      "version": 1,
-      "versionNonce": 1072,
+      "version": 2,
+      "versionNonce": 819934333,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          30,
+          -30,
           0
         ],
         [
-          30,
+          -30,
           15
         ],
         [
-          0,
+          -60,
           15
         ]
       ],
@@ -2657,7 +2728,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b09"
     },
     {
       "id": "edge-72",
@@ -2678,11 +2750,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 173,
-      "version": 1,
-      "versionNonce": 1073,
+      "version": 2,
+      "versionNonce": 926555603,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -2707,7 +2779,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0A"
     },
     {
       "id": "edge-73",
@@ -2728,11 +2801,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 174,
-      "version": 1,
-      "versionNonce": 1074,
+      "version": 2,
+      "versionNonce": 123575517,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -2749,7 +2822,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0B"
     },
     {
       "id": "edge-74",
@@ -2770,11 +2844,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 175,
-      "version": 1,
-      "versionNonce": 1075,
+      "version": 2,
+      "versionNonce": 1551690611,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -2799,7 +2873,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0C"
     },
     {
       "id": "edge-75",
@@ -2820,11 +2895,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 176,
-      "version": 1,
-      "versionNonce": 1076,
+      "version": 2,
+      "versionNonce": 1722808637,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -2849,12 +2924,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0D"
     },
     {
       "id": "edge-76",
       "type": "arrow",
-      "x": 1670,
+      "x": 1740,
       "y": 827,
       "width": 70,
       "height": 6,
@@ -2870,28 +2946,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 177,
-      "version": 1,
-      "versionNonce": 1077,
+      "version": 2,
+      "versionNonce": 391447827,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          70,
+          0,
           0
         ],
         [
-          35,
+          -35,
           0
         ],
         [
-          35,
+          -35,
           6
         ],
         [
-          0,
+          -70,
           6
         ]
       ],
@@ -2899,12 +2975,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0E"
     },
     {
       "id": "edge-77",
       "type": "arrow",
-      "x": 1360,
+      "x": 1420,
       "y": 828,
       "width": 60,
       "height": 5,
@@ -2920,28 +2997,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 178,
-      "version": 1,
-      "versionNonce": 1078,
+      "version": 2,
+      "versionNonce": 2016922013,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          30,
+          -30,
           0
         ],
         [
-          30,
+          -30,
           5
         ],
         [
-          0,
+          -60,
           5
         ]
       ],
@@ -2949,13 +3026,14 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0F"
     },
     {
       "id": "edge-78",
       "type": "arrow",
-      "x": 910,
-      "y": 762,
+      "x": 1550,
+      "y": 876,
       "width": 640,
       "height": 114,
       "angle": 0,
@@ -2970,41 +3048,42 @@
       "frameId": null,
       "roundness": null,
       "seed": 179,
-      "version": 1,
-      "versionNonce": 1079,
+      "version": 2,
+      "versionNonce": 523823795,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          640,
-          114
-        ],
-        [
-          640,
-          0
-        ],
-        [
           0,
           0
         ],
         [
           0,
-          28
+          -114
+        ],
+        [
+          -640,
+          -114
+        ],
+        [
+          -640,
+          -86
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0G"
     },
     {
       "id": "edge-79",
       "type": "arrow",
-      "x": 720,
+      "x": 780,
       "y": 833,
       "width": 60,
       "height": 4,
@@ -3020,28 +3099,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 180,
-      "version": 1,
-      "versionNonce": 1080,
+      "version": 2,
+      "versionNonce": 1025936893,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          30,
+          -30,
           0
         ],
         [
-          30,
+          -30,
           4
         ],
         [
-          0,
+          -60,
           4
         ]
       ],
@@ -3049,12 +3128,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0H"
     },
     {
       "id": "edge-80",
       "type": "arrow",
-      "x": 400,
+      "x": 460,
       "y": 832,
       "width": 60,
       "height": 1,
@@ -3070,28 +3150,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 181,
-      "version": 1,
-      "versionNonce": 1081,
+      "version": 2,
+      "versionNonce": 2026839123,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          30,
+          -30,
           0
         ],
         [
-          30,
+          -30,
           1
         ],
         [
-          0,
+          -60,
           1
         ]
       ],
@@ -3099,7 +3179,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0I"
     },
     {
       "id": "edge-81",
@@ -3120,11 +3201,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 182,
-      "version": 1,
-      "versionNonce": 1082,
+      "version": 2,
+      "versionNonce": 343787101,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -3141,12 +3222,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0J"
     },
     {
       "id": "edge-82",
       "type": "arrow",
-      "x": 745,
+      "x": 1225,
       "y": 1086,
       "width": 480,
       "height": 124,
@@ -3162,28 +3244,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 183,
-      "version": 1,
-      "versionNonce": 1083,
+      "version": 2,
+      "versionNonce": 1341004275,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          480,
+          0,
           0
         ],
         [
-          480,
-          62
-        ],
-        [
           0,
           62
         ],
         [
-          0,
+          -480,
+          62
+        ],
+        [
+          -480,
           124
         ]
       ],
@@ -3191,12 +3273,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0K"
     },
     {
       "id": "edge-83",
       "type": "arrow",
-      "x": 1065,
+      "x": 1235,
       "y": 1086,
       "width": 170,
       "height": 124,
@@ -3212,28 +3295,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 184,
-      "version": 1,
-      "versionNonce": 1084,
+      "version": 2,
+      "versionNonce": 17756861,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          170,
+          0,
           0
         ],
         [
-          170,
-          28
-        ],
-        [
           0,
           28
         ],
         [
-          0,
+          -170,
+          28
+        ],
+        [
+          -170,
           124
         ]
       ],
@@ -3241,12 +3324,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0L"
     },
     {
       "id": "edge-84",
       "type": "arrow",
-      "x": 745,
+      "x": 750,
       "y": 1296,
       "width": 5,
       "height": 124,
@@ -3262,28 +3346,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 185,
-      "version": 1,
-      "versionNonce": 1085,
+      "version": 2,
+      "versionNonce": 295461779,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          5,
+          0,
           0
         ],
         [
-          5,
-          62
-        ],
-        [
           0,
           62
         ],
         [
-          0,
+          -5,
+          62
+        ],
+        [
+          -5,
           124
         ]
       ],
@@ -3291,7 +3375,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0M"
     },
     {
       "id": "edge-85",
@@ -3312,11 +3397,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 186,
-      "version": 1,
-      "versionNonce": 1086,
+      "version": 2,
+      "versionNonce": 796627741,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -3341,12 +3426,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0N"
     },
     {
       "id": "edge-86",
       "type": "arrow",
-      "x": 755,
+      "x": 1390,
       "y": 1304,
       "width": 635,
       "height": 116,
@@ -3362,28 +3448,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 187,
-      "version": 1,
-      "versionNonce": 1087,
+      "version": 2,
+      "versionNonce": 1175484723,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          635,
+          0,
           0
         ],
         [
-          635,
-          58
-        ],
-        [
           0,
           58
         ],
         [
-          0,
+          -635,
+          58
+        ],
+        [
+          -635,
           116
         ]
       ],
@@ -3391,7 +3477,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0O"
     },
     {
       "id": "edge-87",
@@ -3412,11 +3499,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 188,
-      "version": 1,
-      "versionNonce": 1088,
+      "version": 2,
+      "versionNonce": 1010116477,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -3441,13 +3528,14 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0P"
     },
     {
       "id": "edge-88",
       "type": "arrow",
       "x": 1200,
-      "y": 1463,
+      "y": 1478,
       "width": 60,
       "height": 15,
       "angle": 0,
@@ -3462,36 +3550,37 @@
       "frameId": null,
       "roundness": null,
       "seed": 189,
-      "version": 1,
-      "versionNonce": 1089,
+      "version": 2,
+      "versionNonce": 716233427,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
           0,
-          15
-        ],
-        [
-          30,
-          15
+          0
         ],
         [
           30,
           0
+        ],
+        [
+          30,
+          -15
         ],
         [
           60,
-          0
+          -15
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0Q"
     },
     {
       "id": "edge-89",
@@ -3512,11 +3601,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 190,
-      "version": 1,
-      "versionNonce": 1090,
+      "version": 2,
+      "versionNonce": 964505565,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -3541,13 +3630,14 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0R"
     },
     {
       "id": "edge-90",
       "type": "arrow",
-      "x": 1360,
-      "y": 1673,
+      "x": 1420,
+      "y": 1677,
       "width": 60,
       "height": 4,
       "angle": 0,
@@ -3562,41 +3652,42 @@
       "frameId": null,
       "roundness": null,
       "seed": 191,
-      "version": 1,
-      "versionNonce": 1091,
+      "version": 2,
+      "versionNonce": 202639475,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
-          4
-        ],
-        [
-          30,
-          4
-        ],
-        [
-          30,
-          0
-        ],
-        [
           0,
           0
+        ],
+        [
+          -30,
+          0
+        ],
+        [
+          -30,
+          -4
+        ],
+        [
+          -60,
+          -4
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0S"
     },
     {
       "id": "edge-91",
       "type": "arrow",
-      "x": 1040,
+      "x": 1100,
       "y": 1673,
       "width": 60,
       "height": 0,
@@ -3612,20 +3703,20 @@
       "frameId": null,
       "roundness": null,
       "seed": 192,
-      "version": 1,
-      "versionNonce": 1092,
+      "version": 2,
+      "versionNonce": 1969564733,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          0,
+          -60,
           0
         ]
       ],
@@ -3633,12 +3724,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0T"
     },
     {
       "id": "edge-92",
       "type": "arrow",
-      "x": 720,
+      "x": 780,
       "y": 1673,
       "width": 60,
       "height": 0,
@@ -3654,20 +3746,20 @@
       "frameId": null,
       "roundness": null,
       "seed": 193,
-      "version": 1,
-      "versionNonce": 1093,
+      "version": 2,
+      "versionNonce": 1610646035,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          0,
+          -60,
           0
         ]
       ],
@@ -3675,7 +3767,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0U"
     },
     {
       "id": "edge-93",
@@ -3696,11 +3789,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 194,
-      "version": 1,
-      "versionNonce": 1094,
+      "version": 2,
+      "versionNonce": 2144246941,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
@@ -3725,12 +3818,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0V"
     },
     {
       "id": "edge-94",
       "type": "arrow",
-      "x": 1075,
+      "x": 1870,
       "y": 884,
       "width": 795,
       "height": 326,
@@ -3746,28 +3840,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 195,
-      "version": 1,
-      "versionNonce": 1095,
+      "version": 2,
+      "versionNonce": 527222707,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          795,
+          0,
           0
         ],
         [
-          795,
-          20
-        ],
-        [
           0,
           20
         ],
         [
-          0,
+          -795,
+          20
+        ],
+        [
+          -795,
           326
         ]
       ],
@@ -3775,12 +3869,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0W"
     },
     {
       "id": "edge-95",
       "type": "arrow",
-      "x": 1075,
+      "x": 1880,
       "y": 884,
       "width": 805,
       "height": 536,
@@ -3796,28 +3891,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 196,
-      "version": 1,
-      "versionNonce": 1096,
+      "version": 2,
+      "versionNonce": 1886060797,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          805,
+          0,
           0
         ],
         [
-          805,
-          440
-        ],
-        [
           0,
           440
         ],
         [
-          0,
+          -805,
+          440
+        ],
+        [
+          -805,
           536
         ]
       ],
@@ -3825,12 +3920,13 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0X"
     },
     {
       "id": "edge-96",
       "type": "arrow",
-      "x": 1200,
+      "x": 1260,
       "y": 208,
       "width": 60,
       "height": 225,
@@ -3846,28 +3942,28 @@
       "frameId": null,
       "roundness": null,
       "seed": 197,
-      "version": 1,
-      "versionNonce": 1097,
+      "version": 2,
+      "versionNonce": 1618958675,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          60,
+          0,
           0
         ],
         [
-          28,
+          -32,
           0
         ],
         [
-          28,
+          -32,
           225
         ],
         [
-          0,
+          -60,
           225
         ]
       ],
@@ -3875,13 +3971,14 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0Y"
     },
     {
       "id": "edge-97",
       "type": "arrow",
-      "x": -270,
-      "y": -250,
+      "x": 1715,
+      "y": 160,
       "width": 1985,
       "height": 878,
       "angle": 0,
@@ -3896,40 +3993,41 @@
       "frameId": null,
       "roundness": null,
       "seed": 198,
-      "version": 1,
-      "versionNonce": 1098,
+      "version": 2,
+      "versionNonce": 1824250205,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "points": [
         [
-          1985,
-          410
-        ],
-        [
-          1985,
-          0
-        ],
-        [
           0,
           0
         ],
         [
           0,
-          878
+          -410
         ],
         [
-          890,
-          878
+          -1985,
+          -410
+        ],
+        [
+          -1985,
+          468
+        ],
+        [
+          -1095,
+          468
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "b0Z"
     },
     {
       "id": "edge-label-98",
@@ -3950,11 +4048,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 199,
-      "version": 1,
-      "versionNonce": 1099,
+      "version": 2,
+      "versionNonce": 814659315,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "yes",
@@ -3966,7 +4064,8 @@
       "containerId": null,
       "originalText": "yes",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0a"
     },
     {
       "id": "edge-label-99",
@@ -3987,11 +4086,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 200,
-      "version": 1,
-      "versionNonce": 1100,
+      "version": 2,
+      "versionNonce": 1846715837,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "no",
@@ -4003,7 +4102,8 @@
       "containerId": null,
       "originalText": "no",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0b"
     },
     {
       "id": "edge-label-100",
@@ -4024,11 +4124,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 201,
-      "version": 1,
-      "versionNonce": 1101,
+      "version": 2,
+      "versionNonce": 773939347,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "no",
@@ -4040,7 +4140,8 @@
       "containerId": null,
       "originalText": "no",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0c"
     },
     {
       "id": "edge-label-101",
@@ -4061,11 +4162,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 202,
-      "version": 1,
-      "versionNonce": 1102,
+      "version": 2,
+      "versionNonce": 1200678429,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "yes",
@@ -4077,7 +4178,8 @@
       "containerId": null,
       "originalText": "yes",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0d"
     },
     {
       "id": "edge-label-102",
@@ -4098,11 +4200,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 203,
-      "version": 1,
-      "versionNonce": 1103,
+      "version": 2,
+      "versionNonce": 1659754035,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "searchable Child\nvectors",
@@ -4114,7 +4216,8 @@
       "containerId": null,
       "originalText": "searchable Child vectors",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0e"
     },
     {
       "id": "edge-label-103",
@@ -4135,11 +4238,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 204,
-      "version": 1,
-      "versionNonce": 1104,
+      "version": 2,
+      "versionNonce": 1814567549,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "FTS corpus + canonical\nsource",
@@ -4151,7 +4254,8 @@
       "containerId": null,
       "originalText": "FTS corpus + canonical source",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0f"
     },
     {
       "id": "edge-label-104",
@@ -4172,11 +4276,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 205,
-      "version": 1,
-      "versionNonce": 1105,
+      "version": 2,
+      "versionNonce": 1574606803,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "canonical content +\nrelations",
@@ -4188,7 +4292,8 @@
       "containerId": null,
       "originalText": "canonical content + relations",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0g"
     },
     {
       "id": "edge-label-105",
@@ -4209,11 +4314,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 206,
-      "version": 1,
-      "versionNonce": 1106,
+      "version": 2,
+      "versionNonce": 1956233949,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "never reparses per\nParent",
@@ -4225,7 +4330,8 @@
       "containerId": null,
       "originalText": "never reparses per Parent",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0h"
     },
     {
       "id": "edge-label-106",
@@ -4246,11 +4352,11 @@
       "frameId": null,
       "roundness": null,
       "seed": 207,
-      "version": 1,
-      "versionNonce": 1107,
+      "version": 2,
+      "versionNonce": 217982323,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1783699200000,
+      "updated": 1783879651104,
       "link": null,
       "locked": false,
       "text": "warnings continue by\ndefault\nerrors block publish",
@@ -4262,7 +4368,8 @@
       "containerId": null,
       "originalText": "warnings continue by default\nerrors block publish",
       "autoResize": false,
-      "lineHeight": 1.25
+      "lineHeight": 1.25,
+      "index": "b0i"
     }
   ],
   "appState": {

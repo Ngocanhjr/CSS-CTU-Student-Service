@@ -21,11 +21,13 @@ validated Markdown
 
 | Diagram | Purpose |
 |---|---|
+| `00_markdown_to_answer_overview_flow.mmd` | Overview từ Markdown đã review: tách YAML/body, lưu/index chunks, hybrid retrieval, expansion và grounded answer. Đọc sơ đồ này trước các flow chi tiết. |
 | `00_unified_chunking_retrieval_flow.mmd` | Tổng quan end-to-end từ Markdown đến publish và retrieval. Đây là sơ đồ overview chuẩn. |
 | `09a_pre_chunk_parsing_normalization_flow.mmd` | Page marker consumption và một StructuralParser stateful chạy xuyên toàn bộ PageBlock. |
 | `09a_page_range_citation_fix_flow.mmd` | Parent nhiều trang được tạo trực tiếp theo block range, không merge theo `heading_path`. |
 | `10_structural_parent_child_flow.mmd` | Quy tắc Parent/Child, item hierarchy, paragraph, table/code và heading-only fallback. |
 | `10_oversized_atomic_unit_split_flow.mmd` | Split item/paragraph/table/code quá dài mà không phá boundary. |
+| `11_markdown_metadata_postgres_ingestion_flow.mmd` | Đọc Markdown, tách YAML/body, validate metadata, map recipients và lưu Parent/Child vào PostgreSQL trong một transaction. |
 | `07_13_ingestion_pipeline_publish_modes_flow.mmd` | Orchestration, warning/error severity, preview và publish modes. |
 | `08_chunk_key_db_qdrant_contract_flow.mmd` | Stable keys, PostgreSQL canonical content, Qdrant structural metadata và hydration. |
 | `14_15_embedding_qdrant_indexing_flow.mmd` | Child embedding text, deterministic point id và payload đầy đủ. |
