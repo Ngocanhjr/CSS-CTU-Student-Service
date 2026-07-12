@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "guild_implement/10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md",
+                "file": "guild_implement/09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "10_PART_C_HEADING_AWARE_CHUNKER_GUIDE"
+              "title": "09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE"
             }
           }
         ]
@@ -78,7 +78,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "38e669c65d0c5c77",
@@ -185,6 +186,9 @@
   },
   "active": "d7898b18978c30e9",
   "lastOpenFiles": [
+    "diagrams/flowchart/11_markdown_metadata_postgres_ingestion_flow.excalidraw",
+    "diagrams/flowchart/11_markdown_metadata_postgres_ingestion_flow.mmd",
+    "guild_implement/09_PART_B_MARKDOWN_READER_GUIDE.md",
     "guild_implement/09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md",
     "guild_implement/10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md",
     "guild_implement/10B_PART_C_PAGE_AWARE_CHUNKER_DECISIONS.md",
