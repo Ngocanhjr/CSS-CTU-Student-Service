@@ -56,6 +56,9 @@ Mỗi entity có stable key phải có constraint duy nhất trong DB:
 
 Mỗi schema field bắt buộc phải có cột tương ứng trong DB, trừ các field chỉ dùng để resolve quan hệ.
 
+Ngoai le MVP: `Chunk.metadata` la derived structural payload cho Qdrant, khong persist vao
+`document_chunks`. Payload nay duoc regenerate tu canonical Markdown khi recreate Qdrant.
+
 Ví dụ:
 
 - `document_key` trong schema dùng để tìm `documents.id`.

@@ -152,6 +152,10 @@ chatbot/backend/app/databases/models/chunks.py
 
 Bắt buộc thêm cột `chunk_key`.
 
+Khong them `structural_metadata` trong MVP. PostgreSQL giu canonical chunk content va
+`parent_chunk_id`; Qdrant giu structural payload. Recreate Qdrant thi parse/chunk lai
+canonical Markdown.
+
 Cần sửa nullable cho các field có thể không có page/token:
 
 ```python
@@ -172,8 +176,8 @@ class DocumentChunk(Base):
 
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     chunk_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    heading_path: Mapped[str | None] = mapped_column(Text)
-    section_title: Mapped[str | None] = mapped_column(Text)
+    heading_path: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    section_title: Mapped[str] = mapped_column(String(500), default="", nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -307,8 +311,8 @@ for chunk in parent_chunks:
         chunk_key=chunk.chunk_key,
         chunk_index=chunk.chunk_index,
         chunk_type="parent",
-        heading_path=" > ".join(chunk.heading_path) if chunk.heading_path else None,
-        section_title=chunk.heading_path[-1] if chunk.heading_path else None,
+        heading_path=chunk.heading_path,
+        section_title=chunk.heading_path[-1] if chunk.heading_path else "",
         content=chunk.content,
         page_start=chunk.page_start,
         page_end=chunk.page_end,

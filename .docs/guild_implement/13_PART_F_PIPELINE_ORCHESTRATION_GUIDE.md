@@ -344,7 +344,6 @@ Dung guard DATABASE_URL.endswith("/ctu_student_service_test").
 
 ```text
 warning:
-- paragraph ownership mơ hồ;
 - heading context kép;
 - canonical Markdown heading bất thường nhưng parser vẫn tạo output hợp lệ.
 

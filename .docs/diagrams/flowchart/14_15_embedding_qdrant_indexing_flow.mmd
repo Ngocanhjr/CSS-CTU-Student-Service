@@ -4,7 +4,7 @@
 
 flowchart TD
     A[(PostgreSQL<br/>Child chunks not indexed)]
-    B[Load Child chunk<br/>and in-memory structural metadata]
+    B[Use saved Child content +<br/>in-memory Chunk.metadata]
     C[build_embedding_text]
     D[Prepend heading_path]
     E[Prepend ancestor item labels<br/>item_path without current item]
@@ -27,7 +27,7 @@ flowchart TD
     M --> O --> P
 
     K -. identity and trace .-> Q[postgres_chunk_id<br/>chunk_key<br/>parent_chunk_key]
-    K -. structural payload .-> R[logical_item_key<br/>parent_item_key<br/>heading_path + item_path<br/>item_marker + item_level<br/>split_index + split_count<br/>chunk_index or source_order<br/>block_type + legal_unit_type<br/>page_start + page_end]
-    K -. governance filters .-> S[review_status<br/>rag_status<br/>audience_student<br/>document/version metadata]
+    K -. structural payload .-> R[logical_item_key + logical_item_keys<br/>parent_item_key<br/>logical_table_key + logical_code_key<br/>heading_path + item_path<br/>item_marker + item_level<br/>split_index + split_count<br/>chunk_index or source_order<br/>block_type + legal_unit_type<br/>page_start + page_end]
+    K -. governance and citation .-> S[review_status<br/>rag_status<br/>audience_student<br/>title + source_file + source_url<br/>document/version metadata]
 
     T{{Only Child chunks<br/>are embedded by default}} -. contract .-> A

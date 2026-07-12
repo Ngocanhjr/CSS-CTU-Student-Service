@@ -310,6 +310,7 @@ async def test_markdown_to_retrieval_smoke(tmp_path):
         retriever = Retriever(
             embedder=FakeEmbedder(dimensions=3),
             qdrant_client=get_qdrant_client(),
+            rerank=lambda results: results,  # deterministic test stub
             collection_name="css_qdrant",
         )
         results = await retriever.search_resolved_query(
@@ -500,7 +501,7 @@ Concrete assertions:
 - Chương I + NHỮNG VẤN ĐỀ CHUNG giữ derived heading_path kết hợp;
 - heading bất thường "## Sau thời hạn đóng học phí..." sinh canonical_markdown_warning, không tự demote;
 - Điều 18 tạo numbered/lettered Child riêng; bullet ngắn cùng parent có thể thành bullet group, giữ logical_item_keys và cross-page context;
-- paragraph ownership mơ hồ tạo warning, không phải error mặc định;
+- paragraph kế thừa item đang mở và không tạo report riêng;
 - table Điều 19 là atomic table Child;
 - legal_unit_type của legal list đúng và general list là none;
 - logical_item_key/parent_item_key/split_index/split_count/item_path/page range đúng;

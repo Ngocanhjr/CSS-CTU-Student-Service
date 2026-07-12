@@ -409,13 +409,14 @@ def _consume_paragraph(
     return "\n".join(consumed), min(pages), max(pages), index
 
 
-def _current_paths(
+def _current_context(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], str | None]:
     heading_path = [text for _, text in heading_stack]
     item_path = list(item_stack[-1].item_path) if item_stack else []
-    return heading_path, item_path
+    parent_item_key = item_stack[-1].logical_item_key if item_stack else None
+    return heading_path, item_path, parent_item_key
 
 
 def _make_code_block(
@@ -426,7 +427,7 @@ def _make_code_block(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> StructuralBlock:
-    heading_path, item_path = _current_paths(heading_stack, item_stack)
+    heading_path, item_path, parent_item_key = _current_context(heading_stack, item_stack)
     return StructuralBlock(
         block_type="code",
         raw_content=raw_content,
@@ -435,6 +436,7 @@ def _make_code_block(
         source_order=source_order,
         heading_path=heading_path,
         item_path=item_path,
+        parent_item_key=parent_item_key,
         logical_code_key=f"code:{source_order:06d}",
     )
 
@@ -447,7 +449,7 @@ def _make_table_block(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> StructuralBlock:
-    heading_path, item_path = _current_paths(heading_stack, item_stack)
+    heading_path, item_path, parent_item_key = _current_context(heading_stack, item_stack)
     return StructuralBlock(
         block_type="table",
         raw_content=raw_content,
@@ -456,6 +458,7 @@ def _make_table_block(
         source_order=source_order,
         heading_path=heading_path,
         item_path=item_path,
+        parent_item_key=parent_item_key,
         logical_table_key=f"table:{source_order:06d}",
     )
 
@@ -468,7 +471,7 @@ def _make_paragraph_block(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> StructuralBlock:
-    heading_path, item_path = _current_paths(heading_stack, item_stack)
+    heading_path, item_path, parent_item_key = _current_context(heading_stack, item_stack)
     return StructuralBlock(
         block_type="paragraph",
         raw_content=raw_content,
@@ -477,6 +480,7 @@ def _make_paragraph_block(
         source_order=source_order,
         heading_path=heading_path,
         item_path=item_path,
+        parent_item_key=parent_item_key,
     )
 ```
 
@@ -746,8 +750,7 @@ Key va report toi thieu:
 Parser tao key deterministic tu source_order: `item:000001`, `table:000002`, `code:000003`.
 Chunker chi copy key nay; khong tao lai key sau khi split.
 `item_level_jump` la warning parser toi thieu. Chi them
-`ambiguous_paragraph_owner` khi co rule phat hien ambiguity cu the; khong emit warning
-speculative cho paragraph da co owner tu stack.
+Paragraph ke thua owner hien tai tu parser stack va khong emit report trong MVP.
 `unclosed_code_fence` la error.
 Duplicate logical key va split boundary la error o child/chunker layer, khong phai parser line-level.
 ```
@@ -986,7 +989,7 @@ Dung khi gap heading moi hoac bat ky item moi.
 Neu item moi co cap thap hon thi item do thanh item con.
 Page marker khong lam ket thuc item va khong lam mat item_path.
 Neu paragraph khong thuoc item nao, tao paragraph Child trong Parent hien tai.
-Neu paragraph sau danh sach khong ro thuoc item cuoi hay item cha, dung fallback bao thu va ghi ValidationReport warning/error tuy muc do.
+Paragraph sau danh sach ke thua item dang mo; khong tao ValidationReport rieng.
 Khong am tham gan sai.
 ```
 
@@ -1062,7 +1065,7 @@ Page marker và HTML comment kỹ thuật khác không được đưa vào `embe
 - [ ] `### - Nội dung` vẫn là heading.
 - [ ] Markdown heading không bị demote thành item.
 - [ ] Điều -> Khoản -> Điểm -> Bullet tạo đúng `item_path`.
-- [ ] Paragraph được gắn đúng item hoặc sinh ValidationReport warning.
+- [ ] Paragraph kế thừa item đang mở; paragraph ngoài item tạo Child trong Parent hiện tại.
 - [ ] Item con kế thừa context cha.
 - [ ] Item cha kết thúc bằng `:` vẫn tạo child riêng.
 - [ ] Item cha có item con không chứa nội dung item con.
@@ -1118,7 +1121,7 @@ candidate_owners
 ```text
 warning không tự động chặn publish.
 error mới chặn publish theo mặc định.
-paragraph ownership mơ hồ, heading context kép và heading dài bất thường là warning.
+heading context kép và heading dài bất thường là warning.
 missing page range, duplicate logical_item_key, child thiếu parent_chunk_key hoặc split phá boundary là error.
 ```
 

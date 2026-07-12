@@ -378,6 +378,9 @@ Khớp DDL spec 05 (`document_chunks`): dùng `parent_chunk_id` và `chunk_type`
 `heading_path`, `section_title`, `page_start/page_end`, `token_count`, `checksum`,
 `qdrant_point_id`.
 
+MVP khong them `document_chunks.structural_metadata`. Structural metadata nam trong
+Qdrant payload va duoc regenerate tu canonical Markdown khi recreate collection.
+
 ```python
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
@@ -387,8 +390,8 @@ class DocumentChunk(Base):
     chunk_key: Mapped[str] = mapped_column(String(255), nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     chunk_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    section_title: Mapped[str | None] = mapped_column(Text)
-    heading_path: Mapped[str | None] = mapped_column(Text)
+    section_title: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    heading_path: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     page_start: Mapped[int | None] = mapped_column(Integer)

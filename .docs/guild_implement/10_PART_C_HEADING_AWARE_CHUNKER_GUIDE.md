@@ -414,7 +414,7 @@ Chunk.chunk_key = stable key trong memory/preview/PostgreSQL/Qdrant
 Chunk.parent_chunk_key = stable parent key trong memory/preview/repository input/Qdrant
 DocumentChunk.id = internal PostgreSQL primary key sau khi insert DB
 DocumentChunk.parent_chunk_id = internal FK sau khi repository map parent_chunk_key -> DB id
-PostgreSQL không có cột parent_chunk_key; không tuyên bố structural metadata đã persist nếu schema chưa có JSONB/cột tương ứng
+PostgreSQL persist canonical content va parent relation bang parent_chunk_id; structural metadata nam trong Qdrant payload
 ```
 
 Chunker tạo stable key, không tạo DB id.
@@ -461,7 +461,7 @@ Layer 2: Parent chunker
 
 Layer 3: Child chunker
   -> nhan ParentSection.blocks
-  -> tao child theo numbered_item / lettered_item / bullet_item / table / code / paragraph boundary
+  -> numbered/lettered tạo Child riêng; bullet ngắn cùng heading_path + parent_item_key có thể group
   -> RecursiveCharacterTextSplitter chi split ben trong mot child unit qua dai
 
 Project code
@@ -949,34 +949,31 @@ def build_structural_child_units(section: ParentSection) -> tuple[list[ChildUnit
     units: list[ChildUnit] = []
     reports: list[ValidationReport] = []
     current: ChildUnit | None = None
-    item_stack: list[StructuralBlock] = []
 
     for block in section.blocks:
         if block.block_type == "heading":
             current = None
-            item_stack = []
             continue
 
         if block.block_type in {"numbered_item", "lettered_item", "bullet_item"}:
             if current:
                 units.append(current)
-            item_stack = close_deeper_or_same_level_items(item_stack, block)
-            parent_item = item_stack[-1] if item_stack else None
-            item_stack.append(block)
-            current = child_unit_from_item(block, parent_item_key=get_item_key(parent_item))
+            current = child_unit_from_item(
+                block,
+                parent_item_key=block.parent_item_key,
+            )
             continue
 
         if block.block_type in {"table", "code"}:
             if current:
                 units.append(current)
                 current = None
-            parent_item = item_stack[-1] if item_stack else None
             units.append(
                 child_unit_from_block(
                     block,
                     section.heading_path,
-                    item_path=build_item_path(item_stack),
-                    parent_item_key=get_item_key(parent_item),
+                    item_path=block.item_path,
+                    parent_item_key=block.parent_item_key,
                 )
             )
             continue
@@ -987,13 +984,12 @@ def build_structural_child_units(section: ParentSection) -> tuple[list[ChildUnit
             else:
                 # Sau table/code, paragraph vẫn có thể thuộc item đang mở về mặt
                 # cấu trúc nhưng phải là paragraph Child riêng, không mở lại Child cũ.
-                parent_item = item_stack[-1] if item_stack else None
                 units.append(
                     child_unit_from_block(
                         block,
                         section.heading_path,
-                        item_path=build_item_path(item_stack),
-                        parent_item_key=get_item_key(parent_item),
+                        item_path=block.item_path,
+                        parent_item_key=block.parent_item_key,
                     )
                 )
 
@@ -1130,7 +1126,7 @@ Dung khi gap heading moi hoac bat ky item moi.
 Neu item moi co cap thap hon thi thanh item con.
 Page marker khong lam ket thuc item va khong lam mat item_path.
 Paragraph khong thuoc item nao tao paragraph Child trong Parent hien tai.
-Neu khong ro paragraph thuoc item cuoi hay item cha, dung fallback bao thu va ghi ValidationReport warning/error tuy muc do.
+Paragraph ke thua item dang mo tu StructuralBlock; khong tao ValidationReport rieng.
 ```
 
 Lý do dùng `ParentSection`:
@@ -1138,7 +1134,8 @@ Lý do dùng `ParentSection`:
 ```text
 StructuralParser chi chay mot lan o chunk_markdown_body().
 ParentSection giu blocks da parse san.
-Child builder dung section.blocks, khong parse lai parent_chunk.content.
+Child builder dung section.blocks, khong parse lai parent_chunk.content va khong tinh lai
+item hierarchy. `item_path`/`parent_item_key` phai copy tu StructuralBlock.
 Flow dung:
 PageBlock[] -> StructuralParseResult -> ParentSection.blocks -> ChildUnit -> child Chunks
 ```
@@ -1629,7 +1626,7 @@ Structural parser/chunker tests bắt buộc:
 6. `### - Nội dung` vẫn là heading.
 7. Markdown heading không bị demote thành numbered_item/lettered_item/bullet_item.
 8. Điều -> Khoản -> Điểm -> Bullet tạo đúng item_path.
-9. Paragraph được gắn đúng item hoặc sinh ValidationReport warning.
+9. Paragraph kế thừa item đang mở; paragraph ngoài item tạo Child trong Parent hiện tại.
 10. Item con kế thừa context cha.
 11. Item cha kết thúc bằng ":" vẫn tạo child riêng.
 12. Item cha có item con không chứa nội dung item con.
@@ -1748,7 +1745,8 @@ Các rule dưới đây ghi đè pseudocode cũ nếu có mâu thuẫn:
 7. Table dài split theo row group và lặp header; code dài split theo dòng, giữ fence hợp lệ và logical_code_key.
 8. legal_unit_type chỉ gán khi có legal context, không suy ra chỉ từ marker.
 9. Validation report có severity; warning không block publish, error mới block theo mặc định.
-10. Chunk.metadata là metadata trong memory; không đồng nghĩa đã persist PostgreSQL.
+10. Chunk.metadata duoc mirror sang Qdrant payload; PostgreSQL khong them structural_metadata trong MVP.
+11. Mat/recreate Qdrant thi rebuild tu canonical Markdown qua parser/chunker, khong rebuild chi tu document_chunks.
 ```
 
 `embedding_text` của item con prepend `heading_path` và ancestor item labels (`item_path[:-1]`).

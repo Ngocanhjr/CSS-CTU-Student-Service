@@ -541,7 +541,7 @@ numbered_item/lettered_item, ke ca item ngan hoac ket thuc bang ":", luon tao Ch
 bullet ngan lien ke chi duoc gop boi child_chunker khi cung heading_path va parent_item_key;
 chunk gop giu logical_item_keys cua tat ca bullet thanh vien.
 Item cha co item con van tao Child rieng; item con tao Child rieng.
-Item con link ve item cha bang parent_item_key trong Chunk.metadata in-memory va Qdrant payload; khong tu tao migration neu schema chua co cot/JSONB.
+Item con link ve item cha bang parent_item_key trong `Chunk.metadata` va Qdrant payload.
 item_path giu marker va nhan ngan tu dong item goc, vi du ["1. Ho so gom:", "a) Don dang ky."].
 Khong chi luu ["1.", "a)"] va khong sao chep toan bo noi dung dai cua item cha vao item_path.
 ```
@@ -1522,7 +1522,8 @@ Các điểm P0:
 - Table/code là atomic Child riêng.
 - legal_unit_type chỉ gán trong legal context.
 - warning không block publish; error mới block mặc định.
-- Chunk.metadata trong memory không đồng nghĩa đã persist PostgreSQL.
+- PostgreSQL persist canonical chunk content va parent relation; structural metadata nam trong Qdrant payload.
+- Neu mat/recreate Qdrant collection, rebuild bang canonical Markdown -> parser -> chunker -> embedding -> Qdrant.
 - Qdrant payload có structural fields để retrieval expansion.
 - Retrieval có parent/child/sibling/split expansion trước rerank/context budget.
 ```

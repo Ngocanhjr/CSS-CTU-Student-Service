@@ -143,10 +143,14 @@ Quy tắc:
 - [ ] Table/code luôn là atomic Child riêng; table dài split theo row và lặp header; code dài split theo dòng, giữ fence và logical_code_key.
 - [ ] `legal_unit_type` chỉ gán khi có legal context; general list dùng `none`.
 - [ ] Warning không block publish mặc định; error mới block.
-- [ ] `Chunk.metadata` được phân biệt với metadata đã persist PostgreSQL.
+- [ ] `Chunk.metadata` duoc mirror sang Qdrant payload; PostgreSQL khong co `structural_metadata` trong MVP.
+- [ ] Recreate Qdrant chay lai canonical Markdown qua parser/chunker/embedding.
 - [ ] Qdrant payload có title/source_file/source_url, logical/parent item key, logical_item_keys cho bullet group, split info, chunk order, marker và level.
 - [ ] Embedding chỉ prepend ancestor item labels, không lặp current item.
 - [ ] Retrieval expansion hỗ trợ parent/child/sibling/split, deduplicate, source-order và context budget.
 - [ ] Hydration không truy cập `chunk.parent_chunk_key`; fallback qua `parent_chunk_id`/parent row.
 - [ ] QueryDecision chạy trước retrieval; greeting/clarification khác no-result và không gọi Qdrant/LLM.
+- [ ] PostgreSQL co expression GIN index `to_tsvector('simple', content)` cho Child chunks.
+- [ ] Production retrieval chay dense + FTS/BM25 + RRF/weighted fusion + rerank.
+- [ ] Sparse-only candidate lay Qdrant payload bang `qdrant_point_id` truoc structural expansion.
 - [ ] Golden test `test_3266.md` bao phủ toàn bộ contract trên.

@@ -1,0 +1,48 @@
+%% Detailed production hybrid retrieval sequence.
+%% Structural metadata lives in Qdrant; canonical content lives in PostgreSQL.
+
+flowchart TD
+    A([Resolved student query])
+    B[Build shared hard filters<br/>approved + published + student audience]
+
+    C[Embed query]
+    D[(Qdrant dense candidates<br/>score + structural payload)]
+
+    E[websearch_to_tsquery simple<br/>against Child content]
+    F[(PostgreSQL FTS candidates<br/>score + postgres_chunk_id<br/>+ qdrant_point_id)]
+    G[Retrieve Qdrant payload<br/>for sparse-only candidates]
+
+    H[RRF or weighted fusion<br/>deduplicate by chunk_key]
+    I[Hydrate canonical content<br/>from PostgreSQL]
+    J[Mandatory rerank<br/>fused direct hits]
+    K[Conditional structural expansion]
+
+    L[Add logical parent item]
+    M[For list intent add<br/>direct children or siblings]
+    N[Add same-logical-item<br/>split neighbors]
+
+    O[Hydrate expanded content<br/>from PostgreSQL]
+    P[Deduplicate by chunk_key]
+    Q[Order within document<br/>by chunk_index + split_index]
+    R[Apply context budget]
+    S([Citation-ready context])
+
+    A --> B
+    B --> C --> D
+    B --> E --> F --> G
+    D --> H
+    G --> H
+    H --> I --> J --> K
+    K --> L
+    K --> M
+    K --> N
+    L --> O
+    M --> O
+    N --> O
+    O --> P --> Q --> R --> S
+
+    B -. same filters .-> T[document_key/version_key optional<br/>is_latest is ranking only]
+    D -. payload .-> U[logical_item_key(s)<br/>parent_item_key<br/>table/code key<br/>split metadata]
+    F -. requires .-> V[GIN index on<br/>to_tsvector simple content<br/>Child chunks only]
+    J -. production rule .-> W{{Rerank cannot be skipped}}
+    K -. budget rule .-> X{{Do not expand entire Parent<br/>when one branch is enough}}

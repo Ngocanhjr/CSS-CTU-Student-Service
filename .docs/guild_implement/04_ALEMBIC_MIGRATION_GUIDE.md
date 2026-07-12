@@ -497,6 +497,31 @@ Mong đợi thấy revision id của migration vừa tạo.
 
 ## Bước 10: Smoke Test Insert Tối Thiểu
 
+## PostgreSQL FTS Index Cho Hybrid Retrieval
+
+Production retrieval bat buoc co sparse branch. Them expression GIN index tren Child content,
+khong them cot `tsvector` rieng trong MVP:
+
+```python
+def upgrade() -> None:
+    op.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_document_chunks_child_content_fts
+        ON css.document_chunks
+        USING gin (to_tsvector('simple', content))
+        WHERE chunk_type = 'child'
+        """
+    )
+
+
+def downgrade() -> None:
+    op.execute(
+        "DROP INDEX IF EXISTS css.ix_document_chunks_child_content_fts"
+    )
+```
+
+Dung cung config `simple` trong migration va query. Khong goi luong chi-Qdrant la hybrid.
+
 Sau khi migration thành công, cần có smoke test insert data theo thứ tự:
 
 ```text

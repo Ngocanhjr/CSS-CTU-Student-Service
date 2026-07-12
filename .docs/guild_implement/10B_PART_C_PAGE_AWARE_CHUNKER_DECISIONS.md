@@ -244,9 +244,9 @@ Khong chi luu ["1.", "a)"].
 Khong sao chep toan bo noi dung dai cua item cha vao item_path.
 Khong dung LLM de tom tat hoac tu sinh nhan.
 logical_item_key, logical_item_keys va parent_item_key luu trong `Chunk.metadata` trong memory va truyen sang Qdrant payload.
-Khong duoc noi PostgreSQL da persist cac field nay neu schema `document_chunks` chua co JSONB metadata.
-Khong tao migration trong pham vi guide nay.
-Khong tu tao migration.
+PostgreSQL khong persist cac structural field nay trong MVP.
+Khong tao migration `document_chunks.structural_metadata`.
+Re-index sau restart/mat Qdrant chay lai canonical Markdown -> parser -> chunker -> embedding -> Qdrant.
 ```
 
 Nếu item nhảy cấp, mất parent, hoặc page mới làm mất context, ghi ValidationReport warning/error tuy muc do.
@@ -279,7 +279,7 @@ Paragraph dung khi gap heading moi hoac bat ky item moi.
 Neu item moi co cap thap hon thi item do thanh item con.
 Page marker khong lam ket thuc item hoac lam mat item_path.
 Paragraph khong thuoc item nao tao paragraph Child trong Parent hien tai.
-Neu paragraph khong ro thuoc item cuoi hay item cha, dung fallback bao thu va ghi ValidationReport warning/error tuy muc do.
+Paragraph ke thua item dang mo tu StructuralBlock; khong tao ValidationReport rieng.
 ```
 
 Item quá dài:
@@ -375,7 +375,7 @@ Không thêm thông tin suy diễn, không tự tóm tắt. Raw content của Ch
 - [ ] `### - Nội dung` vẫn là heading.
 - [ ] Markdown heading không bị demote thành item.
 - [ ] Điều -> Khoản -> Điểm -> Bullet tạo đúng `item_path`.
-- [ ] Paragraph được gắn đúng item hoặc sinh ValidationReport warning.
+- [ ] Paragraph kế thừa item đang mở hoặc tạo paragraph Child ngoài item.
 - [ ] Item con kế thừa context cha.
 - [ ] Item cha kết thúc bằng `:` vẫn tạo child riêng.
 - [ ] Item cha có item con không chứa nội dung item con.
@@ -390,7 +390,7 @@ Không thêm thông tin suy diễn, không tự tóm tắt. Raw content của Ch
 - [ ] Nội dung trước heading đầu tiên thuộc `document-root` parent.
 - [ ] Table/code trong item kế thừa đúng context.
 - [ ] Child ngắn có `embedding_text` chứa context thật.
-- [ ] Paragraph không rõ parent xuất ValidationReport warning.
+- [ ] Paragraph không emit report riêng trong MVP.
 - [ ] Item qua page mới vẫn giữ đúng `item_path`.
 - [ ] Page marker không bị đưa vào embedding text.
 - [ ] HTML comment kỹ thuật khác không bị đưa vào embedding text.

@@ -1,7 +1,7 @@
 # 22. Chunking–Retrieval Reconciliation Guide
 
 **Status:** Normative final contract  
-**Scope:** Documentation/guild only. Không sửa backend code, không migration, không đổi DB schema.
+**Scope:** Normative target contract. Backend implementation và migration phải theo contract này.
 
 Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu thuẫn, file này ưu tiên.
 
@@ -65,15 +65,16 @@ Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu t
 
 - Report có `severity`, `code`, `reason`, `page`, `selected_owner`, `candidate_owners`.
 - `warning` không block publish mặc định; `error` mới block.
-- Paragraph ownership, heading context kép, heading dài bất thường là warning.
+- Heading context kép và heading dài bất thường là warning; paragraph không emit report riêng.
 - Missing page range, duplicate logical key, child thiếu parent chunk hoặc split phá boundary là error.
 
-## 9. In-Memory Metadata Và PostgreSQL
+## 9. Structural Metadata Và PostgreSQL
 
 - `Chunk.metadata` là metadata trong memory của pipeline.
-- Không tuyên bố PostgreSQL đã persist structural metadata nếu schema hiện tại không có JSONB field.
-- Structural metadata được truyền sang Qdrant payload trong task hiện tại.
-- Persist đầy đủ về PostgreSQL là future migration, ngoài phạm vi.
+- PostgreSQL persist canonical chunk content va parent relation; khong them cot `structural_metadata` trong MVP.
+- Qdrant payload persist structural metadata de filter, trace va expansion.
+- Khi mat/recreate Qdrant collection, rebuild bang canonical Markdown -> parser -> chunker -> embedding -> Qdrant.
+- Khong ho tro rebuild payload chi tu `document_chunks` trong MVP.
 
 ## 10. Qdrant Payload
 
@@ -106,7 +107,7 @@ legal_unit_type
 block_type
 ```
 
-Qdrant không giữ canonical content; content cuối hydrate từ PostgreSQL. PostgreSQL không có cột `parent_chunk_key`; fallback hydration đi qua `parent_chunk_id`/parent row.
+Qdrant không giữ canonical content; content cuối hydrate từ PostgreSQL. Structural metadata tiếp tục lấy từ Qdrant payload. `parent_chunk_key` có thể derive qua `parent_chunk_id`/parent row khi hydrate.
 
 ## 11. Embedding Text
 
@@ -118,13 +119,15 @@ Qdrant không giữ canonical content; content cuối hydrate từ PostgreSQL. P
 ## 12. Retrieval Structural Expansion
 
 ```text
-vector search
-→ hydrate direct hits
+Qdrant dense + PostgreSQL FTS/BM25
+→ attach Qdrant payload cho sparse-only candidates bang qdrant_point_id
+→ RRF hoặc weighted fusion
+→ hydrate fused candidates từ PostgreSQL
+→ rerank
 → parent/child/sibling/split expansion
 → hydrate expanded neighbors
 → deduplicate
 → source-order
-→ optional rerank
 → context budget
 ```
 
@@ -145,7 +148,7 @@ vector search
 
 ## 13. Golden Test `test_3266.md`
 
-Golden fixture bao phủ page artifact, heading-only Điều, heading kép, heading bất thường, nested items Điều 18, cross-page item/table/code, ambiguous paragraph, table Điều 19, legal/general list, structural payload và retrieval expansion.
+Golden fixture bao phủ page artifact, heading-only Điều, heading kép, heading bất thường, nested items Điều 18, cross-page item/table/code, paragraph ownership theo item đang mở, table Điều 19, legal/general list, structural payload và retrieval expansion.
 
 Snapshot kiểm tra Parent/Child, heading/item path, logical/parent key, page range, split metadata, warning/error và source order.
 
@@ -158,6 +161,7 @@ Sau khi cập nhật phải search toàn guild để bảo đảm không còn:
 - table/code append vào Child item;
 - mọi numbered item mặc định là legal clause;
 - mọi warning đều block publish;
-- tuyên bố PostgreSQL đã persist metadata chưa có schema;
 - Qdrant payload thiếu structural fields;
+- retrieval thiếu PostgreSQL FTS/BM25 hoặc fusion;
+- production retrieval bo qua rerank;
 - retrieval chỉ vector search + hydrate mà không structural expansion.

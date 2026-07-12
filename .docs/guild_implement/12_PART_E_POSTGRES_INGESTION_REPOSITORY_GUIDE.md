@@ -409,8 +409,8 @@ Không có 2 chunks cùng chunk_index trong cùng list.
 Child chunk.parent_chunk_key phải trỏ tới stable key của parent chunk.
 DB lưu parent relation bằng DocumentChunk.parent_chunk_id, không lưu parent_chunk_key làm FK.
 Chunk.metadata co the chua item_path/legal_unit_type/block_type trong memory.
-Khong them cot DB moi o guide nay; metadata do dung cho preview/publish/Qdrant payload trong pipeline.
-Neu sau nay can persist trong PostgreSQL, chi lam khi schema co JSON metadata field ro rang.
+Khong them `document_chunks.structural_metadata` trong MVP; metadata do dung cho
+preview/publish/Qdrant payload. Recreate Qdrant thi parse/chunk lai canonical Markdown.
 ```
 
 ```python

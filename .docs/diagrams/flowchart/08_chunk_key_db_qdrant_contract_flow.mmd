@@ -7,7 +7,7 @@ flowchart LR
     C[Insert Parent chunks]
     D[Map parent chunk_key<br/>to PostgreSQL id]
     E[Insert Child chunks<br/>with parent_chunk_id]
-    F[(PostgreSQL<br/>canonical content + relations)]
+    F[(PostgreSQL source of truth<br/>canonical content + relations)]
     G[Build deterministic point id<br/>from version_key + chunk_key]
     H[Build Qdrant payload]
     I[(Qdrant point<br/>Child vector + metadata)]
@@ -23,11 +23,10 @@ flowchart LR
     H --> I --> J --> K --> L --> M
 
     H -. trace fields .-> P[postgres_chunk_id<br/>chunk_key<br/>parent_chunk_key]
-    H -. structural fields .-> Q[logical_item_key<br/>parent_item_key<br/>heading_path<br/>item_path<br/>item_marker + item_level<br/>split_index + split_count<br/>chunk_index or source_order<br/>block_type + legal_unit_type<br/>page_start + page_end]
+    H -. structural fields .-> Q[logical_item_key + logical_item_keys<br/>parent_item_key<br/>logical_table_key + logical_code_key<br/>heading_path<br/>item_path<br/>item_marker + item_level<br/>split_index + split_count<br/>chunk_index or source_order<br/>block_type + legal_unit_type<br/>page_start + page_end]
 
-    R{{No schema migration<br/>in current task}}
-    F -. canonical source of truth .-> R
-    Q -. may exist only in<br/>in-memory Chunk and Qdrant payload .-> R
+    R{{Recreate Qdrant by rerunning<br/>canonical Markdown through<br/>parser + chunker + embedding}}
+    F -. canonical content lookup .-> R
 
     S{{Do not use random<br/>Qdrant point ids}}
     G -. satisfies .-> S

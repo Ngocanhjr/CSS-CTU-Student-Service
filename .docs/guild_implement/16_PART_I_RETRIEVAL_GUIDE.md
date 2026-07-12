@@ -109,7 +109,148 @@ class RetrievalResult:
     expansion_reason: ExpansionReason = "direct_hit"
 ```
 
-Không thêm các structural field này vào PostgreSQL trong task hiện tại. Chúng được giữ trong Qdrant payload và truyền xuyên suốt hydration/expansion.
+Structural fields nam trong Qdrant payload. Hydration lay canonical `content` va parent relation tu PostgreSQL; khong ky vong PostgreSQL co cot `structural_metadata`.
+
+### Hybrid retrieval bắt buộc
+
+```text
+resolved query + shared hard filters
+→ Qdrant dense candidates
+  + PostgreSQL FTS/BM25 candidates
+→ attach Qdrant payload cho sparse-only candidates bang qdrant_point_id
+→ RRF hoặc weighted fusion
+→ hydrate fused candidates từ PostgreSQL
+→ rerank
+→ structural expansion và context budget
+```
+
+Không gọi luồng chỉ-Qdrant là hybrid retrieval. Dense và sparse phải dùng cùng eligibility/student filters trước fusion.
+Rerank la bat buoc trong production flow. Test co the truyen deterministic stub, nhung production caller khong duoc bo qua.
+
+### PostgreSQL FTS + Qdrant payload cho sparse candidate
+
+PostgreSQL FTS tra canonical row va `qdrant_point_id`. Vi structural metadata chi nam trong
+Qdrant theo contract MVP, sparse-only candidate phai retrieve payload bang point id truoc
+structural expansion.
+
+Suggested pattern:
+
+```python
+from langchain_core.documents import Document as LangChainDocument
+from sqlalchemy import desc, func, select
+
+from app.databases.models import Document, DocumentChunk, DocumentVersion
+
+
+async def search_sparse_documents(
+    session: AsyncSession,
+    *,
+    query: str,
+    top_k: int,
+    audience: str,
+    document_key: str | None = None,
+    version_key: str | None = None,
+) -> list[LangChainDocument]:
+    ts_query = func.websearch_to_tsquery("simple", query)
+    vector = func.to_tsvector("simple", DocumentChunk.content)
+    rank = func.ts_rank_cd(vector, ts_query).label("score")
+    statement = (
+        select(DocumentChunk, DocumentVersion, Document, rank)
+        .join(DocumentVersion, DocumentVersion.id == DocumentChunk.document_version_id)
+        .join(Document, Document.id == DocumentVersion.document_id)
+        .where(
+            DocumentChunk.chunk_type == "child",
+            DocumentChunk.index_status == "indexed",
+            DocumentChunk.qdrant_point_id.is_not(None),
+            DocumentVersion.review_status == "approved",
+            DocumentVersion.rag_status == "published",
+            Document.audience.contains([audience]),
+            vector.op("@@")(ts_query),
+        )
+        .order_by(desc(rank))
+        .limit(top_k * 3)
+    )
+    if document_key:
+        statement = statement.where(Document.document_key == document_key)
+    if version_key:
+        statement = statement.where(DocumentVersion.version_key == version_key)
+
+    rows = (await session.execute(statement)).all()
+    return [
+        LangChainDocument(
+            page_content=chunk.content,
+            metadata={
+                "postgres_chunk_id": chunk.id,
+                "qdrant_point_id": chunk.qdrant_point_id,
+                "chunk_key": chunk.chunk_key,
+                "parent_chunk_id": chunk.parent_chunk_id,
+                "document_key": document.document_key,
+                "version_key": version.version_key,
+                "_score": float(score),
+            },
+        )
+        for chunk, version, document, score in rows
+    ]
+
+
+def attach_qdrant_payloads(
+    client: QdrantClient,
+    *,
+    collection_name: str,
+    docs: list[LangChainDocument],
+) -> list[LangChainDocument]:
+    point_ids = [
+        doc.metadata["qdrant_point_id"]
+        for doc in docs
+        if doc.metadata.get("qdrant_point_id")
+    ]
+    records = client.retrieve(
+        collection_name=collection_name,
+        ids=point_ids,
+        with_payload=True,
+        with_vectors=False,
+    ) if point_ids else []
+    payload_by_id = {str(record.id): dict(record.payload or {}) for record in records}
+
+    enriched: list[LangChainDocument] = []
+    for doc in docs:
+        point_id = doc.metadata.get("qdrant_point_id")
+        payload = payload_by_id.get(str(point_id), {})
+        enriched.append(
+            LangChainDocument(
+                page_content=doc.page_content,
+                metadata={**doc.metadata, **payload},
+            )
+        )
+    return enriched
+
+
+def reciprocal_rank_fusion(
+    dense_docs: list[LangChainDocument],
+    sparse_docs: list[LangChainDocument],
+    *,
+    limit: int,
+    rank_constant: int = 60,
+) -> list[LangChainDocument]:
+    by_key: dict[str, LangChainDocument] = {}
+    scores: dict[str, float] = {}
+    for ranked_docs in (dense_docs, sparse_docs):
+        for rank, doc in enumerate(ranked_docs, start=1):
+            key = str(doc.metadata["chunk_key"])
+            by_key.setdefault(key, doc)
+            scores[key] = scores.get(key, 0.0) + 1.0 / (rank_constant + rank)
+
+    ordered = sorted(scores, key=lambda key: scores[key], reverse=True)[:limit]
+    return [
+        LangChainDocument(
+            page_content=by_key[key].page_content,
+            metadata={**by_key[key].metadata, "_score": scores[key]},
+        )
+        for key in ordered
+    ]
+```
+
+Can co expression GIN index cho `to_tsvector('simple', content)`; migration nam trong Guide 04.
 
 ---
 
@@ -379,10 +520,12 @@ class Retriever:
         *,
         embedder: TextEmbedder,
         qdrant_client: QdrantClient,
+        rerank,
         collection_name: str = DEFAULT_COLLECTION,
     ) -> None:
         self.embedder = embedder
         self.qdrant_client = qdrant_client
+        self.rerank = rerank
         self.collection_name = collection_name
 
     async def search_resolved_query(
@@ -395,7 +538,6 @@ class Retriever:
         document_key: str | None = None,
         version_key: str | None = None,
         context_budget: int = 6000,
-        rerank=None,
     ) -> list[RetrievalResult]:
         if not query.strip():
             return []
@@ -410,25 +552,39 @@ class Retriever:
             version_key=version_key,
         )
 
-        docs = qdrant_retriever.invoke(query)
+        dense_docs = qdrant_retriever.invoke(query)
+        sparse_docs = await search_sparse_documents(
+            session,
+            query=query,
+            top_k=top_k,
+            audience=audience,
+            document_key=document_key,
+            version_key=version_key,
+        )
+        sparse_docs = attach_qdrant_payloads(
+            self.qdrant_client,
+            collection_name=self.collection_name,
+            docs=sparse_docs,
+        )
+        docs = reciprocal_rank_fusion(dense_docs, sparse_docs, limit=top_k)
         direct_hits = await hydrate_langchain_documents(
             session,
             docs,
             expansion_reason="direct_hit",
         )
 
+        reranked_hits = self.rerank(direct_hits)
         expanded = await expand_structural_context(
             session,
             qdrant_client=self.qdrant_client,
             collection_name=self.collection_name,
-            direct_hits=direct_hits,
+            direct_hits=reranked_hits,
             query=query,
             context_budget=context_budget,
         )
 
         return finalize_retrieval_results(
             expanded,
-            rerank=rerank,
             context_budget=context_budget,
         )
 ```
@@ -632,6 +788,7 @@ async def test_resolved_retriever_returns_empty_for_blank_query(session):
     retriever = Retriever(
         embedder=FakeEmbedder(),
         qdrant_client=FakeQdrantClient(),
+        rerank=lambda results: results,  # deterministic test stub
         collection_name="test",
     )
 
@@ -886,13 +1043,15 @@ Trả citation page 1. Với tài liệu nhiều trang, bổ sung marker khi rev
 Flow production bắt buộc:
 
 ```text
-vector search
-→ hydrate canonical direct hits từ PostgreSQL
+Qdrant dense + PostgreSQL FTS/BM25
+→ attach Qdrant payload cho sparse-only candidates bang qdrant_point_id
+→ RRF hoặc weighted fusion
+→ hydrate fused candidates từ PostgreSQL
+→ rerank
 → structural expansion bằng Qdrant structural payload
 → hydrate expanded neighbors từ PostgreSQL
 → deduplicate theo chunk_key
 → source-order theo chunk_index
-→ optional rerank
 → enforce context budget
 ```
 
@@ -997,8 +1156,8 @@ async def expand_structural_context(
                 )
             )
 
-    # Chỉ thu thập candidate ở bước này. Deduplicate/order/rerank/budget
-    # được thực hiện đúng một lần trong finalize_retrieval_results().
+    # Chi thu thap candidate o buoc nay. Deduplicate/order/budget
+    # duoc thuc hien dung mot lan trong finalize_retrieval_results().
     return candidates
 ```
 
@@ -1059,20 +1218,21 @@ def apply_context_budget(
 def finalize_retrieval_results(
     results: list[RetrievalResult],
     *,
-    rerank,
     context_budget: int,
 ) -> list[RetrievalResult]:
     finalized = sort_by_source_order(deduplicate_results(results))
-    if rerank is not None:
-        finalized = rerank(finalized)
     return apply_context_budget(finalized, context_budget=context_budget)
 ```
 
-Nếu rerank thay đổi thứ tự relevance, trước khi build context phải có policy rõ: giữ relevance order hay khôi phục source order trong từng document. MVP ưu tiên source order sau expansion.
+Production rerank fused direct hits truoc structural expansion. Sau expansion, deduplicate va sap
+xep source order trong tung document de build context mach lac.
 
 Tests bắt buộc:
 
 ```text
+- sparse FTS candidate duoc attach Qdrant payload bang qdrant_point_id;
+- RRF ket hop dense + sparse va deduplicate theo chunk_key;
+- production Retriever luon goi rerank truoc structural expansion;
 - hit child lấy parent context;
 - list query lấy direct children;
 - list query lấy siblings khi phù hợp;
