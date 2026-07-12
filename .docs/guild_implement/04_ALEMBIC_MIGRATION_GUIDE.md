@@ -472,7 +472,9 @@ cd chatbot
 docker compose exec postgres psql -U ct239h -d ctu_student_service -c "\dt css.*"
 ```
 
-Mong đợi thấy các bảng core (9 bảng, status fields nằm trực tiếp trên document_versions, không có bảng document_version_status/document_version_relationships riêng — xem 19_MIGRATE_10_TO_9_TABLES_GUIDE.md):
+Mong đợi thấy các bảng core (9 bảng, status fields nằm trực tiếp trên document_versions,
+không có bảng document_version_status/document_version_relationships riêng — xem
+`03_SQLALCHEMY_9_TABLES_GUIDE.md`):
 
 ```text
 css.departments

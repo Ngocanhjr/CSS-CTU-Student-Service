@@ -71,7 +71,7 @@ async def test_insert_core_database_models():
                 title="Test Document",
                 document_type_id=document_type.id,
                 domain="test",
-                audience=["student"],
+                audience=["sinh_vien"],
             )
             session.add(document)
             await session.flush()

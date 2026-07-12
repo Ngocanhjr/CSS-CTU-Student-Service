@@ -172,6 +172,14 @@ DOCUMENT_TYPE_NAMES = {
     "quy_trinh": "Quy trình",
     "bieu_mau": "Biểu mẫu",
     "hoi_dap": "Hỏi đáp",
+    "ke_hoach": "Kế hoạch",
+    "thong_bao": "Thông báo",
+    "bao_cao": "Báo cáo",
+    "huong_dan": "Hướng dẫn",
+    "quyet_dinh": "Quyết định",
+    "cong_van": "Công văn",
+    "thong_tu": "Thông tư",
+    "nghi_quyet": "Nghị quyết",
     "unknown": "Unknown",
 }
 
@@ -340,9 +348,10 @@ Trong MVP test database thì delete thẳng được.
 `documents.department_id`; repository map list này sang bảng `document_recipients`.
 
 `document_recipients.effective_date` là `Date` bắt buộc trong primary key. Không lấy chuỗi
-kiểu `Học kỳ 2, năm học 2024-2025` để ghi vào cột này. Nếu không có ngày tiếp nhận chính xác,
-dùng `metadata.issued_date` làm fallback. Nếu có `responsible_department` nhưng thiếu
-`issued_date`, raise lỗi rõ để người review bổ sung ngày.
+kiểu `Học kỳ 2, năm học 2024-2025` để ghi vào cột này. Một `metadata.effective_date` dùng
+chung cho toàn bộ `responsible_department`; nếu thiếu thì dùng `metadata.issued_date` làm
+fallback. Nếu có `responsible_department` nhưng thiếu cả hai ngày, raise lỗi rõ để review bổ
+sung ngày.
 
 ```python
 from datetime import date
@@ -352,10 +361,11 @@ from app.databases.models import DocumentRecipient
 
 
 def resolve_recipient_effective_date(metadata: DocumentMetadata) -> date:
+    if metadata.effective_date is not None:
+        return metadata.effective_date
     if metadata.issued_date is None:
         raise ValueError(
-            "responsible_department requires issued_date when no exact recipient "
-            "effective_date is available"
+            "responsible_department requires effective_date or issued_date"
         )
     return metadata.issued_date
 

@@ -246,7 +246,8 @@ cd chatbot
 docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt css.*"'
 ```
 
-Đối chiếu danh sách bảng với schema hiện tại trong `AGENTS.md` (mục "Core database schema") và các guide `03_SQLALCHEMY_9_TABLES_GUIDE.md` / `19_MIGRATE_10_TO_9_TABLES_GUIDE.md`.
+Đối chiếu danh sách bảng với schema hiện tại trong `AGENTS.md` (mục "Core database schema")
+và `03_SQLALCHEMY_9_TABLES_GUIDE.md`.
 
 ---
 

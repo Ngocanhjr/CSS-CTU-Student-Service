@@ -9,7 +9,7 @@ responsible_department:
 - TTPVSV
 signer_name: ""
 audience:
-  - student
+  - sinh_vien
 code: ""
 issued_date:
 effective_date: 2016-01-01

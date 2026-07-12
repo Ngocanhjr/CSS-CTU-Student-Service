@@ -91,11 +91,12 @@ nlcs/01_Dataset/
 
 ## 2. Nguyên Tắc Bắt Buộc
 
-### 2.1. PostgreSQL là metadata source of truth
+### 2.1. Phân định authoritative source và retrieval index
 
 ```text
-PostgreSQL lưu document/version/status/chunks/job.
-Qdrant chỉ lưu vector + payload để search nhanh.
+PostgreSQL lưu canonical metadata nghiệp vụ, chunk content, parent relation và ingestion job.
+Canonical Markdown storage là authoritative ingestion source để parse/chunk lại.
+Qdrant chỉ là disposable retrieval index: vector + structural payload để search nhanh.
 ```
 
 Không dùng Qdrant để thay thế PostgreSQL.
@@ -134,7 +135,7 @@ Filter student:
 ```text
 review_status = approved
 rag_status = published
-audience contains student
+audience contains sinh_vien or cong_khai
 ```
 
 Không chỉ dựa vào việc ingestion đã lọc. Retriever vẫn phải lọc lại.
@@ -236,7 +237,8 @@ DocumentChunk.parent_chunk_id = internal FK resolved from parent_chunk_key
 Lý do:
 
 ```text
-PostgreSQL là source of truth.
+PostgreSQL là canonical source cho chunk content và parent relation.
+Canonical Markdown storage là authoritative source để tái chạy ingestion.
 chunk_key giúp idempotent ingest và trace ổn định.
 postgres_chunk_id giúp hydrate nhanh từ PostgreSQL khi retrieve.
 ```
@@ -745,6 +747,7 @@ Metadata YAML/schema có:
 
 ```text
 responsible_department: list[str]
+effective_date: date | None
 ```
 
 DB cần:
@@ -758,6 +761,10 @@ document_recipients(document_version_id, department_id, effective_date)
 MVP mapping:
 
 ```text
+effective_date = metadata.effective_date
+                 or metadata.issued_date
+                 or error de review bo sung ngay
+
 Với từng item trong `responsible_department`:
 
 Nếu item = "CTSV" hoặc "Phong Cong tac Sinh vien":
@@ -770,6 +777,9 @@ Nếu item = "PDT" hoặc "Phong Dao tao":
 
 Nếu rỗng:
   bỏ qua hoặc dùng fallback "UNKNOWN" theo policy ingestion
+
+Tạo một DocumentRecipient cho mỗi department với cùng effective_date.
+document_versions không có cột effective_date.
 ```
 
 Không để `code` dài hơn 20 ký tự vì model đang `String(20)`.
@@ -807,7 +817,7 @@ documents.document_key
 Nếu tồn tại:
 
 ```text
-update title/domain/audience/department_id/document_type_id nếu cần
+update title/domain/audience/document_type_id nếu cần
 ```
 
 Nếu chưa tồn tại:
@@ -1104,14 +1114,17 @@ Qdrant point ID nên ổn định.
 Khuyến nghị:
 
 ```text
-point_id = uuid5(NAMESPACE_URL, str(document_chunks.id))
+point_id = uuid5(
+    NAMESPACE_URL,
+    f"ctu-student-service/chunk/{version_key}/{chunk_key}",
+)
 ```
 
 Lý do:
 
 ```text
 Qdrant chấp nhận UUID string.
-Upsert cùng DB chunk id sẽ dễ dàng idempotent.
+ID không phụ thuộc PostgreSQL integer id, nên rebuild/đổi môi trường vẫn deterministic.
 ```
 
 Không dùng random UUID vì ingest lại sẽ tạo duplicate point.
@@ -1156,7 +1169,7 @@ Qdrant filter bắt buộc:
 ```text
 review_status = approved
 rag_status = published
-audience contains student
+audience contains sinh_vien or cong_khai
 ```
 
 Nếu Qdrant filter array contains phức tạp lúc đầu, có thể thêm payload:
@@ -1202,7 +1215,7 @@ Input:
 
 ```text
 query: str
-audience: "student"
+audience: "sinh_vien"
 top_k: int | None = None  # None => settings.retrieval.top_k
 ```
 
@@ -1473,7 +1486,7 @@ Point ID random mỗi lần ingest.
 Xử lý:
 
 ```text
-Dùng uuid5 từ DocumentChunk.id để point ID ổn định.
+Dùng make_point_id(version_key, chunk_key) để point ID ổn định.
 ```
 
 ### Lỗi 5: Student retrieval lấy tài liệu expired
@@ -1522,8 +1535,10 @@ Các điểm P0:
 - Table/code là atomic Child riêng.
 - legal_unit_type chỉ gán trong legal context.
 - warning không block publish; error mới block mặc định.
-- PostgreSQL persist canonical chunk content va parent relation; structural metadata nam trong Qdrant payload.
+- PostgreSQL persist canonical chunk content va parent relation; canonical Markdown storage la authoritative ingestion source; structural metadata nam trong Qdrant payload.
 - Neu mat/recreate Qdrant collection, rebuild bang canonical Markdown -> parser -> chunker -> embedding -> Qdrant.
 - Qdrant payload có structural fields để retrieval expansion.
-- Retrieval có parent/child/sibling/split expansion trước rerank/context budget.
+- Retrieval theo thứ tự: fusion -> hydrate direct hits -> rerank direct hits ->
+  parent/child/sibling/split expansion -> hydrate neighbors -> deduplicate ->
+  source-order -> context budget.
 ```

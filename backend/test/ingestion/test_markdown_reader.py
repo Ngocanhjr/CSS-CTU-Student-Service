@@ -14,7 +14,7 @@ document_type: "quy_trinh"
 domain: "test"
 department: "PDT"
 audience:
-  - "student"
+  - "sinh_vien"
 version_label: "v1"
 version_role: "base"
 is_latest: true

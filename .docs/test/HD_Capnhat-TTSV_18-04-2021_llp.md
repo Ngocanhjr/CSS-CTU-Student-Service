@@ -9,7 +9,7 @@ responsible_department:
 - PCTSV
 signer_name: ""
 audience:
-  - student
+  - sinh_vien
 code: ""
 issued_date:
 effective_date:

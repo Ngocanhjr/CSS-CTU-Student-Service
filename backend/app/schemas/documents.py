@@ -31,7 +31,7 @@ class DocumentBaseMetadata(StrictSchema):
     title: str = ""
     document_type: DocumentType
     domain: str = "" #hoc_vu, tai_chinh, nhan_su, phap_ly, ky_thuat, quy_trinh, bieu_mau, hoi_dap, unknown
-    audience: list[str] = Field(default_factory=list)
+    audience: list[Audience] = Field(default_factory=list)
     responsible_department: list[str] = Field(default_factory=list)
     
     @field_validator("audience")
@@ -70,7 +70,7 @@ class DocumentVersionMetadata(DocumentVersionStatusFields):
     - signer_name: tên người ký tài liệu.
     - code: mã số tài liệu. (Gốc trên bên trái, ví dụ: QĐ-1234, TB-5678)
     - issued_date: ngày ban hành tài liệu.
-    - effective_date: ngày hiệu lực của tài liệu.
+    - effective_date: ngày hiệu lực chung, dùng khi map mọi responsible_department sang document_recipients.
     - is_latest: đánh dấu phiên bản này có phải là phiên bản mới nhất hay không.
     - source_url: URL nguồn gốc của tài liệu trên web.
     - source_path: đường dẫn lưu file gốc trên server.
@@ -84,7 +84,7 @@ class DocumentVersionMetadata(DocumentVersionStatusFields):
     
     code: str | None = None
     issued_date: date | None = None
-    effective_date: str | None = None
+    effective_date: date | None = None
         
     is_latest: bool = False
     

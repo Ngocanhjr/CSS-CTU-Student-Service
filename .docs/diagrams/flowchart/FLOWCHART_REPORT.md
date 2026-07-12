@@ -54,7 +54,7 @@ validated Markdown
 - Numbered/lettered item tạo Child riêng; bullet ngắn liền kề cùng `heading_path` + `parent_item_key` có thể group và giữ `logical_item_keys`.
 - Table/code luôn là atomic Child riêng, kể cả khi nằm trong item.
 - Table dài split theo row group; code dài split theo line và giữ fence hợp lệ.
-- PostgreSQL là source of truth cho canonical content và relations; Qdrant giữ structural payload.
+- PostgreSQL là canonical source cho metadata nghiệp vụ, chunk content và relations; canonical Markdown storage là authoritative ingestion source; Qdrant là disposable retrieval index giữ structural payload.
 - Khi recreate Qdrant, chạy lại canonical Markdown qua parser/chunker/embedding; MVP không rebuild payload chỉ từ `document_chunks`.
 - Retrieval expansion có điều kiện, sau đó deduplicate, source-order, rerank và context budget.
 

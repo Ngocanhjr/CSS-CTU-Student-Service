@@ -191,7 +191,7 @@ title: "Test Document"
 document_type: "quy_trinh"
 domain: "test"
 audience:
-  - "student"
+  - "sinh_vien"
 responsible_department:
   - PDT
 is_latest: true

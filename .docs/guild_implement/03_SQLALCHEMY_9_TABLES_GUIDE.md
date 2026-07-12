@@ -295,7 +295,7 @@ class DocumentType(Base):
 ```
 ### Model 3: `Document`
 
-Khớp DDL spec 05 (`documents`): không có `department_id`, không có `created_at/updated_at`.
+Khớp schema 9 bảng hiện hành: không có `department_id`, không có `created_at/updated_at`.
 
 ```python
 class Document(Base):
@@ -304,9 +304,9 @@ class Document(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     document_key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
-    domain: Mapped[str | None] = mapped_column(String(100))
-    audience: Mapped[dict | None] = mapped_column(JSONB)
-    document_type_id: Mapped[int | None] = mapped_column(ForeignKey("css.document_types.id"))
+    document_type_id: Mapped[int] = mapped_column(ForeignKey("css.document_types.id"), nullable=False)
+    domain: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    audience: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
 
     document_type: Mapped["DocumentType"] = relationship(back_populates="documents")
     versions: Mapped[list["DocumentVersion"]] = relationship(back_populates="document", cascade="all, delete-orphan")
@@ -321,7 +321,7 @@ Quan hệ với departments đi qua bảng document_recipients (theo document_ve
 
 ### Model 4: `DocumentVersion`
 
-Khớp DDL spec 05 (`document_versions`). Status nằm trực tiếp trong bảng này. Không có
+Khớp schema 9 bảng hiện hành. Status nằm trực tiếp trong bảng này. Không có
 `validity_status` trong DB.
 
 ```python
@@ -335,14 +335,14 @@ class DocumentVersion(Base):
     issued_date: Mapped[date | None] = mapped_column(Date)
     is_latest: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
-    source_url: Mapped[str | None] = mapped_column(Text)
-    source_path: Mapped[str | None] = mapped_column(Text)
-    canonical_markdown_path: Mapped[str | None] = mapped_column(Text)
-    file_type: Mapped[str | None] = mapped_column(String(50))
+    source_url: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    source_path: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    canonical_markdown_path: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    file_type: Mapped[str] = mapped_column(String(50), default="md", nullable=False)
     language: Mapped[str] = mapped_column(String(10), default="vi", nullable=False)
     issuing_authority: Mapped[str | None] = mapped_column(String(255))
     signer_name: Mapped[str | None] = mapped_column(String(255))
-    checksum: Mapped[str | None] = mapped_column(String(64))
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     extra_metadata: Mapped[dict | None] = mapped_column(JSONB)
     accessed_date: Mapped[date | None] = mapped_column(Date)
 
@@ -374,12 +374,14 @@ app/databases/models/chunks.py
 
 ### Model 5: `DocumentChunk`
 
-Khớp DDL spec 05 (`document_chunks`): dùng `parent_chunk_id` và `chunk_type`, có
-`heading_path`, `section_title`, `page_start/page_end`, `token_count`, `checksum`,
-`qdrant_point_id`.
+Khớp schema 9 bảng cuối: dùng `parent_chunk_id` và `chunk_type`, có
+`heading_path`, `section_title`, `page_start/page_end`, `token_count`,
+`qdrant_point_id`. Không có `checksum` trên từng chunk.
 
 MVP khong them `document_chunks.structural_metadata`. Structural metadata nam trong
-Qdrant payload va duoc regenerate tu canonical Markdown khi recreate collection.
+Qdrant payload va duoc regenerate tu authoritative canonical Markdown khi recreate
+collection. PostgreSQL van la canonical source cho metadata nghiep vu, chunk content
+va parent relation; Qdrant chi la disposable retrieval index.
 
 ```python
 class DocumentChunk(Base):
@@ -397,12 +399,10 @@ class DocumentChunk(Base):
     page_start: Mapped[int | None] = mapped_column(Integer)
     page_end: Mapped[int | None] = mapped_column(Integer)
     token_count: Mapped[int | None] = mapped_column(Integer)
-    checksum: Mapped[str | None] = mapped_column(String(64))
-
     qdrant_point_id: Mapped[str | None] = mapped_column(String(255))
     index_status: Mapped[str] = mapped_column(String(50), default="not_indexed", nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     document_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -438,11 +438,11 @@ class IngestionJob(Base):
     total_chunks: Mapped[int | None] = mapped_column(Integer)
     processed_chunks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     document_version_id: Mapped[int] = mapped_column(ForeignKey("css.document_versions.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -505,9 +505,9 @@ class Asset(Base):
     asset_key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     asset_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    url: Mapped[str | None] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text, default="", nullable=False)
     checksum: Mapped[str | None] = mapped_column(String(64))
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     document_links: Mapped[list["DocumentAsset"]] = relationship(back_populates="asset", cascade="all, delete-orphan")
 ```
@@ -673,6 +673,23 @@ smoke insert test pass
 
 ---
 
-> **Lưu ý:** Xem `19_MIGRATE_10_TO_9_TABLES_GUIDE.md` để migrate từ schema cũ (10 bảng có
-> `document_version_status`/`document_version_relationships`) sang schema 9 bảng hiện tại.
-> Source of truth cho field/PK/FK: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md`.
+## Migration Baseline
+
+Schema hiện hành có đúng 9 core tables. Status nằm trực tiếp trên
+`document_versions`; không có `document_version_status` hoặc
+`document_version_relationships`.
+
+- DB trống: chạy baseline Alembic hiện tại bằng `alembic upgrade head`.
+- DB legacy: tạo một Alembic migration mới, được review từ schema thực tế sang baseline này.
+  Không copy lại một migration 10-to-9 cũ.
+
+## YAML Recipient Bridge
+
+`responsible_department` và `effective_date` chỉ là input YAML, không phải cột của
+`documents` hay `document_versions`.
+
+- Một `effective_date` kiểu `date` dùng chung cho toàn bộ `responsible_department` của
+  văn bản.
+- Ingestion map mỗi department code thành một `DocumentRecipient` cùng `effective_date`.
+
+Source of truth cho field/PK/FK: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md`.

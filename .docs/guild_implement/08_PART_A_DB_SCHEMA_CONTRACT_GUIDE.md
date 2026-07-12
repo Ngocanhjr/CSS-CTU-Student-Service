@@ -43,7 +43,8 @@ qdrant_point_id              = ID point trong Qdrant
 Lý do:
 
 ```text
-PostgreSQL la source of truth.
+PostgreSQL la canonical source cho metadata nghiep vu, chunk content va parent relation.
+Canonical Markdown storage la authoritative ingestion source; Qdrant la disposable retrieval index.
 document_chunks.id la primary key noi bo.
 chunk_key la dinh danh on dinh de idempotent ingest, upsert vector, va trace qua moi truong DB.
 ```
@@ -153,8 +154,8 @@ chatbot/backend/app/databases/models/chunks.py
 Bắt buộc thêm cột `chunk_key`.
 
 Khong them `structural_metadata` trong MVP. PostgreSQL giu canonical chunk content va
-`parent_chunk_id`; Qdrant giu structural payload. Recreate Qdrant thi parse/chunk lai
-canonical Markdown.
+`parent_chunk_id`; canonical Markdown storage giu authoritative ingestion input; Qdrant
+giu structural payload. Recreate Qdrant thi parse/chunk lai canonical Markdown.
 
 Cần sửa nullable cho các field có thể không có page/token:
 

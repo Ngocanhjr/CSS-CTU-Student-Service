@@ -3,7 +3,8 @@
 **Last Updated:** 2026-06-17
 
 > **Legacy note (9-table contract):** Cac lenh import/export `DocumentVersionStatus` trong file nay
-> da cu. Khong chay hoac copy cac snippet do; dung `DocumentVersionStatusFields` theo guide 19.
+> da cu. Khong chay hoac copy cac snippet do; dung `DocumentVersionStatusFields` theo
+> `03_SQLALCHEMY_9_TABLES_GUIDE.md`.
 
 File này hướng dẫn 3 bước sau khi implement xong `app/schemas/rag.py`:
 

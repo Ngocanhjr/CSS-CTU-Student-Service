@@ -3,8 +3,9 @@
 **Last Updated:** 2026-07-04
 
 > **Legacy note (9-table contract):** Khong implement/import `DocumentVersionStatus` theo file nay.
-> Dung `DocumentVersionStatusFields` va export/test hien hanh trong guide 19. Cac phan khac
-> cua file chi dung de tham khao khi khong mau thuan voi guide 19.
+> Dung `DocumentVersionStatusFields` va export/test hien hanh theo
+> `03_SQLALCHEMY_9_TABLES_GUIDE.md`. Cac phan khac cua file chi dung de tham khao khi
+> khong mau thuan voi schema 9 bang hien hanh.
 
 Source of truth cho field YAML metadata: `chatbot/.docs/spec/ctu-service/07_RAG_SPEC.md`.
 Source of truth cho schema DB: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md`.
@@ -202,6 +203,7 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 from app.schemas.base import StrictSchema
 from app.schemas.enums import (
     DocumentType,
+    Audience,
     FileType,
     OcrStatus,
     RagStatus,
@@ -222,7 +224,7 @@ class DocumentBaseMetadata(StrictSchema):
     responsible_department: list[str] = Field(default_factory=list)
     document_type: DocumentType
     domain: str = ""
-    audience: list[str] = Field(default_factory=list)
+    audience: list[Audience] = Field(default_factory=list)
 
     @field_validator("audience", "responsible_department")
     @classmethod
@@ -257,28 +259,36 @@ Publish (student-facing): review_status = approved AND rag_status = published.
 ## `DocumentVersionMetadata`
 
 Khớp optional fields trong spec 07 + cột `document_versions` spec 05. Không có
-`version_label`, `version_role`, `effective_date`, `expiry_date`, relationship arrays,
+`version_label`, `version_role`, `expiry_date`, relationship arrays,
 `confidentiality`, `citation_type`, `related_asset_keys`, `validity_status`.
 
+`effective_date` CÓ trong metadata (nullable) và dùng khi map `responsible_department`
+sang `document_recipients`. Cột DB `document_recipients.effective_date` là NOT NULL và
+nằm trong composite PK, nên repository phải fallback sang `issued_date` khi metadata
+để trống (xem `resolve_recipient_effective_date()` ở Guide 12).
+
 ```python
-class DocumentVersionMetadata(DocumentVersionStatus):
+class DocumentVersionMetadata(DocumentVersionStatusFields):
     version_key: str = Field(min_length=1)
-    title: str = ""
 
     code: str | None = None
     issued_date: date | None = None
+    effective_date: date | None = None
     is_latest: bool = False
 
     source_url: str = ""
-    source_path: str = ""
+    source_path: str | None = None
     canonical_markdown_path: str = ""
-    file_type: FileType = "md"
+    file_type: str = "md"
     language: str = "vi"
-    issuing_authority: str = ""
-    signer_name: str = ""
+    issuing_authority: str | None = None
+    signer_name: str | None = None
     accessed_date: date | None = None
 
-    checksum: str | None = None
+    checksum: str = Field(min_length=1, max_length=64)
+    parser: str | None = None
+    ocr_engine: str | None = None
+    notes: str = ""
 ```
 
 Ghi nhớ:

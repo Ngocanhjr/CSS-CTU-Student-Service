@@ -2,7 +2,7 @@
 
 Functions:
     ensure_collection: Create Qdrant collection if not exists.
-    point_id_from_chunk_key: Generate stable UUID5 from chunk_key.
+    make_point_id: Generate stable UUID5 from version_key and chunk_key.
     build_context_filter: Convert RetrievalFilter to Qdrant Filter.
     build_payload: Build Qdrant payload dict from document + chunk.
     upsert_points: Upsert chunk vectors with payload.
@@ -34,8 +34,13 @@ from app.vectorstore.models import (
 COLLECTION_NAME = "ctu_chunks_test"
 VECTOR_NAME = "embedding"
 
-def point_id_from_chunk_key(chunk_key: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_key))
+def make_point_id(version_key: str, chunk_key: str) -> str:
+    return str(
+        uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"ctu-student-service/chunk/{version_key}/{chunk_key}",
+        )
+    )
 
 def ensure_collection(
     client: QdrantClient,
@@ -154,7 +159,7 @@ def upsert_chunks(
     
     points = [
         PointStruct(
-            id=point_id_from_chunk_key(chunk.chunk_key),
+            id=make_point_id(chunk.version_key, chunk.chunk_key),
             vector={VECTOR_NAME: vector},
             payload=build_payload(document, chunk),
         )

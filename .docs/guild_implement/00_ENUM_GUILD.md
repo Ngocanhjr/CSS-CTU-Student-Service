@@ -155,9 +155,30 @@ DocumentType = Literal[
     "quy_trinh",
     "bieu_mau",
     "hoi_dap",
+    "ke_hoach",
+    "thong_bao",
+    "bao_cao",
+    "huong_dan",
+    "quyet_dinh",
+    "cong_van",
+    "thong_tu",
+    "nghi_quyet",
     "unknown",
 ]
 ```
+
+### `Audience`
+
+```python
+Audience = Literal[
+    "sinh_vien",
+    "can_bo",
+    "giang_vien",
+    "cong_khai",
+]
+```
+
+`cong_khai` duoc phep trong student retrieval, cung voi `sinh_vien`.
 
 ### `Domain`
 
@@ -293,7 +314,22 @@ DocumentType = Literal[
     "quy_trinh",
     "bieu_mau",
     "hoi_dap",
+    "ke_hoach",
+    "thong_bao",
+    "bao_cao",
+    "huong_dan",
+    "quyet_dinh",
+    "cong_van",
+    "thong_tu",
+    "nghi_quyet",
     "unknown",
+]
+
+Audience = Literal[
+    "sinh_vien",
+    "can_bo",
+    "giang_vien",
+    "cong_khai",
 ]
 
 Domain = Literal[
@@ -364,7 +400,7 @@ Import test:
 
 ```powershell
 python -c "from app.schemas.enums import AssetType, DocumentAssetRelationType; print('asset enums ok')"
-python -c "from app.schemas.enums import OcrStatus, RagStatus, DocumentType, ChunkType, Domain; print('core enums ok')"
+python -c "from app.schemas.enums import Audience, OcrStatus, RagStatus, DocumentType, ChunkType, Domain; print('core enums ok')"
 ```
 
 Validation test nhanh với Pydantic:

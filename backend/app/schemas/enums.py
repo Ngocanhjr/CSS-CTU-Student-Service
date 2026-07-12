@@ -102,11 +102,18 @@ DocumentType = Literal [
     "thong_bao",
     "bao_cao",
     "huong_dan",
-    "quyet_dinh"
+    "quyet_dinh",
     "cong_van",
-    "thong_tu"
-    "nghi_quyet"
+    "thong_tu",
+    "nghi_quyet",
     "unknown",
+]
+
+Audience = Literal[
+    "sinh_vien",
+    "can_bo",
+    "giang_vien",
+    "cong_khai",
 ]
 
 """
@@ -182,10 +189,9 @@ Domain = Literal[
     "tuyen_sinh",
     "vh_xh",
     "ne_nep",
-    "unknown"
-    
-    "nghi_hoc"
-    "dinh_chi"
+    "unknown",
+    "nghi_hoc",
+    "dinh_chi",
 ]
 
 signer_name = Literal[

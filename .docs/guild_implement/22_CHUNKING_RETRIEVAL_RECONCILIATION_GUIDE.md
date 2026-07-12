@@ -71,8 +71,9 @@ Guide này tổng hợp 14 điểm reconciliation cuối. Nếu guide cũ mâu t
 ## 9. Structural Metadata Và PostgreSQL
 
 - `Chunk.metadata` là metadata trong memory của pipeline.
-- PostgreSQL persist canonical chunk content va parent relation; khong them cot `structural_metadata` trong MVP.
-- Qdrant payload persist structural metadata de filter, trace va expansion.
+- PostgreSQL persist canonical metadata nghiep vu, chunk content va parent relation; khong them cot `structural_metadata` trong MVP.
+- Canonical Markdown storage la authoritative ingestion source.
+- Qdrant la disposable retrieval index; payload persist structural metadata de filter, trace va expansion.
 - Khi mat/recreate Qdrant collection, rebuild bang canonical Markdown -> parser -> chunker -> embedding -> Qdrant.
 - Khong ho tro rebuild payload chi tu `document_chunks` trong MVP.
 
@@ -146,6 +147,55 @@ Qdrant dense + PostgreSQL FTS/BM25
 - List rỗng sau resolved retrieval chỉ có nghĩa là no-result, không đại diện clarification.
 - `current_document_key/current_version_key` được cộng vào student hard filter.
 
+## 12.2 EligibilityPolicy — Contract Chung Dense Và Sparse
+
+Dense (Qdrant) và sparse (PostgreSQL FTS) đang định nghĩa điều kiện eligibility độc lập:
+Guide 15 §9 cho phép admin/internal dùng `build_context_filter()` không có status, còn Guide 16
+§2 `search_sparse_documents()` luôn hard-code `review_status=approved` + `rag_status=published`
+cho mọi audience. Kết quả là fusion admin có thể trộn hai candidate set thuộc hai eligibility
+domain khác nhau. Mục này chốt contract chung, override Guide 15 §9 và Guide 16 §2 nếu khác.
+
+- Dense và sparse phải dùng cùng một eligibility policy trước fusion; không được định nghĩa
+  điều kiện status riêng ở từng phía.
+- Policy sống tại `app/retrieval/eligibility.py`. Không đặt trong `app/vectorstore/repository.py`
+  (chỉ chứa Qdrant plumbing) hay `app/retrieval/retriever.py` (chỉ orchestration, không phải nguồn
+  policy).
+- `EligibilityContext`:
+
+  ```python
+  @dataclass(frozen=True)
+  class EligibilityContext:
+      audience: str = "student"  # "student" | "admin" | "internal"
+      document_key: str | None = None
+      version_key: str | None = None
+  ```
+
+- `EligibilityPolicy.build_postgres_conditions(context: EligibilityContext) -> list[ColumnElement[bool]]`
+  trả list điều kiện SQLAlchemy để `.where(*conditions)`.
+- `EligibilityPolicy.build_qdrant_filter(context: EligibilityContext) -> Filter` trả
+  `qdrant_client.models.Filter`.
+- Ba điều kiện sau là **bắt buộc cho mọi audience**, không có tham số override, không có audience
+  nào được miễn:
+  - `review_status == "approved"`
+  - `rag_status == "published"`
+  - `is_latest == True`
+- Audience chỉ khác nhau ở điều kiện hiển thị, không phải ở status:
+  - `audience == "student"` → cộng thêm điều kiện audience chứa `"sinh_vien"` hoặc `"cong_khai"`
+    (Postgres: `Document.audience.overlap([...])`; Qdrant: `audience_student == true`).
+  - `audience in {"admin", "internal"}` → không cộng điều kiện audience, nhưng vẫn giữ nguyên ba
+    điều kiện status bắt buộc ở trên. Không có khái niệm "admin bypass status".
+- `document_key`/`version_key` khi có trong context được cộng thêm ở cả hai phía như điều kiện
+  context thuần, không thay thế ba điều kiện bắt buộc.
+- `build_context_filter()`/`build_student_filter()` (Guide 15 §9) và `search_sparse_documents()`
+  (Guide 16 §2) không còn tự định nghĩa điều kiện `review_status`/`rag_status`/`audience_student`/
+  `is_latest`; cả hai phải gọi `EligibilityPolicy.build_qdrant_filter()` /
+  `EligibilityPolicy.build_postgres_conditions()` tương ứng rồi cộng thêm điều kiện context thuần
+  (`document_type`, `domain`, `chunk_type`) tách riêng — các điều kiện context thuần này không
+  thuộc EligibilityPolicy.
+- Vi phạm cần tránh: dense dùng filter không status cho admin trong khi sparse vẫn hard-code status
+  cho mọi audience; hoặc một phía filter theo `is_latest` còn phía kia không — hai candidate set khi
+  đó thuộc hai eligibility domain khác nhau, RRF/fusion giữa chúng không còn ý nghĩa.
+
 ## 13. Golden Test `test_3266.md`
 
 Golden fixture bao phủ page artifact, heading-only Điều, heading kép, heading bất thường, nested items Điều 18, cross-page item/table/code, paragraph ownership theo item đang mở, table Điều 19, legal/general list, structural payload và retrieval expansion.
@@ -164,4 +214,8 @@ Sau khi cập nhật phải search toàn guild để bảo đảm không còn:
 - Qdrant payload thiếu structural fields;
 - retrieval thiếu PostgreSQL FTS/BM25 hoặc fusion;
 - production retrieval bo qua rerank;
-- retrieval chỉ vector search + hydrate mà không structural expansion.
+- retrieval chỉ vector search + hydrate mà không structural expansion;
+- dense và sparse định nghĩa điều kiện `review_status`/`rag_status`/`is_latest`/audience độc lập
+  nhau thay vì cùng gọi `EligibilityPolicy` (§12.2);
+- bất kỳ audience nào (kể cả admin/internal) bỏ qua `review_status=approved`,
+  `rag_status=published` hoặc `is_latest=true`.

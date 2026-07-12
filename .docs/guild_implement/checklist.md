@@ -40,6 +40,8 @@ Quy ước trạng thái:
 
 - [ ] Qdrant/vectorstore/retrieval/RAG answer chain.
 
+- [x] Chốt `EligibilityPolicy` dùng chung cho dense/sparse (Guide 22 §12.2): mọi audience bắt buộc `review_status=approved`, `rag_status=published`, `is_latest=true`; admin/internal không bypass status, chỉ khác điều kiện `audience_student`. Chưa implement code, chỉ mới chốt ở guide.
+
 ## Checklist Theo Guide
 
 | Trạng thái | Guide                                               | Làm gì                         | Ghi chú                                                                                            |
@@ -67,7 +69,6 @@ Quy ước trạng thái:
 | \[ \]      | `16_PART_I_RETRIEVAL_GUIDE.md`                      | Retrieval                      | Làm sau Qdrant search pass.                                                                        |
 | \[ \]      | `17_PART_J_E2E_TEST_AND_SMOKE_GUIDE.md`             | E2E smoke                      | Làm sau pipeline + DB + Qdrant pass.                                                               |
 | \[ \]      | `18_PART_K_RAG_ANSWER_CHAIN_GUIDE.md`               | Answer chain                   | Làm cuối sau retrieval.                                                                            |
-| \[\~\]     | `19_MIGRATE_10_TO_9_TABLES_GUIDE.md`                | Migrate 10 bảng sang 9 bảng    | Đã cập nhật cho schema chốt. Với DB trống, dùng baseline mới thay vì migrate diff.                 |
 | \[x\]      | `20_DOCKER_POSTGRES_QDRANT_RESET_GUIDE.md`          | Reset Docker/Postgres/Qdrant   | Đã dùng khi reset DB trống.                                                                        |
 | \[x\]      | `21_RUNTIME_SETTINGS_GUIDE.md`                      | Runtime settings               | Đã thống nhất theo code: `child_chunk_size=1000`, `child_chunk_overlap=100`, `get_rag_settings()`. |
 | \[\~\]     | `db.md`                                             | Ghi chú DB/key mapping         | Rà lại sau khi baseline DB pass.                                                                   |
@@ -154,3 +155,8 @@ Quy tắc:
 - [ ] Production retrieval chay dense + FTS/BM25 + RRF/weighted fusion + rerank.
 - [ ] Sparse-only candidate lay Qdrant payload bang `qdrant_point_id` truoc structural expansion.
 - [ ] Golden test `test_3266.md` bao phủ toàn bộ contract trên.
+- [ ] `app/retrieval/eligibility.py::EligibilityPolicy` tồn tại; dense (`build_eligibility_filter`,
+      Guide 15 §8.1/§9) và sparse (`search_sparse_documents`, Guide 16 §2) cùng gọi module này,
+      không tự định nghĩa `review_status`/`rag_status`/`is_latest`/audience riêng (Guide 22 §12.2).
+- [ ] Mọi audience — kể cả admin/internal — vẫn bắt buộc `review_status=approved`,
+      `rag_status=published`, `is_latest=true`; chỉ khác nhau ở điều kiện `audience_student`.

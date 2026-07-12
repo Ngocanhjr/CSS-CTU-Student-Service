@@ -21,14 +21,22 @@ Guide này chưa làm LLM answer generation.
 ## 1. File Cần Sửa/Tạo
 
 ```text
+chatbot/backend/app/retrieval/eligibility.py
 chatbot/backend/app/retrieval/retriever.py
+chatbot/backend/test/retrieval/test_eligibility.py
 chatbot/backend/test/retrieval/test_retriever.py
 ```
+
+`app/retrieval/eligibility.py` là nguồn duy nhất định nghĩa eligibility (`EligibilityPolicy`, Guide
+22 §12.2, chi tiết implementation ở Guide 15 §8.1). `search_sparse_documents()` (§2) và
+`build_langchain_qdrant_retriever()` (§4) trong file này đều gọi module đó, không tự định nghĩa
+điều kiện `review_status`/`rag_status`/`is_latest`/audience riêng.
 
 Phụ thuộc:
 
 ```text
 app.embedding.embedder
+app.retrieval.eligibility
 app.vectorstore.repository
 app.databases.models
 langchain-qdrant
@@ -120,11 +128,15 @@ resolved query + shared hard filters
 → attach Qdrant payload cho sparse-only candidates bang qdrant_point_id
 → RRF hoặc weighted fusion
 → hydrate fused candidates từ PostgreSQL
-→ rerank
-→ structural expansion và context budget
+→ rerank direct hits
+→ structural expansion
+→ hydrate expanded neighbors
+→ deduplicate
+→ source-order
+→ context budget
 ```
 
-Không gọi luồng chỉ-Qdrant là hybrid retrieval. Dense và sparse phải dùng cùng eligibility/student filters trước fusion.
+Không gọi luồng chỉ-Qdrant là hybrid retrieval. Dense và sparse phải dùng cùng eligibility/student filters trước fusion — cụ thể là cùng gọi `EligibilityPolicy` (`app/retrieval/eligibility.py`, xem Guide 22 §12.2), không tự định nghĩa `review_status`/`rag_status`/`is_latest`/audience riêng ở từng phía.
 Rerank la bat buoc trong production flow. Test co the truyen deterministic stub, nhung production caller khong duoc bo qua.
 
 ### PostgreSQL FTS + Qdrant payload cho sparse candidate
@@ -140,6 +152,7 @@ from langchain_core.documents import Document as LangChainDocument
 from sqlalchemy import desc, func, select
 
 from app.databases.models import Document, DocumentChunk, DocumentVersion
+from app.retrieval.eligibility import EligibilityContext, EligibilityPolicy
 
 
 async def search_sparse_documents(
@@ -154,6 +167,16 @@ async def search_sparse_documents(
     ts_query = func.websearch_to_tsquery("simple", query)
     vector = func.to_tsvector("simple", DocumentChunk.content)
     rank = func.ts_rank_cd(vector, ts_query).label("score")
+    # Eligibility (review_status/rag_status/is_latest/audience) khong tu dinh nghia rieng o day;
+    # phai dung cung EligibilityPolicy voi dense-side de tranh fusion hai eligibility domain khac
+    # nhau (Guide 22 §12.2).
+    eligibility_conditions = EligibilityPolicy.build_postgres_conditions(
+        EligibilityContext(
+            audience=audience,
+            document_key=document_key,
+            version_key=version_key,
+        )
+    )
     statement = (
         select(DocumentChunk, DocumentVersion, Document, rank)
         .join(DocumentVersion, DocumentVersion.id == DocumentChunk.document_version_id)
@@ -162,18 +185,12 @@ async def search_sparse_documents(
             DocumentChunk.chunk_type == "child",
             DocumentChunk.index_status == "indexed",
             DocumentChunk.qdrant_point_id.is_not(None),
-            DocumentVersion.review_status == "approved",
-            DocumentVersion.rag_status == "published",
-            Document.audience.contains([audience]),
+            *eligibility_conditions,
             vector.op("@@")(ts_query),
         )
         .order_by(desc(rank))
         .limit(top_k * 3)
     )
-    if document_key:
-        statement = statement.where(Document.document_key == document_key)
-    if version_key:
-        statement = statement.where(DocumentVersion.version_key == version_key)
 
     rows = (await session.execute(statement)).all()
     return [
@@ -285,6 +302,61 @@ File:
 chatbot/backend/app/retrieval/retriever.py
 ```
 
+### 4.1. Vector name và payload key phải khớp Guide 15
+
+`QdrantVectorStore` mặc định `vector_name=""` (unnamed vector), `content_payload_key="page_content"`,
+`metadata_payload_key="metadata"`. Guide 15 tạo collection với **named vector**
+`VECTOR_NAME = "embedding"` (Guide 15 §6) và payload **flat** (không có key `page_content`/`metadata`
+lồng nhau, các field như `chunk_key`/`heading_path`/... nằm ngay top-level, Guide 15 §7).
+
+Hệ quả nếu không xử lý:
+
+```text
+Khong truyen vector_name="embedding": _validate_collection_config() (mac dinh
+validate_collection_config=True) raise QdrantVectorStoreError ngay khi tao QdrantVectorStore,
+vi collection khong co unnamed vector.
+Neu bypass validate (validate_collection_config=False): Document tra ve van co page_content=""
+va metadata={} vi payload Guide 15 khong co key page_content/metadata.
+```
+
+Vì vậy bắt buộc:
+
+```text
+Truyen vector_name=VECTOR_NAME (import tu app.vectorstore.repository, khong hardcode string
+lap lai o hai noi).
+Sau khi lay Document tu QdrantVectorStore, phai refetch full flat payload bang point id,
+dung lai attach_qdrant_payloads() (Muc 2) - giong cach xu ly sparse candidates.
+```
+
+`QdrantVectorStore._document_from_point` luôn set `metadata["_id"] = scored_point.id`, nên
+`doc.metadata["_id"]` chính là `qdrant_point_id` — dùng lại được ngay để gọi
+`attach_qdrant_payloads()` cho cả dense candidates.
+
+### 4.2. Embedding adapter bắt buộc
+
+`TextEmbedder` (Guide 14) chỉ có `embed_texts()`/`embed_query()`, không tương thích interface
+LangChain `Embeddings` (`embed_documents()`/`embed_query()`). Cần adapter thật, không chỉ ghi chú
+"tạo adapter nhỏ":
+
+```python
+from langchain_core.embeddings import Embeddings
+
+from app.embedding.embedder import TextEmbedder
+
+
+class LangChainEmbeddingsAdapter(Embeddings):
+    def __init__(self, embedder: TextEmbedder) -> None:
+        self._embedder = embedder
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._embedder.embed_texts(texts)
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embedder.embed_query(text)
+```
+
+### 4.3. Khởi tạo retriever
+
 ```python
 from qdrant_client import QdrantClient
 from langchain_qdrant import QdrantVectorStore
@@ -292,9 +364,9 @@ from langchain_qdrant import QdrantVectorStore
 from app.embedding.embedder import TextEmbedder
 from app.vectorstore.repository import (
     DEFAULT_COLLECTION,
+    VECTOR_NAME,
     RetrievalFilter,
-    build_context_filter,
-    build_student_filter,
+    build_eligibility_filter,
 )
 
 
@@ -314,7 +386,8 @@ def build_langchain_qdrant_retriever(
     vectorstore = QdrantVectorStore(
         client=qdrant_client,
         collection_name=collection_name,
-        embedding=embedder,
+        embedding=LangChainEmbeddingsAdapter(embedder),
+        vector_name=VECTOR_NAME,
     )
 
     filters = RetrievalFilter(
@@ -323,18 +396,39 @@ def build_langchain_qdrant_retriever(
         chunk_type="child",
     )
     search_kwargs = {"k": top_k}
-    search_kwargs["filter"] = (
-        build_student_filter(filters)
-        if audience == "student"
-        else build_context_filter(filters)
-    )
+    # Moi audience deu qua build_eligibility_filter() (Guide 22 §12.2, Guide 15 §8.1/§9); khong co
+    # nhanh audience nao bo qua review_status/rag_status/is_latest.
+    search_kwargs["filter"] = build_eligibility_filter(filters, audience=audience)
 
     return vectorstore.as_retriever(search_kwargs=search_kwargs)
 ```
 
-`QueryDecision.document_key` và `QueryDecision.version_key` phải được truyền vào đây. Student hard filter không bị context filter thay thế.
+`QueryDecision.document_key` và `QueryDecision.version_key` phải được truyền vào đây. Eligibility hard filter (`review_status`/`rag_status`/`is_latest` + audience) không bị context filter thay thế, và không phân biệt audience ở tầng status — chỉ khác ở điều kiện hiển thị.
 
-`TextEmbedder` cần tương thích LangChain `Embeddings`; nếu wrapper riêng chưa đủ interface, tạo adapter nhỏ có `embed_documents()` và `embed_query()`.
+`VECTOR_NAME` phải import từ `app.vectorstore.repository` — nếu Guide 15 đổi tên named vector, Guide 16 phải theo tự động, không sửa 2 nơi.
+
+### 4.4. Refetch flat payload cho dense candidates
+
+`qdrant_retriever.invoke(query)` trả `Document` với `metadata` không có structural fields (payload
+Guide 15 flat, không khớp `metadata_payload_key` mặc định). Trước khi đưa vào
+`reciprocal_rank_fusion`, dense candidates phải refetch payload giống sparse candidates:
+
+```python
+def attach_point_id_from_document(docs: list[LangChainDocument]) -> list[LangChainDocument]:
+    enriched = []
+    for doc in docs:
+        enriched.append(
+            LangChainDocument(
+                page_content=doc.page_content,
+                metadata={**doc.metadata, "qdrant_point_id": doc.metadata.get("_id")},
+            )
+        )
+    return enriched
+```
+
+`dense_docs` phải đi qua `attach_point_id_from_document()` rồi `attach_qdrant_payloads()` (Mục 2)
+trước khi fusion — xem Mục 6 (`search_resolved_query`) đã cập nhật theo bước này. Không giả định
+`Document.metadata` từ `QdrantVectorStore` đã có `chunk_key`/structural fields.
 
 ---
 
@@ -553,6 +647,11 @@ class Retriever:
         )
 
         dense_docs = qdrant_retriever.invoke(query)
+        dense_docs = attach_qdrant_payloads(
+            self.qdrant_client,
+            collection_name=self.collection_name,
+            docs=attach_point_id_from_document(dense_docs),
+        )
         sparse_docs = await search_sparse_documents(
             session,
             query=query,
@@ -748,15 +847,19 @@ SQLAlchemy `DocumentChunk` không có `parent_chunk_key`; fallback phải đi qu
 
 ---
 
-## 8. Student Filter Ở Đâu?
+## 8. Eligibility Filter Ở Đâu?
 
-Student filter nằm trong:
+Eligibility policy (nguồn chân lý, Guide 22 §12.2) nằm trong:
 
 ```text
-app/vectorstore/repository.py::build_student_filter
+app/retrieval/eligibility.py::EligibilityPolicy
 ```
 
-LangChain retriever phải truyền filter vào `search_kwargs`. Khi QueryDecision có document/version context, dùng cùng `RetrievalFilter` để cộng điều kiện vào student hard filter:
+`app/vectorstore/repository.py::build_eligibility_filter` (Qdrant) và
+`app/retrieval/retriever.py::search_sparse_documents` (PostgreSQL, §2) đều gọi
+`EligibilityPolicy` — không tự định nghĩa `review_status`/`rag_status`/`is_latest`/audience riêng.
+
+LangChain retriever phải truyền filter vào `search_kwargs`. Khi QueryDecision có document/version context, dùng cùng `RetrievalFilter` để cộng điều kiện vào eligibility hard filter:
 
 ```python
 filters = RetrievalFilter(
@@ -764,10 +867,10 @@ filters = RetrievalFilter(
     version_key=decision.version_key,
     chunk_type="child",
 )
-search_kwargs["filter"] = build_student_filter(filters)
+search_kwargs["filter"] = build_eligibility_filter(filters, audience=audience)
 ```
 
-Không bỏ filter để debug nếu đang dùng endpoint student.
+Không bỏ eligibility filter để debug ở bất kỳ audience nào (student, admin, internal) — `review_status=approved`, `rag_status=published`, `is_latest=true` luôn bắt buộc; chỉ điều kiện hiển thị (`audience_student`) khác nhau theo audience.
 
 ---
 
@@ -883,24 +986,38 @@ def test_ambiguous_query_with_recent_topic_is_rewritten():
 
 ---
 
-## 11. Test Student Filter
+## 11. Test Eligibility Filter
 
-Filter test nằm ở vectorstore:
+`EligibilityPolicy` test nằm ở `app/retrieval/eligibility.py` (Guide 15 §12 có bộ test đầy đủ cho
+cả student và admin/internal — không audience nào được bỏ qua status). Ở đây chỉ test việc
+retriever/sparse-search *sử dụng* policy đúng cách:
 
 ```python
-def test_student_filter_contains_required_statuses():
-    filter_obj = build_student_filter()
+def test_eligibility_filter_contains_required_statuses_for_student():
+    filter_obj = build_eligibility_filter(audience="student")
     text = str(filter_obj)
 
     assert "approved" in text
     assert "published" in text
+    assert "is_latest" in text
     assert "audience_student" in text
+
+
+def test_eligibility_filter_still_requires_status_for_admin():
+    filter_obj = build_eligibility_filter(audience="admin")
+    text = str(filter_obj)
+
+    assert "approved" in text
+    assert "published" in text
+    assert "is_latest" in text
+    assert "audience_student" not in text
 ```
 
-Retriever test cần đảm bảo khi `audience="student"` thì `search_kwargs` có filter.
+Retriever test cần đảm bảo khi `audience="student"` thì `search_kwargs` có filter, **và** khi
+`audience="admin"` filter vẫn chứa status (không rẽ nhánh sang filter không status).
 
 ```python
-def test_student_filter_used_for_langchain_retriever(monkeypatch):
+def test_eligibility_filter_used_for_langchain_retriever(monkeypatch):
     captured = {}
 
     class FakeVectorStore:
@@ -926,6 +1043,35 @@ def test_student_filter_used_for_langchain_retriever(monkeypatch):
 
     assert captured["search_kwargs"]["k"] == 5
     assert captured["search_kwargs"]["filter"] is not None
+
+
+def test_admin_audience_still_carries_status_filter(monkeypatch):
+    captured = {}
+
+    class FakeVectorStore:
+        def __init__(self, **kwargs):
+            pass
+
+        def as_retriever(self, *, search_kwargs):
+            captured["filter"] = search_kwargs["filter"]
+            return object()
+
+    monkeypatch.setattr(
+        "app.retrieval.retriever.QdrantVectorStore",
+        FakeVectorStore,
+    )
+
+    build_langchain_qdrant_retriever(
+        qdrant_client=object(),
+        embedder=FakeEmbedder(),
+        collection_name="test",
+        audience="admin",
+    )
+
+    filter_text = str(captured["filter"])
+    assert "approved" in filter_text
+    assert "published" in filter_text
+    assert "is_latest" in filter_text
 
 
 def test_document_and_version_context_are_forwarded(monkeypatch):
@@ -982,7 +1128,23 @@ $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_s
 - [ ] Greeting/smalltalk và query mơ hồ được `QueryDecision` xử lý trước Retriever.
 - [ ] Query có `current_document_key/current_version_key` truyền filter xuống Qdrant.
 - [ ] Query có `recent_topic` được rewrite trước retrieval.
-- [ ] Student retrieval giữ hard filter approved/published/audience_student.
+- [ ] Student retrieval giữ hard filter approved/published/is_latest/audience_student.
+- [ ] `search_sparse_documents()` gọi `EligibilityPolicy.build_postgres_conditions()`, không tự
+      hard-code `review_status`/`rag_status`/`audience` riêng.
+- [ ] `build_langchain_qdrant_retriever()` gọi `build_eligibility_filter()` cho mọi audience —
+      không rẽ nhánh audience giữa filter có status và filter không status.
+- [ ] Admin/internal retrieval vẫn giữ `review_status=approved`, `rag_status=published`,
+      `is_latest=true`; chỉ khác student ở việc không ép `audience_student=true`.
+- [ ] Dense và sparse dùng cùng `EligibilityContext` trước fusion (RRF) — không có trường hợp một
+      phía lọc `is_latest`/status còn phía kia không.
+- [ ] `QdrantVectorStore` khởi tạo với `vector_name=VECTOR_NAME` ("embedding"), không dùng default
+      `""` — nếu thiếu, `_validate_collection_config()` raise lỗi ngay khi tạo instance.
+- [ ] Có `LangChainEmbeddingsAdapter` implement thật `embed_documents()`/`embed_query()`, không chỉ
+      ghi chú "tạo adapter nhỏ".
+- [ ] `dense_docs` đi qua `attach_point_id_from_document()` + `attach_qdrant_payloads()` trước RRF,
+      giống cách xử lý `sparse_docs` — không giả định `metadata` từ `QdrantVectorStore` đã có
+      `chunk_key`/structural fields (payload Guide 15 là flat, không khớp `page_content`/`metadata`
+      mặc định của LangChain).
 - [ ] Direct hit hydrate canonical content từ PostgreSQL.
 - [ ] Hydration giữ structural metadata từ Qdrant.
 - [ ] `parent_chunk_key` fallback qua `parent_chunk_id`/parent row, không dùng field DB không tồn tại.
@@ -994,6 +1156,38 @@ $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_s
 ---
 
 ## 14. Lỗi Dễ Gặp
+
+### Lỗi: `QdrantVectorStoreError` khi khởi tạo retriever
+
+Nguyên nhân:
+
+```text
+QdrantVectorStore(...) khong truyen vector_name="embedding" (Guide 15 tao named vector "embedding",
+QdrantVectorStore mac dinh vector_name="").
+```
+
+Xử lý:
+
+```text
+Import VECTOR_NAME tu app.vectorstore.repository va truyen vao QdrantVectorStore(vector_name=...).
+```
+
+### Lỗi: dense candidate có score nhưng thiếu `chunk_key`/structural fields trước fusion
+
+Nguyên nhân:
+
+```text
+QdrantVectorStore mac dinh content_payload_key="page_content"/metadata_payload_key="metadata",
+nhung payload Guide 15 la flat (khong co key page_content/metadata). Document.metadata tra ve
+rong, reciprocal_rank_fusion() se KeyError o doc.metadata["chunk_key"].
+```
+
+Xử lý:
+
+```text
+Refetch payload bang qdrant_point_id qua attach_point_id_from_document() + attach_qdrant_payloads()
+(Muc 4.4) truoc khi dua dense_docs vao reciprocal_rank_fusion().
+```
 
 ### Lỗi: retrieval có score nhưng content rỗng
 
@@ -1015,13 +1209,33 @@ Khi reingest/delete chunks, can deactivate/delete old Qdrant points.
 Nguyên nhân:
 
 ```text
-student_only=False hoac filter thieu review_status=approved/rag_status=published.
+Filter thieu review_status=approved/rag_status=published/is_latest=true, hoac khong goi qua
+EligibilityPolicy.
 ```
 
 Xử lý:
 
 ```text
-Endpoint student khong cho override filter.
+Endpoint student khong cho override filter. Moi filter phai di qua build_eligibility_filter()/
+EligibilityPolicy, khong tu dinh nghia dieu kien status rieng.
+```
+
+### Lỗi: admin thấy fusion trộn hai eligibility domain khác nhau
+
+Nguyên nhân:
+
+```text
+Dense-side dung build_context_filter() (khong status) cho admin, con sparse-side
+search_sparse_documents() van hard-code review_status/rag_status cho moi audience — hai candidate
+set truoc RRF fusion thuoc hai eligibility domain khac nhau.
+```
+
+Xử lý:
+
+```text
+Ca dense va sparse phai goi cung EligibilityPolicy voi cung EligibilityContext truoc fusion. Xem
+Guide 22 §12.2. Khong audience nao (ke ca admin/internal) duoc bo qua review_status/rag_status/
+is_latest; chi khac o dieu kien audience_student.
 ```
 
 ### Citation Fallback Page 1

@@ -99,7 +99,7 @@ title: ""
 document_type: "noi_quy"
 domain: ""
 audience:
-  - "student"
+  - "sinh_vien"
 
 is_latest: true
 
@@ -400,7 +400,7 @@ Payload tối thiểu:
   "chunk_type": "child",
   "document_type": "",
   "domain": "",
-  "audience": ["student"],
+  "audience": ["sinh_vien"],
   "review_status": "approved",
   "rag_status": "published",
   "is_latest": true,
@@ -438,7 +438,7 @@ Retriever student phải filter:
 ```text
 review_status = approved
 rag_status = published
-audience contains student
+audience contains sinh_vien or cong_khai
 ```
 
 Output tối thiểu:

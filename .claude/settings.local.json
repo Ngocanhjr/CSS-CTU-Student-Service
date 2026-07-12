@@ -42,7 +42,13 @@
       "Bash(node bin/archify.mjs --help)",
       "Bash(node scripts/check-overlap.mjs \"E:\\\\RHNA\\\\1Visual\\\\NLCS\\\\CTU-Service\\\\chatbot\\\\.docs\\\\diagrams\\\\rag-retrieval-module.json\")",
       "Bash(git -C \"E:\\\\RHNA\\\\1Visual\\\\NLCS\\\\CTU-Service\" log --oneline -20)",
-      "Bash(git -C \"E:\\\\RHNA\\\\1Visual\\\\NLCS\\\\CTU-Service\" status)"
+      "Bash(git -C \"E:\\\\RHNA\\\\1Visual\\\\NLCS\\\\CTU-Service\" status)",
+      "Bash(rtk ls *)",
+      "Bash(rtk find *)",
+      "Bash(rtk read *)",
+      "Bash(rtk grep *)",
+      "Bash(rm -rf .tmp_check)",
+      "Bash(rmdir /s /q .tmp_check)"
     ]
   }
 }

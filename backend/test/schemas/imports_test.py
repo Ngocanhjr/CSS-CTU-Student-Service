@@ -5,7 +5,7 @@ from app.schemas import (
     DocumentBaseMetadata,
     DocumentMetadata,
     DocumentVersionMetadata,
-    DocumentVersionStatus,
+    DocumentVersionStatusFields,
 )
 
 
@@ -16,4 +16,4 @@ def test_schema_package_exports_public_models():
     assert DocumentBaseMetadata is not None
     assert DocumentMetadata is not None
     assert DocumentVersionMetadata is not None
-    assert DocumentVersionStatus is not None
+    assert DocumentVersionStatusFields is not None

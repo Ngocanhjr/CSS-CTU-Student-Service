@@ -79,7 +79,7 @@ chatbot/backend/app/vectorstore/models.py
 
 chatbot/backend/app/vectorstore/repository.py
 - ensure_collection()
-- point_id_from_chunk_key()
+- make_point_id(version_key, chunk_key)
 - build_context_filter()
 - build_smoke_payload()
 - upsert_smoke_points()
@@ -718,8 +718,11 @@ SMOKE_COLLECTION_NAME = "css_qdrant"
 VECTOR_NAME = "embedding"
 
 
-def point_id_from_chunk_key(chunk_key: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_key))
+def make_point_id(version_key: str, chunk_key: str) -> str:
+    return str(uuid.uuid5(
+        uuid.NAMESPACE_URL,
+        f"ctu-student-service/chunk/{version_key}/{chunk_key}",
+    ))
 
 
 def ensure_collection(
@@ -844,7 +847,7 @@ def upsert_smoke_points(
 
     points = [
         PointStruct(
-            id=point_id_from_chunk_key(chunk.chunk_key),
+            id=make_point_id(chunk.version_key, chunk.chunk_key),
             vector={VECTOR_NAME: vector},
             payload=build_smoke_payload(document, chunk),
         )
@@ -1004,14 +1007,17 @@ Nếu smoke script đọc settings, dùng default trong settings model. Không f
 
 ## 11. Qdrant Point ID
 
-Smoke test chốt dùng UUID stable từ `chunk_key`.
+Smoke test chốt dùng UUID stable từ `version_key + chunk_key`.
 
 ```python
 import uuid
 
 
-def point_id_from_chunk_key(chunk_key: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_key))
+def make_point_id(version_key: str, chunk_key: str) -> str:
+    return str(uuid.uuid5(
+        uuid.NAMESPACE_URL,
+        f"ctu-student-service/chunk/{version_key}/{chunk_key}",
+    ))
 ```
 
 Vẫn lưu `chunk_key` trong payload để debug, nhưng Qdrant point id dùng UUID ở trên.

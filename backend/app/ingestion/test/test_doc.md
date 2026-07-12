@@ -6,7 +6,7 @@ document_type: quy_trinh
 department: PDT
 domain: test
 audience:
-  - student
+  - sinh_vien
 version_label: v1
 version_role: base
 is_latest: true
