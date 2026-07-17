@@ -59,7 +59,6 @@ Quy ước trạng thái:
 | \[ x\]     | `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md`      | Pre-chunk structural parsing   | Làm sau Guide 9, trước Guide 10 để page/heading/item/table/code đúng trước chunk.                  |
 | \[ \]      | `10_PART_C_HEADING_AWARE_CHUNKER_GUIDE.md`          | Heading-aware chunker          | Làm sau Guide 9 để biến body thành parent/child chunks.                                            |
 | \[ x\]     | `10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md`            | Page marker helper             | Làm cùng chunking nếu cần page range.                                                              |
-| \[ \]      | `10B_PART_C_PAGE_AWARE_CHUNKER_DECISIONS.md`        | Quyết định page-aware chunking | Rà khi xử lý page markers.                                                                         |
 | \[ \]      | `11_PART_D_CHUNK_PREVIEW_GUIDE.md`                  | Preview chunks                 | Làm sau chunker cơ bản.                                                                            |
 | \[ \]      | `12_PART_E_POSTGRES_INGESTION_REPOSITORY_GUIDE.md`  | Repository ghi PostgreSQL      | Làm sau Guide 9/10 để có metadata + chunks làm input thật.                                         |
 | \[ \]      | `13_PART_F_PIPELINE_ORCHESTRATION_GUIDE.md`         | Orchestration pipeline         | Làm sau reader/chunker/repository.                                                                 |

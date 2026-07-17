@@ -1,4 +1,4 @@
-﻿# 10. Part C - Hướng Dẫn Implement Structural Parent-Child Chunker
+# 10. Part C - Hướng Dẫn Implement Structural Parent-Child Chunker
 
 **Last Updated:** 2026-07-10
 
@@ -333,7 +333,8 @@ Long item split van giu logical_item_key va split metadata.
 
 ### 1.2.8 `chunking/chunker.py`
 
-Đây là orchestration và public API, không chứa regex hoặc split algorithm.
+Đây là orchestration của chunker, không chứa regex hoặc split algorithm.
+Chữ ký hàm, default settings và `ChunkingResult` được định nghĩa duy nhất ở mục 4.
 
 Implement:
 
@@ -610,21 +611,19 @@ chatbot/.docs/guild_implement/10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md
 Trong parser/chunker, dùng helper:
 
 ```python
-from app.ingestion.parsing.page_markers import (
-    require_page_range,
-    split_body_by_page_markers,
-)
+from app.ingestion.parsing.page_markers import split_body_by_page_markers
 ```
 
 Rule:
 
 ```text
-Page marker khong duoc xoa truoc structural parsing.
+`chunker.py` la noi duy nhat goi `split_body_by_page_markers()` truoc parser.
+Page marker duoc consume thanh `PageBlock.page_number`, khong thanh paragraph va khong con trong content.
+Structural parser chay mot lan tren toan bo `PageBlock[]`, khong reset heading/item context khi doi page.
 Parent page_start/page_end lay tu min/max page cua StructuralBlock trong parent.
-Child page_start/page_end lay tu ChildUnit.
-Neu ChildUnit thieu page nhung parent co page range, fallback sang parent range.
-Moi chunk phai resolve duoc page range, khong duoc tra `None`.
-Neu toan bo document khong co page marker thi page helper tao PageBlock page 1; chunker van resolve duoc page range.
+Child page_start/page_end ke thua tu ChildUnit/StructuralBlock; khong do lai marker tu content.
+Neu toan bo document khong co page marker, helper tao PageBlock page 1.
+`extract_page_range()` va `require_page_range()` chi dung cho debug/legacy caller, khong thuoc normative production flow.
 ```
 
 ---
@@ -791,9 +790,9 @@ Ví dụ cần bảo vệ:
 
 ```markdown
 | Điểm số<br>theo thang điểm 10 | Điểm chữ | Điểm số<br>theo thang điểm 4 |
-| --- | --- | --- |
-| 9,0 - 10,0 | A | 4,0 |
-| 8,0 - 8,9 | B+ | 3,5 |
+| ----------------------------- | -------- | ---------------------------- |
+| 9,0 - 10,0                    | A        | 4,0                          |
+| 8,0 - 8,9                     | B+       | 3,5                          |
 ```
 
 Rule:
@@ -1747,6 +1746,11 @@ Các rule dưới đây ghi đè pseudocode cũ nếu có mâu thuẫn:
 9. Validation report có severity; warning không block publish, error mới block theo mặc định.
 10. Chunk.metadata duoc mirror sang Qdrant payload; PostgreSQL khong them structural_metadata trong MVP.
 11. Mat/recreate Qdrant thi rebuild tu canonical Markdown qua parser/chunker, khong rebuild chi tu document_chunks.
+12. Page marker chi quyet dinh page metadata; Markdown heading quyet dinh Parent; numbered/lettered/bullet item quyet dinh Child boundary.
+13. Legal `legal_unit_type` chi gan khi da xac nhan legal context; khong suy ra chi tu hinh dang marker.
+14. Heading context-only co the khong tao Child, nhung phai co `context_only_reason`; heading doc lap phai tao `heading_content` Child.
+15. Cap heading lien tiep nhu `Chuong I` + ten chuong giu derived heading_path ket hop, khong sua raw Markdown.
+16. `embedding_text` cua Child prepend context that (`heading_path`, ancestor item labels, legal context) va khong chua page marker/HTML comment ky thuat.
 ```
 
 `embedding_text` của item con prepend `heading_path` và ancestor item labels (`item_path[:-1]`).
