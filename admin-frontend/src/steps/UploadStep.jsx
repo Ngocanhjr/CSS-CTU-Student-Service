@@ -24,6 +24,8 @@ export default function UploadStep({ pipeline, update, goTo }) {
       const res = await api.uploadCanonicalMarkdown(file)
       update('upload', res)
       update('review', null)
+      update('chunkPreview', null)
+      update('chunkApproved', false)
       update('ingest', null)
       goTo('review')
     } catch (err) {
@@ -37,7 +39,7 @@ export default function UploadStep({ pipeline, update, goTo }) {
     <>
       <header className="page-head">
         <h1>1 — Tải canonical Markdown</h1>
-        <p>Tải Markdown đã OCR và review, gồm YAML frontmatter cùng page markers.</p>
+        <p>Tải Markdown đã OCR, gồm YAML frontmatter và page markers. PostgreSQL phải hoạt động ở bước này.</p>
       </header>
 
       <form className="card" aria-labelledby="upload-file-heading" onSubmit={(event) => { event.preventDefault(); onUpload() }}>
@@ -81,12 +83,18 @@ export default function UploadStep({ pipeline, update, goTo }) {
         <section className="card" aria-labelledby="upload-result-heading">
           <h2 id="upload-result-heading">Đã tải lên</h2>
           <dl className="kv">
-            <dt>document_key</dt><dd className="mono">{result.document_key}</dd>
-            <dt>version_key</dt><dd className="mono">{result.version_key}</dd>
-            <dt>source_path</dt><dd className="mono">{result.source_path}</dd>
-            <dt>file_type</dt><dd className="mono">{result.file_type}</dd>
-            <dt>checksum</dt><dd className="mono">{result.checksum}</dd>
-            <dt>review_status</dt><dd><StatusBadge status={result.review_status} /></dd>
+            <dt>document_id</dt><dd className="mono">{result.document_id}</dd>
+            <dt>document_version_id</dt><dd className="mono">{result.document_version_id}</dd>
+            <dt>ingestion_job_id</dt><dd className="mono">{result.ingestion_job_id}</dd>
+            <dt>document_key</dt><dd className="mono">{result.metadata.document_key}</dd>
+            <dt>version_key</dt><dd className="mono">{result.metadata.version_key}</dd>
+            <dt>source_path</dt><dd className="mono">{result.metadata.source_path}</dd>
+            <dt>file_type</dt><dd className="mono">{result.metadata.file_type}</dd>
+            <dt>checksum</dt><dd className="mono">{result.metadata.checksum}</dd>
+            <dt>ocr_status</dt><dd><StatusBadge status={result.metadata.ocr_status} /></dd>
+            <dt>review_status</dt><dd><StatusBadge status={result.metadata.review_status} /></dd>
+            <dt>rag_status</dt><dd><StatusBadge status={result.metadata.rag_status} /></dd>
+            <dt>Bước kế tiếp</dt><dd className="mono">review</dd>
           </dl>
           {result.metadata && (
             <section aria-labelledby="metadata-preview-heading">

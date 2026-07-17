@@ -5,6 +5,8 @@ const COLOR = {
   need_review: 'amber',
   failed: 'red',
   done: 'green',
+  pending: 'slate',
+  running: 'blue',
   // review_status
   not_reviewed: 'slate',
   reviewing: 'blue',
@@ -32,6 +34,8 @@ const LABEL = {
   need_review: 'Chờ duyệt',
   failed: 'Thất bại',
   done: 'Hoàn tất',
+  pending: 'Đang chờ',
+  running: 'Đang chạy',
   not_reviewed: 'Chưa duyệt',
   reviewing: 'Đang duyệt',
   need_fix: 'Cần sửa',

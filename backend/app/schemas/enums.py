@@ -203,41 +203,41 @@ signer_name = Literal[
 ]
 
 responsible_department = Literal[
-    "PHTQT" #phòng hơp tác quốc tế 
-    "PDT" # phòng đào tạo
-    "PCTSV" # phòng công tác sinh viên
-    "PKHTH" # phòng kế hoạch tổng hợp
-    "PKHTC" # phòng kế hoạch tài chính
-    "PTV" # phòng tài vụ
-    "PTCCB" # phòng tổ chức cán bộ
-    "PTC"  # phòng tài chính
-    "PQTTB" # phòng quản trị thiết bị
-    "PQLKH" # phòng quản lý khoa học
-    "PTTPC" # phòng thanh tra pháp chế
-    "PTCPTNS" # phòng tổ chức cán bộ và phát triển nhân sự
-    "PCTCT" # phòng công tác chính trị
-    "TTGDQP&AN" # trung tâm giáo dục quốc phòng và an ninh
-    "TTQLCL" # trung tâm quản lý chất lượng
-    "TTHL" # trung tâm học liệu
-    "TTTT&QTM" # trung tâm thông tin và quản trị mạng
-    "TTDGNLNN" # trung tâm đánh giá năng lực ngoại ngữ
-    "TTLKDT" # trung tâm liên kết đào tạo
-    "TTPVSV" # trung tâm phục vụ sinh viên
-    "KNN" # khoa ngoai ngữ
-    "KDBDT" # khoa dự bị dân tộc
-    "KSDH" # khoa sau đại học
-    "KGDTC" # khoa giáo dục thể chất
-    "VPTr" # văn phòng trường
-    "DVQLN" # đơn vị quản lý ngành
-    "HDXMCNDHP" # hội đồng xét miễn và công nhận điểm học phần
-    "HDDGNLNN" # hội đồng đánh giá năng lực ngoại ngữ
-    "BGDDT" # bộ giáo dục và đào tạo
+    "PHTQT", # phòng hợp tác quốc tế
+    "PDT", # phòng đào tạo
+    "PCTSV", # phòng công tác sinh viên
+    "PKHTH", # phòng kế hoạch tổng hợp
+    "PKHTC", # phòng kế hoạch tài chính
+    "PTV", # phòng tài vụ
+    "PTCCB", # phòng tổ chức cán bộ
+    "PTC", # phòng tài chính
+    "PQTTB", # phòng quản trị thiết bị
+    "PQLKH", # phòng quản lý khoa học
+    "PTTPC", # phòng thanh tra pháp chế
+    "PTCPTNS", # phòng tổ chức cán bộ và phát triển nhân sự
+    "PCTCT", # phòng công tác chính trị
+    "TTGDQP&AN", # trung tâm giáo dục quốc phòng và an ninh
+    "TTQLCL", # trung tâm quản lý chất lượng
+    "TTHL", # trung tâm học liệu
+    "TTTT&QTM", # trung tâm thông tin và quản trị mạng
+    "TTDGNLNN", # trung tâm đánh giá năng lực ngoại ngữ
+    "TTLKDT", # trung tâm liên kết đào tạo
+    "TTPVSV", # trung tâm phục vụ sinh viên
+    "KNN", # khoa ngoại ngữ
+    "KDBDT", # khoa dự bị dân tộc
+    "KSDH", # khoa sau đại học
+    "KGDTC", # khoa giáo dục thể chất
+    "VPTr", # văn phòng trường
+    "DVQLN", # đơn vị quản lý ngành
+    "HDXMCNDHP", # hội đồng xét miễn và công nhận điểm học phần
+    "HDDGNLNN", # hội đồng đánh giá năng lực ngoại ngữ
+    "BGDDT", # bộ giáo dục và đào tạo
     
-    "BO"        # Các Bộ trưởng / các Bộ
-    "CQNB"      # Cơ quan ngang bộ
-    "CQCP"      # Cơ quan thuộc Chính phủ
-    "UBND-TT"   # Ủy ban nhân dân tỉnh, thành phố trực thuộc trung ương
-    "NHCSXH"    # Ngân hàng Chính sách xã hội
+    "BO", # các bộ
+    "CQNB", # cơ quan ngang bộ
+    "CQCP", # cơ quan thuộc Chính phủ
+    "UBND-TT", # ủy ban nhân dân tỉnh, thành phố trực thuộc trung ương
+    "NHCSXH", # ngân hàng Chính sách xã hội
 ]
 
 BlockType = Literal[

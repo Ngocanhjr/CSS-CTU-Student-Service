@@ -1,12 +1,19 @@
 from app.schemas.base import StrictSchema
 from app.schemas.documents import DocumentMetadata
+from app.schemas.enums import RagStatus, ReviewStatus
 
 
 class CanonicalUploadResponse(StrictSchema):
     document_id: int
     document_version_id: int
     ingestion_job_id: int
+    markdown: str
+    metadata: DocumentMetadata
 
-    canonical_markdown_path: str
+
+class ReviewCanonicalResponse(StrictSchema):
+    document_version_id: int
+    review_status: ReviewStatus
+    rag_status: RagStatus
     markdown: str
     metadata: DocumentMetadata

@@ -18,16 +18,20 @@ export const api = {
     return request('/api/v1/admin/canonical-markdown', { method: 'POST', body })
   },
 
-  runIngest(versionId) {
-    return request(`/api/v1/versions/${versionId}/ingest`, { method: 'POST' })
+  indexDocumentVersion(versionId) {
+    return request(`/api/v1/admin/document-versions/${versionId}/index`, { method: 'POST' })
   },
 
   reviewCanonicalMarkdown(versionId, canonicalMarkdown) {
-    return request(`/api/v1/versions/${versionId}/review`, {
+    return request(`/api/v1/admin/canonical-markdown/${versionId}/review`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ canonical_markdown: canonicalMarkdown }),
     })
+  },
+
+  previewChunks(versionId) {
+    return request(`/api/v1/admin/document-versions/${versionId}/chunk-preview`, { method: 'POST' })
   },
 
   listDocuments(filters = {}) {

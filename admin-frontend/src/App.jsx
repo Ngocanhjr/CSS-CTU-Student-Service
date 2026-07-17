@@ -2,14 +2,16 @@ import { useState } from 'react'
 import Sidebar from './components/Sidebar.jsx'
 import UploadStep from './steps/UploadStep.jsx'
 import ReviewStep from './steps/ReviewStep.jsx'
+import ChunkReviewStep from './steps/ChunkReviewStep.jsx'
 import IngestStep from './steps/IngestStep.jsx'
 import DocumentsListPage from './documents/DocumentsListPage.jsx'
 import DocumentEditPage from './documents/DocumentEditPage.jsx'
 
 const STEPS = [
   { key: 'upload', label: 'Tải Markdown' },
-  { key: 'review', label: 'Review nội dung' },
-  { key: 'ingest', label: 'Đưa vào CSDL' },
+  { key: 'review', label: 'Review & approve' },
+  { key: 'chunks', label: 'Review chunks' },
+  { key: 'ingest', label: 'Index & publish' },
 ]
 
 const EXTRA_NAV = [
@@ -19,6 +21,8 @@ const EXTRA_NAV = [
 const emptyPipeline = {
   upload: null,
   review: null,
+  chunkPreview: null,
+  chunkApproved: false,
   ingest: null,
 }
 
@@ -30,6 +34,7 @@ export default function App() {
   const done = {
     upload: !!pipeline.upload,
     review: !!pipeline.review,
+    chunks: pipeline.chunkApproved,
     ingest: !!pipeline.ingest,
   }
 
@@ -62,6 +67,7 @@ export default function App() {
       <main className="main" id="main-content">
         {active === 'upload' && <UploadStep {...shared} />}
         {active === 'review' && <ReviewStep {...shared} />}
+        {active === 'chunks' && <ChunkReviewStep {...shared} />}
         {active === 'ingest' && <IngestStep {...shared} />}
         {active === 'documents' && <DocumentsListPage onEdit={openEdit} />}
         {active === 'documents-edit' && (

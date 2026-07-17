@@ -276,6 +276,15 @@ textarea { min-height: 110px; resize: vertical; font-family: "Cascadia Code", Co
 .muted, .hint { color: var(--muted); }
 .hint { font-size: 12px; }
 
+.pipeline-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.pipeline-stage { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start; }
+.pipeline-stage section { padding: 0 0 12px; border-bottom: 1px solid var(--border); }
+.pipeline-stage:last-child section { padding-bottom: 0; border-bottom: 0; }
+.pipeline-stage h3 { margin: 0 0 2px; font-size: 14px; }
+.pipeline-stage p { margin: 0; color: var(--muted); }
+.stage-index { display: grid; width: 28px; height: 28px; place-items: center; color: var(--slate); font-size: 12px; font-weight: 700; background: #f1f5f9; border-radius: 50%; }
+.pipeline-stage.done .stage-index { color: #fff; background: var(--green); }
+
 .audience-fieldset { margin-top: 4px; }
 .audience-fieldset legend { color: var(--muted); font-size: 12px; font-weight: 600; }
 .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }

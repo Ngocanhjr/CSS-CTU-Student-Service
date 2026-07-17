@@ -171,6 +171,47 @@ SQLAlchemy DocumentChunk
 PostgreSQL insert (css.document_chunks)
 ```
 
+
+Markdown body
+    ↓
+split_body_by_page_markers()
+    ↓
+PageBlock[]
+    ↓
+parse_page_blocks()
+    ↓
+StructuralBlock[]
+    ↓
+build_parent_sections()
+    ↓
+ParentSection[]
+    ↓
+make_parent_chunk()
+    ↓
+build_child_units()
+    ↓
+make_child_chunks()
+    ↓
+ChunkingResult
+
+-------
+Upload canonical Markdown
+→ Review/chỉnh sửa
+→ Đọc YAML + page markers
+→ Structural parser
+→ Parent/child chunking
+→ Validation
+---------
+load DocumentVersion đã approved
+→ đọc canonical Markdown
+→ tạo IngestionJob
+→ chunk
+→ từ chối nếu ChunkingResult.errors không rỗng
+→ lưu parent + child PostgreSQL
+→ embedding child
+→ upsert child vào Qdrant
+→ cập nhật qdrant_point_id
+→ cập nhật job/rag_status
 ---
 
 ## Checklist chunk pipeline

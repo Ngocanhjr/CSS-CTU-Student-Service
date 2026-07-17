@@ -4,6 +4,7 @@ import StatusBadge from '../components/StatusBadge.jsx'
 
 export default function ReviewStep({ pipeline, update, goTo }) {
   const upload = pipeline.upload
+  const metadata = upload?.metadata
   const [markdown, setMarkdown] = useState(upload?.markdown || '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -27,6 +28,8 @@ export default function ReviewStep({ pipeline, update, goTo }) {
       const reviewed = await api.reviewCanonicalMarkdown(upload.document_version_id, markdown)
       update('upload', { ...upload, ...reviewed, markdown: reviewed.markdown || markdown })
       update('review', reviewed)
+      update('chunkPreview', null)
+      update('chunkApproved', false)
       update('ingest', null)
     } catch (err) {
       setError(err.message)
@@ -38,8 +41,8 @@ export default function ReviewStep({ pipeline, update, goTo }) {
   return (
     <>
       <header className="page-head">
-        <h1>2 — Review canonical Markdown</h1>
-        <p>Chỉnh nội dung và YAML trước chunking. Lưu review sẽ validate lại trên backend.</p>
+        <h1>2 — Review và approve</h1>
+        <p>Chỉnh toàn bộ YAML và nội dung. Backend bảo vệ các trường provenance bất biến.</p>
       </header>
 
       {error && <p className="banner warn" role="alert">{error}</p>}
@@ -47,9 +50,15 @@ export default function ReviewStep({ pipeline, update, goTo }) {
       <section className="card" aria-labelledby="review-status-heading">
         <h2 id="review-status-heading">Trạng thái</h2>
         <dl className="kv">
-          <dt>version_key</dt><dd className="mono">{upload.version_key}</dd>
-          <dt>ocr_status</dt><dd><StatusBadge status={upload.ocr_status} /></dd>
-          <dt>review_status</dt><dd><StatusBadge status={pipeline.review?.review_status || upload.review_status} /></dd>
+          <dt>document_version_id</dt><dd className="mono">{upload.document_version_id}</dd>
+          <dt>document_key</dt><dd className="mono">{metadata.document_key}</dd>
+          <dt>version_key</dt><dd className="mono">{metadata.version_key}</dd>
+          <dt>checksum OCR</dt><dd className="mono">{metadata.checksum}</dd>
+          <dt>ocr_status</dt><dd><StatusBadge status={metadata.ocr_status} /></dd>
+          <dt>review_status</dt><dd><StatusBadge status={pipeline.review?.review_status || metadata.review_status} /></dd>
+          <dt>rag_status</dt><dd><StatusBadge status={pipeline.review?.rag_status || metadata.rag_status} /></dd>
+          <dt>Phòng ban phụ trách</dt><dd>{metadata.responsible_department?.join(', ') || '—'}</dd>
+          {pipeline.review && <><dt>Bước kế tiếp</dt><dd className="mono">chunking</dd></>}
         </dl>
       </section>
 
@@ -67,14 +76,14 @@ export default function ReviewStep({ pipeline, update, goTo }) {
         <nav className="foot-nav" aria-label="Điều hướng review">
           <button type="button" className="btn ghost" onClick={() => goTo('upload')}>← Tải lại file</button>
           <button type="button" className="btn" disabled={busy || !markdown.trim()} onClick={saveReview}>
-            {busy ? 'Đang lưu review…' : 'Lưu review'}
+            {busy ? 'Đang approve…' : 'Lưu và approve'}
           </button>
         </nav>
       </section>
 
       {pipeline.review && (
         <nav className="foot-nav end" aria-label="Bước tiếp theo">
-          <button type="button" className="btn" onClick={() => goTo('ingest')}>Tiếp tục ingest →</button>
+          <button type="button" className="btn" onClick={() => goTo('chunks')}>Review chunks →</button>
         </nav>
       )}
     </>

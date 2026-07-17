@@ -50,3 +50,15 @@ def read_markdown_document(path: str | Path) -> MarkdownDocument:
         body=body,
         raw_frontmatter=frontmatter,
     )
+    
+def render_markdown_document(
+    metadata: DocumentMetadata,
+    body: str,
+) -> str:
+    yaml_text = yaml.safe_dump(
+        metadata.model_dump(mode="json"),
+        allow_unicode=True,
+        sort_keys=False,
+    )
+
+    return f"---\n{yaml_text}---\n\n{body.strip()}\n"
