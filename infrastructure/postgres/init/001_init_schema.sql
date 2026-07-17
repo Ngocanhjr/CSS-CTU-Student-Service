@@ -1,4 +1,2 @@
 CREATE SCHEMA IF NOT EXISTS css;
-
-COMMENT ON SCHEMA rag IS
-    'Database schema for CTU Student Service RAG system';
+COMMENT ON SCHEMA css IS 'Canonical PostgreSQL schema for CTU Student Service';

@@ -108,7 +108,7 @@ legal_unit_type
 block_type
 ```
 
-Qdrant không giữ canonical content; content cuối hydrate từ PostgreSQL. Structural metadata tiếp tục lấy từ Qdrant payload. `parent_chunk_key` có thể derive qua `parent_chunk_id`/parent row khi hydrate.
+Qdrant không giữ canonical content; content cuối hydrate từ PostgreSQL. Structural metadata tiếp tục lấy từ Qdrant payload. `parent_chunk_key` có thể derive qua `parent_chunk_id`/parent row khi hydrate. Status/audience trong payload chỉ là mirror để lọc candidate; khi hydrate phải kiểm tra lại eligibility canonical từ PostgreSQL và loại hit Qdrant bị stale.
 
 ## 11. Embedding Text
 
@@ -123,7 +123,7 @@ Qdrant không giữ canonical content; content cuối hydrate từ PostgreSQL. S
 Qdrant dense + PostgreSQL FTS/BM25
 → attach Qdrant payload cho sparse-only candidates bang qdrant_point_id
 → RRF hoặc weighted fusion
-→ hydrate fused candidates từ PostgreSQL
+→ hydrate fused candidates và revalidate eligibility từ PostgreSQL
 → rerank
 → parent/child/sibling/split expansion
 → hydrate expanded neighbors
@@ -174,27 +174,29 @@ domain khác nhau. Mục này chốt contract chung, override Guide 15 §9 và G
   trả list điều kiện SQLAlchemy để `.where(*conditions)`.
 - `EligibilityPolicy.build_qdrant_filter(context: EligibilityContext) -> Filter` trả
   `qdrant_client.models.Filter`.
-- Ba điều kiện sau là **bắt buộc cho mọi audience**, không có tham số override, không có audience
+- Hai điều kiện sau là **bắt buộc cho mọi audience**, không có tham số override, không có audience
   nào được miễn:
   - `review_status == "approved"`
   - `rag_status == "published"`
-  - `is_latest == True`
+- `is_latest` là ranking preference, không nằm trong PostgreSQL `WHERE` hoặc Qdrant hard filter.
+  Version bị thay thế phải chuyển `rag_status=deactivated`; retriever chỉ ưu tiên `is_latest=true`
+  sau fusion/rerank khi relevance tương đương.
 - Audience chỉ khác nhau ở điều kiện hiển thị, không phải ở status:
   - `audience == "student"` → cộng thêm điều kiện audience chứa `"sinh_vien"` hoặc `"cong_khai"`
     (Postgres: `Document.audience.overlap([...])`; Qdrant: `audience_student == true`).
-  - `audience in {"admin", "internal"}` → không cộng điều kiện audience, nhưng vẫn giữ nguyên ba
+  - `audience in {"admin", "internal"}` → không cộng điều kiện audience, nhưng vẫn giữ nguyên hai
     điều kiện status bắt buộc ở trên. Không có khái niệm "admin bypass status".
 - `document_key`/`version_key` khi có trong context được cộng thêm ở cả hai phía như điều kiện
-  context thuần, không thay thế ba điều kiện bắt buộc.
+  context thuần, không thay thế hai điều kiện bắt buộc.
 - `build_context_filter()`/`build_student_filter()` (Guide 15 §9) và `search_sparse_documents()`
-  (Guide 16 §2) không còn tự định nghĩa điều kiện `review_status`/`rag_status`/`audience_student`/
-  `is_latest`; cả hai phải gọi `EligibilityPolicy.build_qdrant_filter()` /
+  (Guide 16 §2) không còn tự định nghĩa điều kiện `review_status`/`rag_status`/`audience_student`;
+  cả hai phải gọi `EligibilityPolicy.build_qdrant_filter()` /
   `EligibilityPolicy.build_postgres_conditions()` tương ứng rồi cộng thêm điều kiện context thuần
   (`document_type`, `domain`, `chunk_type`) tách riêng — các điều kiện context thuần này không
   thuộc EligibilityPolicy.
 - Vi phạm cần tránh: dense dùng filter không status cho admin trong khi sparse vẫn hard-code status
-  cho mọi audience; hoặc một phía filter theo `is_latest` còn phía kia không — hai candidate set khi
-  đó thuộc hai eligibility domain khác nhau, RRF/fusion giữa chúng không còn ý nghĩa.
+  cho mọi audience; hoặc một phía hard-filter `is_latest` trong khi contract chỉ cho phép dùng nó
+  làm ranking preference.
 
 ## 13. Golden Test `test_3266.md`
 
@@ -215,7 +217,8 @@ Sau khi cập nhật phải search toàn guild để bảo đảm không còn:
 - retrieval thiếu PostgreSQL FTS/BM25 hoặc fusion;
 - production retrieval bo qua rerank;
 - retrieval chỉ vector search + hydrate mà không structural expansion;
-- dense và sparse định nghĩa điều kiện `review_status`/`rag_status`/`is_latest`/audience độc lập
+- dense và sparse định nghĩa điều kiện `review_status`/`rag_status`/audience độc lập
   nhau thay vì cùng gọi `EligibilityPolicy` (§12.2);
 - bất kỳ audience nào (kể cả admin/internal) bỏ qua `review_status=approved`,
-  `rag_status=published` hoặc `is_latest=true`.
+  `rag_status=published`;
+- bất kỳ dense/sparse path nào hard-filter `is_latest=true` thay vì dùng nó làm ranking preference.

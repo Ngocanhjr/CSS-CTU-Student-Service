@@ -2,7 +2,8 @@
 
 **Last Updated:** 2026-06-20
 
-File này tách chi tiết từ `07_DETAILED_RAG_INGESTION_IMPLEMENTATION_GUIDE.md`, phần B.
+Guide này hướng dẫn riêng Markdown reader. Metadata contract đọc từ Guide 01; persistence contract
+đọc từ Contract 10. Reader không sở hữu các contract đó.
 
 Mục tiêu của part B:
 

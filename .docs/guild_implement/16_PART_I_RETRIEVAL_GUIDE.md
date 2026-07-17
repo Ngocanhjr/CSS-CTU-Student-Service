@@ -30,7 +30,7 @@ chatbot/backend/test/retrieval/test_retriever.py
 `app/retrieval/eligibility.py` là nguồn duy nhất định nghĩa eligibility (`EligibilityPolicy`, Guide
 22 §12.2, chi tiết implementation ở Guide 15 §8.1). `search_sparse_documents()` (§2) và
 `build_langchain_qdrant_retriever()` (§4) trong file này đều gọi module đó, không tự định nghĩa
-điều kiện `review_status`/`rag_status`/`is_latest`/audience riêng.
+điều kiện `review_status`/`rag_status`/audience riêng. `is_latest` chỉ là ranking preference.
 
 Phụ thuộc:
 
@@ -136,7 +136,7 @@ resolved query + shared hard filters
 → context budget
 ```
 
-Không gọi luồng chỉ-Qdrant là hybrid retrieval. Dense và sparse phải dùng cùng eligibility/student filters trước fusion — cụ thể là cùng gọi `EligibilityPolicy` (`app/retrieval/eligibility.py`, xem Guide 22 §12.2), không tự định nghĩa `review_status`/`rag_status`/`is_latest`/audience riêng ở từng phía.
+Không gọi luồng chỉ-Qdrant là hybrid retrieval. Dense và sparse phải dùng cùng eligibility/student filters trước fusion — cụ thể là cùng gọi `EligibilityPolicy` (`app/retrieval/eligibility.py`, xem Guide 22 §12.2), không tự định nghĩa `review_status`/`rag_status`/audience riêng ở từng phía; cả hai không hard-filter `is_latest`.
 Rerank la bat buoc trong production flow. Test co the truyen deterministic stub, nhung production caller khong duoc bo qua.
 
 ### PostgreSQL FTS + Qdrant payload cho sparse candidate
@@ -167,7 +167,7 @@ async def search_sparse_documents(
     ts_query = func.websearch_to_tsquery("simple", query)
     vector = func.to_tsvector("simple", DocumentChunk.content)
     rank = func.ts_rank_cd(vector, ts_query).label("score")
-    # Eligibility (review_status/rag_status/is_latest/audience) khong tu dinh nghia rieng o day;
+    # Eligibility (review_status/rag_status/audience) khong tu dinh nghia rieng o day;
     # phai dung cung EligibilityPolicy voi dense-side de tranh fusion hai eligibility domain khac
     # nhau (Guide 22 §12.2).
     eligibility_conditions = EligibilityPolicy.build_postgres_conditions(
@@ -397,13 +397,13 @@ def build_langchain_qdrant_retriever(
     )
     search_kwargs = {"k": top_k}
     # Moi audience deu qua build_eligibility_filter() (Guide 22 §12.2, Guide 15 §8.1/§9); khong co
-    # nhanh audience nao bo qua review_status/rag_status/is_latest.
+    # nhanh audience nao bo qua review_status/rag_status.
     search_kwargs["filter"] = build_eligibility_filter(filters, audience=audience)
 
     return vectorstore.as_retriever(search_kwargs=search_kwargs)
 ```
 
-`QueryDecision.document_key` và `QueryDecision.version_key` phải được truyền vào đây. Eligibility hard filter (`review_status`/`rag_status`/`is_latest` + audience) không bị context filter thay thế, và không phân biệt audience ở tầng status — chỉ khác ở điều kiện hiển thị.
+`QueryDecision.document_key` và `QueryDecision.version_key` phải được truyền vào đây. Eligibility hard filter (`review_status`/`rag_status` + audience) không bị context filter thay thế, và không phân biệt audience ở tầng status — chỉ khác ở điều kiện hiển thị. `is_latest` chỉ dùng sau fusion/rerank.
 
 `VECTOR_NAME` phải import từ `app.vectorstore.repository` — nếu Guide 15 đổi tên named vector, Guide 16 phải theo tự động, không sửa 2 nơi.
 
@@ -857,7 +857,7 @@ app/retrieval/eligibility.py::EligibilityPolicy
 
 `app/vectorstore/repository.py::build_eligibility_filter` (Qdrant) và
 `app/retrieval/retriever.py::search_sparse_documents` (PostgreSQL, §2) đều gọi
-`EligibilityPolicy` — không tự định nghĩa `review_status`/`rag_status`/`is_latest`/audience riêng.
+`EligibilityPolicy` — không tự định nghĩa `review_status`/`rag_status`/audience riêng.
 
 LangChain retriever phải truyền filter vào `search_kwargs`. Khi QueryDecision có document/version context, dùng cùng `RetrievalFilter` để cộng điều kiện vào eligibility hard filter:
 
@@ -870,7 +870,7 @@ filters = RetrievalFilter(
 search_kwargs["filter"] = build_eligibility_filter(filters, audience=audience)
 ```
 
-Không bỏ eligibility filter để debug ở bất kỳ audience nào (student, admin, internal) — `review_status=approved`, `rag_status=published`, `is_latest=true` luôn bắt buộc; chỉ điều kiện hiển thị (`audience_student`) khác nhau theo audience.
+Không bỏ eligibility filter để debug ở bất kỳ audience nào (student, admin, internal) — `review_status=approved`, `rag_status=published` luôn bắt buộc; chỉ điều kiện hiển thị (`audience_student`) khác nhau theo audience. Không hard-filter `is_latest`.
 
 ---
 
@@ -999,7 +999,6 @@ def test_eligibility_filter_contains_required_statuses_for_student():
 
     assert "approved" in text
     assert "published" in text
-    assert "is_latest" in text
     assert "audience_student" in text
 
 
@@ -1009,7 +1008,6 @@ def test_eligibility_filter_still_requires_status_for_admin():
 
     assert "approved" in text
     assert "published" in text
-    assert "is_latest" in text
     assert "audience_student" not in text
 ```
 
@@ -1071,7 +1069,7 @@ def test_admin_audience_still_carries_status_filter(monkeypatch):
     filter_text = str(captured["filter"])
     assert "approved" in filter_text
     assert "published" in filter_text
-    assert "is_latest" in filter_text
+    assert "is_latest" not in filter_text
 
 
 def test_document_and_version_context_are_forwarded(monkeypatch):
@@ -1128,15 +1126,15 @@ $env:DATABASE_URL="postgresql+asyncpg://ct239h:1232@localhost:5432/ctu_student_s
 - [ ] Greeting/smalltalk và query mơ hồ được `QueryDecision` xử lý trước Retriever.
 - [ ] Query có `current_document_key/current_version_key` truyền filter xuống Qdrant.
 - [ ] Query có `recent_topic` được rewrite trước retrieval.
-- [ ] Student retrieval giữ hard filter approved/published/is_latest/audience_student.
+- [ ] Student retrieval giữ hard filter approved/published/audience_student; không hard-filter is_latest.
 - [ ] `search_sparse_documents()` gọi `EligibilityPolicy.build_postgres_conditions()`, không tự
       hard-code `review_status`/`rag_status`/`audience` riêng.
 - [ ] `build_langchain_qdrant_retriever()` gọi `build_eligibility_filter()` cho mọi audience —
       không rẽ nhánh audience giữa filter có status và filter không status.
-- [ ] Admin/internal retrieval vẫn giữ `review_status=approved`, `rag_status=published`,
-      `is_latest=true`; chỉ khác student ở việc không ép `audience_student=true`.
-- [ ] Dense và sparse dùng cùng `EligibilityContext` trước fusion (RRF) — không có trường hợp một
-      phía lọc `is_latest`/status còn phía kia không.
+- [ ] Admin/internal retrieval vẫn giữ `review_status=approved`, `rag_status=published`; chỉ khác
+      student ở việc không ép `audience_student=true`.
+- [ ] Dense và sparse dùng cùng `EligibilityContext` trước fusion (RRF); cả hai không hard-filter
+      `is_latest`, chỉ dùng nó làm ranking preference sau fusion/rerank.
 - [ ] `QdrantVectorStore` khởi tạo với `vector_name=VECTOR_NAME` ("embedding"), không dùng default
       `""` — nếu thiếu, `_validate_collection_config()` raise lỗi ngay khi tạo instance.
 - [ ] Có `LangChainEmbeddingsAdapter` implement thật `embed_documents()`/`embed_query()`, không chỉ
@@ -1209,7 +1207,7 @@ Khi reingest/delete chunks, can deactivate/delete old Qdrant points.
 Nguyên nhân:
 
 ```text
-Filter thieu review_status=approved/rag_status=published/is_latest=true, hoac khong goi qua
+Filter thieu review_status=approved/rag_status=published, hoac khong goi qua
 EligibilityPolicy.
 ```
 
@@ -1234,8 +1232,8 @@ Xử lý:
 
 ```text
 Ca dense va sparse phai goi cung EligibilityPolicy voi cung EligibilityContext truoc fusion. Xem
-Guide 22 §12.2. Khong audience nao (ke ca admin/internal) duoc bo qua review_status/rag_status/
-is_latest; chi khac o dieu kien audience_student.
+Guide 22 §12.2. Khong audience nao (ke ca admin/internal) duoc bo qua review_status/rag_status;
+chi khac o dieu kien audience_student. is_latest khong nam trong eligibility hard filter.
 ```
 
 ### Citation Fallback Page 1

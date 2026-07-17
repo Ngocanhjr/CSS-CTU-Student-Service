@@ -27,14 +27,8 @@ export const domainOptions = [
   'noi_tru',
 ]
 
-export const assetTypes = ['FORM_LINK', 'VIDEO_LINK', 'WEB_LINK']
-
 // Status enums from db_note.md
-export const ocrStatuses = ['not_started', 'processing', 'need_review', 'failed', 'done']
 export const reviewStatuses = ['not_reviewed', 'reviewing', 'need_fix', 'approved', 'rejected']
 export const ragStatuses = [
   'not_indexed', 'chunked', 'embedded', 'indexed', 'published', 'deactivated', 'failed',
 ]
-
-export const languageOptions = ['vi', 'en']
-export const fileTypeOptions = ['pdf', 'docx', 'image', 'html']

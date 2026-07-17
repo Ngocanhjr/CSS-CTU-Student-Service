@@ -4,7 +4,7 @@
 
 > **Trước khi embed:** chunks phải được tạo sau pre-chunk structural parsing theo `09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md`. Bước này phải làm trước chunking, vì item/page/table/code sai sẽ làm sai `heading_path`, `item_path`, `legal_unit_type`, `page_start/page_end` của child trước khi embed.
 
-File này tách chi tiết từ guide 07, phần G.
+Guide này hướng dẫn riêng embedding capability. Collection/payload contract đọc từ Contract 10.
 
 Mục tiêu:
 
@@ -17,28 +17,8 @@ co real NVIDIA/BGE-M3 embedder cho integration
 
 MVP chỉ embed child chunks.
 
-Nếu đã làm smoke test theo:
-
-```text
-chatbot/.docs/guild_implement/14A_EMBEDDING_RETRIEVAL_SMOKE_TEST_GUIDE.md
-```
-
-thì guide này không phải cài lại từ đầu. Chuyển các phần đã test tốt sang module chính thức:
-
-```text
-14A embed_texts() -> app/embedding/embedder.py
-14A model choice/vector dimension -> TextEmbedder/LangChainNvidiaEmbedder
-14A query embedding -> embed_query()
-```
-
-Khác biệt quan trọng:
-
-```text
-14A doc Markdown va chunk truc tiep de smoke test.
-Guide 14 production khong doc Markdown, khong chunk.
-Guide 14 nhan chunks/DB rows tu pipeline sau guide 12/13.
-Da chot RAG pipeline di theo LangChain, nen real embedder production dung LangChain NVIDIA embeddings.
-```
+Embedding module không đọc Markdown, không chunk và không gọi Qdrant. Nó nhận neutral text inputs
+từ ingestion/retrieval và trả vectors. Unit test dùng fake; integration test dùng provider thật.
 
 ---
 
@@ -421,7 +401,7 @@ Xử lý:
 ```text
 Dung FakeEmbedder trong unit test.
 Chi chay LangChainNvidiaEmbedder trong integration test rieng khi co NVIDIA_API_KEY.
-Dung cache trong 14A de tranh embed lai.
+Chỉ thêm cache khi retry thực tế gây chi phí đáng kể.
 ```
 
 ### Lỗi: vector dimension không khớp Qdrant

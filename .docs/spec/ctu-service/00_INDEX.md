@@ -11,7 +11,8 @@ Current source of truth for implementation:
 7. `07_RAG_SPEC.md`
 8. `08_OCR_INGESTION_SPEC.md`
 9. `09_FRONTEND_SPEC.md`
-10. `11_IMPLEMENTATION_PLAN.md`
+10. `10_POSTGRES_QDRANT_RETRIEVAL_CONTRACT.md`
+11. `11_IMPLEMENTATION_PLAN.md`
 
 Final decisions:
 

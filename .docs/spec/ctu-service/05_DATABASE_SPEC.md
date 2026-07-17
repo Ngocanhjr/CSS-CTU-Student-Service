@@ -4,6 +4,10 @@
 **Last Updated:** 2026-07-04  
 **Status:** Final
 
+> Deployable PostgreSQL DDL, Qdrant collection/payload, cross-store lifecycle, and retrieval
+> eligibility are defined normatively in `10_POSTGRES_QDRANT_RETRIEVAL_CONTRACT.md`. That file
+> overrides this overview wherever physical details differ.
+
 ## 1. Database Overview
 
 - **RDBMS:** PostgreSQL 17

@@ -773,7 +773,7 @@ pytest test/api/test_rag.py -v
 ### 7.3 Kiem thu thu cong bang curl
 
 Sau khi `uvicorn app.main:app --reload --port 8000` da chay (can `NVIDIA_API_KEY`/
-`LLM_API_KEY`/`QDRANT_URL` hop le trong `.env`, va collection `ctu_chunks_test` da
+`LLM_API_KEY`/`QDRANT_URL` hop le trong `.env`, va collection `ctu_chunks_bge_m3` da
 co du lieu tu ingestion):
 
 ```bash

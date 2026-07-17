@@ -54,9 +54,6 @@ export default function StatusBadge({ status }) {
   if (!status) return null
   const color = COLOR[status] || 'slate'
   return (
-    <span className={`badge ${color}`}>
-      <span className="dot" />
-      {LABEL[status] || status}
-    </span>
+    <span className={`badge ${color}`} role="status">{LABEL[status] || status}</span>
   )
 }

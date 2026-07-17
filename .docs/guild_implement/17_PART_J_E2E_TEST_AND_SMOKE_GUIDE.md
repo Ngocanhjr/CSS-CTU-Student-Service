@@ -311,7 +311,7 @@ async def test_markdown_to_retrieval_smoke(tmp_path):
             embedder=FakeEmbedder(dimensions=3),
             qdrant_client=get_qdrant_client(),
             rerank=lambda results: results,  # deterministic test stub
-            collection_name="css_qdrant",
+            collection_name="ctu_chunks_bge_m3_test",
         )
         results = await retriever.search_resolved_query(
             session,
@@ -350,7 +350,7 @@ Xoa collection test hoac delete points theo document_key.
 MVP đơn giản:
 
 ```python
-client.delete_collection("css_qdrant")
+client.delete_collection("ctu_chunks_bge_m3_test")
 ```
 
 Chỉ dùng với collection test.

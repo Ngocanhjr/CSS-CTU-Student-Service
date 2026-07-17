@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
-import { mockApi } from '../api/mockClient.js'
+import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 
 export default function UploadStep({ pipeline, update, goTo }) {
   const [file, setFile] = useState(null)
-  const [title, setTitle] = useState('')
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const inputRef = useRef(null)
 
   const result = pipeline.upload
@@ -14,15 +14,20 @@ export default function UploadStep({ pipeline, update, goTo }) {
   function pick(f) {
     if (!f) return
     setFile(f)
-    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ''))
+    setError('')
   }
 
   async function onUpload() {
     if (!file) return
     setBusy(true)
     try {
-      const res = await mockApi.uploadDocument({ file, title: title || file.name })
-      update('upload', { ...res, fileName: file.name })
+      const res = await api.uploadCanonicalMarkdown(file)
+      update('upload', res)
+      update('review', null)
+      update('ingest', null)
+      goTo('review')
+    } catch (err) {
+      setError(err.message)
     } finally {
       setBusy(false)
     }
@@ -30,14 +35,14 @@ export default function UploadStep({ pipeline, update, goTo }) {
 
   return (
     <>
-      <div className="page-head">
-        <h1>1 — Tải tài liệu</h1>
-        <p>Tải file nguồn (PDF, DOCX, ảnh) để bắt đầu quy trình ingest.</p>
-      </div>
+      <header className="page-head">
+        <h1>1 — Tải canonical Markdown</h1>
+        <p>Tải Markdown đã OCR và review, gồm YAML frontmatter cùng page markers.</p>
+      </header>
 
-      <div className="card">
-        <h2>Chọn file</h2>
-        <div
+      <form className="card" aria-labelledby="upload-file-heading" onSubmit={(event) => { event.preventDefault(); onUpload() }}>
+        <h2 id="upload-file-heading">Chọn file</h2>
+        <label
           className={`dropzone ${drag ? 'drag' : ''}`}
           onClick={() => inputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
@@ -49,54 +54,57 @@ export default function UploadStep({ pipeline, update, goTo }) {
           }}
         >
           {file ? (
-            <div>
+            <span className="selected-file">
               <strong>{file.name}</strong>
-              <div className="hint">{(file.size / 1024).toFixed(1)} KB — bấm để chọn file khác</div>
-            </div>
+              <small className="hint">{(file.size / 1024).toFixed(1)} KB — bấm để chọn file khác</small>
+            </span>
           ) : (
-            <div>Kéo thả file vào đây, hoặc bấm để chọn</div>
+            <span>Kéo thả file vào đây, hoặc bấm để chọn</span>
           )}
           <input
             ref={inputRef}
             type="file"
             hidden
-            accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tiff,.html"
+            accept=".md,text/markdown"
             onChange={(e) => pick(e.target.files?.[0])}
           />
-        </div>
+        </label>
 
-        <div style={{ marginTop: 16 }}>
-          <label className="field">
-            <span>Tiêu đề tài liệu</span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="VD: Quy chế đào tạo đại học hệ chính quy"
-            />
-          </label>
-        </div>
-
-        <button className="btn" disabled={!file || busy} onClick={onUpload}>
+        <button type="submit" className="btn upload-button" disabled={!file || busy}>
           {busy ? 'Đang tải lên…' : 'Tải lên'}
         </button>
-      </div>
+      </form>
+
+      {error && <p className="banner warn" role="alert">{error}</p>}
 
       {result && (
-        <div className="card">
-          <h2>Đã tải lên</h2>
+        <section className="card" aria-labelledby="upload-result-heading">
+          <h2 id="upload-result-heading">Đã tải lên</h2>
           <dl className="kv">
             <dt>document_key</dt><dd className="mono">{result.document_key}</dd>
             <dt>version_key</dt><dd className="mono">{result.version_key}</dd>
             <dt>source_path</dt><dd className="mono">{result.source_path}</dd>
             <dt>file_type</dt><dd className="mono">{result.file_type}</dd>
             <dt>checksum</dt><dd className="mono">{result.checksum}</dd>
-            <dt>ocr_status</dt><dd><StatusBadge status={result.ocr_status} /></dd>
+            <dt>review_status</dt><dd><StatusBadge status={result.review_status} /></dd>
           </dl>
-          <div className="foot-nav">
-            <span />
-            <button className="btn" onClick={() => goTo('ocr')}>Tiếp tục: OCR →</button>
-          </div>
-        </div>
+          {result.metadata && (
+            <section aria-labelledby="metadata-preview-heading">
+              <h3 id="metadata-preview-heading">Metadata YAML</h3>
+              <pre className="json-out"><code>{JSON.stringify(result.metadata, null, 2)}</code></pre>
+            </section>
+          )}
+          {result.markdown && (
+            <section aria-labelledby="markdown-preview-heading">
+              <h3 id="markdown-preview-heading">Canonical Markdown</h3>
+              <label className="field" htmlFor="uploaded-markdown">Nội dung đã tải</label>
+              <textarea id="uploaded-markdown" readOnly value={result.markdown} />
+            </section>
+          )}
+          <nav className="foot-nav end" aria-label="Bước tiếp theo">
+            <button type="button" className="btn" onClick={() => goTo('review')}>Review nội dung →</button>
+          </nav>
+        </section>
       )}
     </>
   )

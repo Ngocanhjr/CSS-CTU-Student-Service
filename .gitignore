@@ -26,6 +26,9 @@ build/
 .vite/
 coverage/
 
+# Local editor state
+.docs/.obsidian/
+
 # Database runtime data
 postgres_data/
 qdrant_data/
@@ -43,3 +46,5 @@ RTK.md
 /AGENTS_README.md
 AGENTS.md
 RTK.md
+
+!admin-frontend/AGENTS.md

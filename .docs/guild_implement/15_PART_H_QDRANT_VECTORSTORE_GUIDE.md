@@ -2,7 +2,8 @@
 
 **Last Updated:** 2026-07-10
 
-File này tách chi tiết từ guide 07, phần H.
+Physical collection/payload contract nằm tại Contract 10. Guide này chỉ hướng dẫn Qdrant client,
+upsert/search plumbing và eligibility integration.
 
 Mục tiêu:
 
@@ -14,29 +15,8 @@ search voi filter student
 cap nhat DocumentChunk.qdrant_point_id va index_status
 ```
 
-Nếu đã làm smoke test theo:
-
-```text
-chatbot/.docs/guild_implement/14A_EMBEDDING_RETRIEVAL_SMOKE_TEST_GUIDE.md
-```
-
-thì guide này là bước chuẩn hóa production:
-
-```text
-14A ensure_collection() -> app/vectorstore/repository.py
-14A make_point_id(version_key, chunk_key)
-14A payload toi thieu -> build_chunk_payload() day du metadata DB/status
-14A search top-k -> search_points()
-```
-
-Khác biệt quan trọng:
-
-```text
-14A bo qua PostgreSQL.
-Guide 15 production nhan chunks da luu DB, co db_chunk_id/document_version_id, va update qdrant_point_id/index_status ve PostgreSQL.
-Da chot RAG pipeline di theo LangChain, nen retrieval layer dung LangChain Qdrant retriever.
-Repository nay van can de kiem soat payload/status DB ro rang.
-```
+Production input phải là Child đã persist PostgreSQL và có IDs để hydration; không upsert trực tiếp
+từ raw Markdown.
 
 ---
 
@@ -51,8 +31,8 @@ chatbot/backend/test/retrieval/test_eligibility.py
 chatbot/backend/test/vectorstore/test_qdrant_repository.py
 ```
 
-`app/retrieval/eligibility.py` là nguồn duy nhất định nghĩa `review_status`/`rag_status`/
-`is_latest`/audience (Guide 22 §12.2). `app/vectorstore/repository.py` import từ đó, không tự định
+`app/retrieval/eligibility.py` là nguồn duy nhất định nghĩa `review_status`/`rag_status`/audience
+(Guide 22 §12.2). `app/vectorstore/repository.py` import từ đó, không tự định
 nghĩa điều kiện eligibility.
 
 ---
@@ -179,7 +159,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 
 
-DEFAULT_COLLECTION = "css_qdrant"
+DEFAULT_COLLECTION = "ctu_chunks_bge_m3"
 VECTOR_NAME = "embedding"
 
 
@@ -367,7 +347,6 @@ class EligibilityPolicy:
         conditions: list[ColumnElement[bool]] = [
             DocumentVersion.review_status == "approved",
             DocumentVersion.rag_status == "published",
-            DocumentVersion.is_latest.is_(True),
         ]
         if context.audience == "student":
             conditions.append(Document.audience.overlap(["sinh_vien", "cong_khai"]))
@@ -382,7 +361,6 @@ class EligibilityPolicy:
         conditions = [
             FieldCondition(key="review_status", match=MatchValue(value="approved")),
             FieldCondition(key="rag_status", match=MatchValue(value="published")),
-            FieldCondition(key="is_latest", match=MatchValue(value=True)),
         ]
         if context.audience == "student":
             conditions.append(
@@ -402,11 +380,12 @@ class EligibilityPolicy:
 Rule:
 
 ```text
-- review_status/rag_status/is_latest luôn có mặt, không tham số nào tắt được ba điều kiện này.
+- review_status/rag_status luôn có mặt, không tham số nào tắt được hai điều kiện này.
 - audience chỉ điều khiển điều kiện hiển thị (audience_student / Document.audience overlap),
   không điều khiển status.
 - document_key/version_key là điều kiện context thuần, cộng thêm không thay thế.
-- Không audience nào (kể cả "admin"/"internal") được bỏ qua ba điều kiện bắt buộc.
+- Không audience nào (kể cả "admin"/"internal") được bỏ qua hai điều kiện bắt buộc.
+- is_latest chỉ là ranking preference sau fusion/rerank, không phải hard filter.
 ```
 
 ---
@@ -414,13 +393,13 @@ Rule:
 ## 9. Metadata Filter Theo Ngữ Cảnh
 
 **Cập nhật theo Guide 22 §12.2 (normative, override phần này nếu khác):** eligibility
-(`review_status`/`rag_status`/`is_latest`/audience) không còn định nghĩa riêng ở module này.
+(`review_status`/`rag_status`/audience) không còn định nghĩa riêng ở module này.
 `app/vectorstore/repository.py` chỉ giữ context filter thuần (`document_type`, `domain`,
 `document_key`, `version_key`, `chunk_type`) và gọi `EligibilityPolicy.build_qdrant_filter()` từ
 `app/retrieval/eligibility.py` để lấy điều kiện eligibility bắt buộc.
 
-`review_status=approved`, `rag_status=published`, `is_latest=true` là bắt buộc cho **mọi audience**,
-kể cả admin/internal — không có audience nào bypass ba điều kiện này. Audience chỉ khác nhau ở
+`review_status=approved`, `rag_status=published` là bắt buộc cho **mọi audience**,
+kể cả admin/internal — không có audience nào bypass hai điều kiện này. Audience chỉ khác nhau ở
 điều kiện hiển thị (`audience_student=true` cho student; không cộng thêm cho admin/internal).
 Context filter như `document_key`/`version_key` được cộng thêm, không thay thế các điều kiện
 eligibility.
@@ -492,10 +471,11 @@ Rule:
 - Mọi audience (student/admin/internal) đi qua build_eligibility_filter(); không có endpoint nào
   được gọi build_context_filter() làm filter cuối cùng để search — build_context_filter() chỉ là
   helper nội bộ tạo điều kiện context thuần cho EligibilityPolicy dùng lại, không tự đủ để search.
-- Student retrieval không cho caller tắt review_status/rag_status/is_latest/audience_student.
+- Student retrieval không cho caller tắt review_status/rag_status/audience_student.
 - Admin/internal search dùng build_eligibility_filter(filters, audience="admin") — vẫn giữ
-  review_status=approved, rag_status=published, is_latest=true; chỉ khác ở việc không cộng điều
+  review_status=approved, rag_status=published; chỉ khác ở việc không cộng điều
   kiện audience_student.
+- is_latest vẫn có trong payload nhưng chỉ dùng ranking preference, không nằm trong filter cuối.
 - current_document_key/current_version_key từ QueryDecision được map vào RetrievalFilter.
 ```
 
@@ -661,11 +641,11 @@ def test_upsert_and_search_qdrant():
         },
     )
 
-    upsert_points(client, points=[point], collection_name="css_qdrant")
+    upsert_points(client, points=[point], collection_name="ctu_chunks_bge_m3_test")
     results = search_points(
         client,
         query_vector=vector,
-        collection_name="css_qdrant",
+        collection_name="ctu_chunks_bge_m3_test",
         top_k=1,
     )
 
@@ -684,7 +664,6 @@ def test_qdrant_filter_requires_status_for_student():
 
     assert "approved" in text
     assert "published" in text
-    assert "is_latest" in text
     assert "audience_student" in text
 
 
@@ -694,7 +673,6 @@ def test_qdrant_filter_requires_status_for_admin_too():
 
     assert "approved" in text
     assert "published" in text
-    assert "is_latest" in text
     assert "audience_student" not in text
 
 
@@ -706,7 +684,7 @@ def test_postgres_conditions_requires_status_for_admin_too():
 
     assert any("review_status" in c for c in rendered)
     assert any("rag_status" in c for c in rendered)
-    assert any("is_latest" in c for c in rendered)
+    assert not any("is_latest" in c for c in rendered)
 ```
 
 ---
@@ -737,12 +715,12 @@ cd backend
 - [ ] Payload có `is_latest`.
 - [ ] `app/retrieval/eligibility.py` tồn tại, `EligibilityPolicy.build_qdrant_filter()` và
       `build_postgres_conditions()` bắt buộc `review_status=approved`, `rag_status=published`,
-      `is_latest=true` cho **mọi audience**, không có tham số bypass.
+      cho **mọi audience**, không có tham số bypass; `is_latest` không nằm trong hard filter.
 - [ ] `build_context_filter()` không còn được dùng trực tiếp làm filter cuối cùng cho search ở bất
       kỳ audience nào (student hay admin/internal) — mọi search đi qua
       `build_eligibility_filter()`/`EligibilityPolicy`.
-- [ ] Student filter có review_status=approved, rag_status=published, is_latest, audience_student.
-- [ ] Admin/internal filter có review_status=approved, rag_status=published, is_latest (không có
+- [ ] Student filter có review_status=approved, rag_status=published, audience_student.
+- [ ] Admin/internal filter có review_status=approved, rag_status=published (không có
       audience_student).
 - [ ] Upsert và search test được.
 - [ ] DB update được `qdrant_point_id`.
@@ -801,7 +779,7 @@ Nguyên nhân:
 
 ```text
 Endpoint admin/internal goi build_context_filter() truc tiep lam filter cuoi cung (khong co
-review_status/rag_status/is_latest), thay vi build_eligibility_filter(audience="admin").
+review_status/rag_status), thay vi build_eligibility_filter(audience="admin").
 ```
 
 Xử lý:
@@ -817,7 +795,7 @@ de search truc tiep (xem Guide 22 §12.2).
 Nguyên nhân:
 
 ```text
-Dense va sparse dinh nghia dieu kien review_status/rag_status/is_latest/audience o hai noi khac
+Dense va sparse dinh nghia dieu kien review_status/rag_status/audience o hai noi khac
 nhau (vi du Guide 16 search_sparse_documents() hard-code rieng, khong goi EligibilityPolicy).
 ```
 

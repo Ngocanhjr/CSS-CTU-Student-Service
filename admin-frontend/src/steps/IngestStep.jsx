@@ -1,55 +1,35 @@
 import { useState } from 'react'
-import { mockApi } from '../api/mockClient.js'
+import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
-import StepProgress from '../components/StepProgress.jsx'
-
-const INGEST_STEPS = [
-  { key: 'chunking', label: 'Chunking (MarkdownHeaderTextSplitter)' },
-  { key: 'child_split', label: 'Cắt child chunks (Recursive splitter)' },
-  { key: 'embedding', label: 'Embedding BGE-M3 (1024d)' },
-  { key: 'pg_insert', label: 'Insert PostgreSQL (css.document_chunks)' },
-  { key: 'qdrant_upsert', label: 'Upsert Qdrant' },
-]
 
 export default function IngestStep({ pipeline, update, goTo }) {
   const upload = pipeline.upload
-  const ocr = pipeline.ocr
-  const metadata = pipeline.metadata
+  const metadata = upload?.metadata || upload
   const ingest = pipeline.ingest
+  const canIngest = metadata?.ocr_status === 'done' && metadata?.review_status === 'approved'
   const [busy, setBusy] = useState(false)
-  const [steps, setSteps] = useState(
-    INGEST_STEPS.map((s) => ({ ...s, state: 'pending' })),
-  )
+  const [error, setError] = useState('')
 
-  if (!metadata) {
+  if (!upload) {
     return (
       <>
-        <div className="page-head"><h1>4 — Đưa vào CSDL</h1></div>
-        <div className="banner warn">
-          Chưa có metadata. Hãy hoàn tất bước 3 trước.
-          <div style={{ marginTop: 10 }}>
-            <button className="btn small" onClick={() => goTo('metadata')}>← Về bước metadata</button>
-          </div>
-        </div>
+        <header className="page-head"><h1>3 — Đưa vào CSDL</h1></header>
+        <aside className="banner warn">
+          Chưa có tài liệu. Hãy tải canonical Markdown trước.
+          <p><button type="button" className="btn small" onClick={() => goTo('upload')}>← Về bước tải lên</button></p>
+        </aside>
       </>
     )
   }
 
   async function onRun() {
     setBusy(true)
-    setSteps(INGEST_STEPS.map((s) => ({ ...s, state: 'pending' })))
+    setError('')
     try {
-      const res = await mockApi.runIngest(
-        { markdown: ocr.markdown, versionKey: upload.version_key },
-        (step) => {
-          setSteps((prev) =>
-            prev.map((s) =>
-              s.key === step.key ? { ...s, state: step.state, sub: step.sub || s.sub } : s,
-            ),
-          )
-        },
-      )
+      const res = await api.runIngest(upload.document_version_id)
       update('ingest', res)
+    } catch (err) {
+      setError(err.message)
     } finally {
       setBusy(false)
     }
@@ -57,39 +37,38 @@ export default function IngestStep({ pipeline, update, goTo }) {
 
   return (
     <>
-      <div className="page-head">
-        <h1>4 — Đưa vào CSDL</h1>
+      <header className="page-head">
+        <h1>3 — Đưa vào CSDL</h1>
         <p>Chunk → embed (BGE-M3) → insert PostgreSQL → upsert Qdrant.</p>
-      </div>
+      </header>
 
-      <div className="banner">
-        Điều kiện publish: <span className="mono">ocr_status = done</span> và{' '}
-        <span className="mono">review_status = approved</span>. Prototype mô phỏng review đã duyệt.
-      </div>
+      {error && <p className="banner warn" role="alert">{error}</p>}
 
-      <div className="card">
-        <h2>Sẵn sàng ingest</h2>
+      <aside className={canIngest ? 'banner' : 'banner warn'}>
+        Ingest yêu cầu <span className="mono">ocr_status = done</span> và{' '}
+        <span className="mono">review_status = approved</span>. Publish là bước riêng sau ingest.
+      </aside>
+
+      <section className="card" aria-labelledby="ingest-ready-heading">
+        <h2 id="ingest-ready-heading">Sẵn sàng ingest</h2>
         <dl className="kv">
           <dt>version_key</dt><dd className="mono">{upload.version_key}</dd>
           <dt>Tiêu đề</dt><dd>{metadata.title}</dd>
-          <dt>Phòng ban tiếp nhận</dt><dd>{metadata.recipients.length} phòng ban</dd>
+          <dt>Phòng ban phụ trách</dt><dd>{metadata.responsible_department?.join(', ') || '—'}</dd>
+          <dt>ocr_status</dt><dd><StatusBadge status={metadata.ocr_status || 'not_started'} /></dd>
+          <dt>review_status</dt><dd><StatusBadge status={metadata.review_status || 'not_reviewed'} /></dd>
           <dt>rag_status</dt><dd><StatusBadge status={ingest ? ingest.rag_status : 'not_indexed'} /></dd>
         </dl>
-        <button className="btn" disabled={busy} onClick={onRun}>
+        <button type="button" className="btn" disabled={busy || !canIngest} onClick={onRun}>
           {busy ? 'Đang ingest…' : ingest ? 'Chạy lại ingest' : 'Bắt đầu ingest'}
         </button>
-      </div>
+      </section>
 
-      {(busy || ingest) && (
-        <div className="card">
-          <h2>Tiến trình pipeline</h2>
-          <StepProgress steps={steps} />
-        </div>
-      )}
+      {busy && <p className="banner" role="status" aria-live="polite">Backend đang chunk, lưu PostgreSQL, embed và upsert Qdrant…</p>}
 
       {ingest && (
-        <div className="card">
-          <h2>Kết quả ingest</h2>
+        <section className="card" aria-labelledby="ingest-result-heading">
+          <h2 id="ingest-result-heading">Kết quả ingest</h2>
           <dl className="kv">
             <dt>parent_chunks</dt><dd>{ingest.parent_chunks}</dd>
             <dt>child_chunks</dt><dd>{ingest.child_chunks}</dd>
@@ -97,11 +76,11 @@ export default function IngestStep({ pipeline, update, goTo }) {
             <dt>qdrant_points</dt><dd>{ingest.qdrant_points}</dd>
             <dt>rag_status</dt><dd><StatusBadge status={ingest.rag_status} /></dd>
           </dl>
-          <div className="foot-nav">
-            <button className="btn ghost" onClick={() => goTo('metadata')}>← Quay lại</button>
-            <button className="btn" onClick={() => goTo('output')}>Xem kết quả (output) →</button>
-          </div>
-        </div>
+          <pre className="json-out"><code>{JSON.stringify(ingest, null, 2)}</code></pre>
+          <footer className="foot-nav">
+            <button type="button" className="btn ghost" onClick={() => goTo('upload')}>← Tải tài liệu khác</button>
+          </footer>
+        </section>
       )}
     </>
   )

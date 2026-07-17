@@ -1,11 +1,15 @@
 # 11. Implementation Plan
 
+This is the only documentation file used to track implementation order. Git/issues track history
+and day-to-day progress. Physical data contracts live in Contract 10; chunk/retrieval reconciliation
+lives in Guide 22.
+
 ## MVP sequence
 
 1. Finalize 9-table schema and migrations.
 2. Receive canonical Markdown (pre-OCR'd and reviewed externally).
 3. Validate metadata against `document_versions` fields.
-4. Implement parent-child chunking with `langchain-text-splitters`.
+4. Implement page-marker split → stateful structural parser → Parent/Child chunking.
 5. Persist chunks with `parent_chunk_id` into `document_chunks`.
 6. Embed child chunks with BGE-M3.
 7. Upsert Qdrant points with correct payload.
@@ -31,14 +35,14 @@ Use FastAPI with this package boundary:
 |---|---|
 | `app/api` | Versioned routes and endpoint definitions |
 | `app/schemas` | Pydantic request/response DTOs |
-| `app/config` | Settings, service URLs, model names, DB/Qdrant config |
-| `app/core` | Exceptions, dependency injection, security helpers, constants, logging |
+| `app/core` | Settings, dependency injection, shared exceptions, security and logging |
 | `app/databases` | PostgreSQL models, repositories, migrations |
 | `app/ingestion` | Canonical Markdown intake, metadata validation, chunking, indexing jobs |
 | `app/embedding` | BGE-M3 loading, embedding, vector normalization |
 | `app/vectorstore` | Qdrant client, collections, upsert, search |
 | `app/retrieval` | Dense retrieval, sparse retrieval, RRF, filters, parent expansion |
-| `app/llm` | LLM client, prompts, answer generation, citation validation |
+| `app/rag` | Retrieval → LLM → citation answer orchestration |
+| `app/llm` | LLM client and prompt/model generation capability |
 
 Route files must validate input, call service layer, return typed schemas, and translate known exceptions.
 Do not put business rules directly in route files.

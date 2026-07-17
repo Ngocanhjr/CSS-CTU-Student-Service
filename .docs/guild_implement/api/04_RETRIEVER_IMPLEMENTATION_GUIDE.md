@@ -38,7 +38,7 @@ app/vectorstore/qdrant_client.py   -> DA CO. get_qdrant_client() -> QdrantClient
                                        doc os.getenv("QDRANT_URL", "http://localhost:6333"),
                                        os.getenv("QDRANT_API_KEY").
 app/vectorstore/repository.py      -> DA CO day du. Ham dung duoc:
-                                       COLLECTION_NAME = "ctu_chunks_test"
+                                       COLLECTION_NAME = "ctu_chunks_bge_m3"
                                        VECTOR_NAME = "embedding"
                                        search_points(client, *, query_vector,
                                          collection_name=COLLECTION_NAME, top_k=5,
@@ -397,7 +397,7 @@ asyncio.run(main())
 ```
 
 Kết quả mong đợi: in ra tối đa 3 chunk có `score` giảm dần, không lỗi kết nối Qdrant/NVIDIA. Nếu
-collection `ctu_chunks_test` chưa có dữ liệu (chưa chạy ingestion), `results` sẽ là `[]` — đây là
+collection `ctu_chunks_bge_m3` chưa có dữ liệu (chưa chạy ingestion), `results` sẽ là `[]` — đây là
 hành vi đúng, không phải lỗi của `retrieve()`.
 
 ---
@@ -426,8 +426,7 @@ KHONG eligibility filter (review_status=approved/rag_status=published/is_latest)
     sinh vien - hien tai retrieve() co the tra ve chunk chua duoc duyet hoac
     chua publish, vi RetrievalFilter (app/vectorstore/models.py) khong co
     field nao cho review_status/rag_status/is_latest.
-    Tham khao chatbot/.docs/guild_implement/checklist.md phan
-    "Reconciliation Checklist - Structural Chunking/Retrieval" va Guide 16
+    Tham khao Contract 10 va Guide 22, sau do Guide 16
     muc 8 "Eligibility Filter O Dau?": nguon chan ly du kien nam o
     app/retrieval/eligibility.py::EligibilityPolicy (module nay CHUA TON TAI).
     Khi module do duoc viet, retrieve() trong file nay phai duoc sua lai de

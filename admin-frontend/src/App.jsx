@@ -1,19 +1,15 @@
 import { useState } from 'react'
 import Sidebar from './components/Sidebar.jsx'
 import UploadStep from './steps/UploadStep.jsx'
-import OcrStep from './steps/OcrStep.jsx'
-import MetadataStep from './steps/MetadataStep.jsx'
+import ReviewStep from './steps/ReviewStep.jsx'
 import IngestStep from './steps/IngestStep.jsx'
-import OutputStep from './steps/OutputStep.jsx'
 import DocumentsListPage from './documents/DocumentsListPage.jsx'
 import DocumentEditPage from './documents/DocumentEditPage.jsx'
 
 const STEPS = [
-  { key: 'upload', label: 'Tải tài liệu' },
-  { key: 'ocr', label: 'OCR / Parse' },
-  { key: 'metadata', label: 'Gắn metadata' },
+  { key: 'upload', label: 'Tải Markdown' },
+  { key: 'review', label: 'Review nội dung' },
   { key: 'ingest', label: 'Đưa vào CSDL' },
-  { key: 'output', label: 'Kết quả' },
 ]
 
 const EXTRA_NAV = [
@@ -21,10 +17,9 @@ const EXTRA_NAV = [
 ]
 
 const emptyPipeline = {
-  upload: null, // upload result
-  ocr: null, // { markdown, canonical_markdown_path, ... }
-  metadata: null, // metadata object
-  ingest: null, // ingest result
+  upload: null,
+  review: null,
+  ingest: null,
 }
 
 export default function App() {
@@ -34,10 +29,8 @@ export default function App() {
 
   const done = {
     upload: !!pipeline.upload,
-    ocr: !!pipeline.ocr,
-    metadata: !!pipeline.metadata,
+    review: !!pipeline.review,
     ingest: !!pipeline.ingest,
-    output: !!pipeline.ingest,
   }
 
   function update(key, value) {
@@ -66,12 +59,10 @@ export default function App() {
         onReset={reset}
         extraNav={EXTRA_NAV}
       />
-      <main className="main">
+      <main className="main" id="main-content">
         {active === 'upload' && <UploadStep {...shared} />}
-        {active === 'ocr' && <OcrStep {...shared} />}
-        {active === 'metadata' && <MetadataStep {...shared} />}
+        {active === 'review' && <ReviewStep {...shared} />}
         {active === 'ingest' && <IngestStep {...shared} />}
-        {active === 'output' && <OutputStep {...shared} />}
         {active === 'documents' && <DocumentsListPage onEdit={openEdit} />}
         {active === 'documents-edit' && (
           <DocumentEditPage documentId={editingVersionId} onBack={() => setActive('documents')} />

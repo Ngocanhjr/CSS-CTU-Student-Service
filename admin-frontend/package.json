@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "React admin prototype for CTU Student Service document ingestion (upload -> OCR -> metadata -> ingest -> output). Uses a mock API layer shaped to the css schema and /api/v1 endpoints.",
+  "description": "React admin prototype for canonical Markdown ingestion (upload -> validate -> metadata -> ingest -> output).",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
