@@ -1,3 +1,13 @@
+# Chứa các thao tác chính với Qdrant:
+
+# Tạo collection
+# Tạo point ID
+# Build filter
+# Build payload
+# Upsert vector
+# Search vector
+
+
 """Qdrant CRUD operations for vector store.
 
 Functions:

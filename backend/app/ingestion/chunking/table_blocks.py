@@ -1,0 +1,1 @@
+# Dự kiến xử lý table như atomic block, nhưng hiện đang trống.

@@ -1,3 +1,9 @@
+# Chia tài liệu theo Markdown heading:
+
+# Heading
+## Heading
+### Heading
+
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 
 from app.ingestion.chunking.text_stats import count_units

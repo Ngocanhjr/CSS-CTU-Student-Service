@@ -1,3 +1,5 @@
+# Chứa các enum như loại tài liệu, trạng thái xử lý, loại chunk.
+
 from typing import Literal
 
 """

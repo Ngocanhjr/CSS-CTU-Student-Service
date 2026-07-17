@@ -1,0 +1,1 @@
+# Dự kiến cung cấp API kiểm tra backend còn hoạt động, hiện đang trống.

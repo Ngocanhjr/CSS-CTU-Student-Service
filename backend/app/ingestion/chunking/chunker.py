@@ -1,3 +1,6 @@
+# Hàm điều phối chunking
+
+
 from app.ingestion.markdown_reader import MarkdownDocument
 from app.schemas.chunks import Chunk
 

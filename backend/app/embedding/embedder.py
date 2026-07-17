@@ -1,3 +1,13 @@
+# Quản lý embedding.
+
+# Chức năng:
+
+# Tạo NVIDIAEmbeddings
+# → embed câu hỏi
+# → embed danh sách nội dung
+# → tạo enriched text
+# → cache vector theo hash
+
 import os
 
 from dotenv import load_dotenv, find_dotenv

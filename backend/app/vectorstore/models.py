@@ -1,3 +1,9 @@
+# Các model hỗ trợ Qdrant:
+
+# RetrievalFilter: bộ lọc tìm kiếm;
+# QdrantChunkPayload: cấu trúc payload;
+# QdrantSearchResult: kết quả tìm kiếm.
+
 from dataclasses import dataclass
 from pydantic import BaseModel
 

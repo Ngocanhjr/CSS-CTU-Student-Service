@@ -1,3 +1,11 @@
+# Chia nội dung Parent thành các Child nhỏ hơn theo:
+
+# kích thước chunk;
+# overlap;
+# metadata của Parent.
+
+# Sau đó tạo các object Chunk loại child.
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.ingestion.chunking.text_stats import count_units

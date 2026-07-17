@@ -1,3 +1,5 @@
+# Hàm điều phối việc index một tài liệu:
+
 from app.embedding.embedder import embed_chunks_with_cache, get_embedding
 from app.ingestion.chunking.chunker import chunk_markdown_document
 from app.ingestion.markdown_reader import read_markdown_document
