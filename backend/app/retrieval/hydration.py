@@ -1,12 +1,17 @@
 # Mục đích: lấy canonical content từ PostgreSQL và chuyển thành ​RetrievalResult​.
-# Skeleton trên gọi DB từng chunk. Production nên batch query bằng ​WHERE id IN (...)​ để tránh N+1 query.
+# BE dùng parent_chunk_id để lấy nội dung từ PostgresSQL
+# hild chunk canonical;
+# parent chunk qua parent_chunk_id;
+# DocumentVersion và Document;
+# title, source path/URL, page number và citation.
 
 from __future__ import annotations
 
 from langchain_core.documents import Document as LangChainDocument
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.databases.models import DocumentChunk
+from app.databases.models import Document, DocumentChunk, DocumentVersion
 from app.retrieval.models import ExpansionReason, RetrievalResult
 
 
@@ -34,33 +39,55 @@ async def hydrate_langchain_documents(
     *,
     expansion_reason: ExpansionReason = "direct_hit",
 ) -> list[RetrievalResult]:
-    results: list[RetrievalResult] = []
+    chunk_ids = [
+        int(doc.metadata["postgres_chunk_id"])
+        for doc in docs
+        if doc.metadata.get("postgres_chunk_id") is not None
+    ]
+    if not chunk_ids:
+        return []
 
+    rows = (
+        await session.execute(
+            select(DocumentChunk, DocumentVersion, Document)
+            .join(
+                DocumentVersion,
+                DocumentVersion.id == DocumentChunk.document_version_id,
+            )
+            .join(Document, Document.id == DocumentVersion.document_id)
+            .where(DocumentChunk.id.in_(set(chunk_ids)))
+        )
+    ).all()
+    records_by_chunk_id = {chunk.id: (chunk, version, document) for chunk, version, document in rows}
+
+    parent_ids = {
+        chunk.parent_chunk_id
+        for chunk, _, _ in records_by_chunk_id.values()
+        if chunk.parent_chunk_id is not None
+    }
+    parent_by_id: dict[int, DocumentChunk] = {}
+    if parent_ids:
+        parent_rows = await session.execute(
+            select(DocumentChunk).where(DocumentChunk.id.in_(parent_ids))
+        )
+        parent_by_id = {parent.id: parent for parent in parent_rows.scalars()}
+
+    results: list[RetrievalResult] = []
     for doc in docs:
         metadata = dict(doc.metadata or {})
         db_chunk_id = metadata.get("postgres_chunk_id")
-
         if db_chunk_id is None:
             continue
 
-        chunk = await session.get(
-            DocumentChunk,
-            int(db_chunk_id),
-        )
-        if chunk is None:
+        record = records_by_chunk_id.get(int(db_chunk_id))
+        if record is None:
             continue
 
-        parent_chunk_key = metadata.get("parent_chunk_key")
-        if (
-            parent_chunk_key is None
-            and chunk.parent_chunk_id is not None
-        ):
-            parent = await session.get(
-                DocumentChunk,
-                chunk.parent_chunk_id,
-            )
-            if parent is not None:
-                parent_chunk_key = parent.chunk_key
+        chunk, version, document = record
+        parent = parent_by_id.get(chunk.parent_chunk_id)
+        parent_chunk_key = metadata.get("parent_chunk_key") or (
+            parent.chunk_key if parent is not None else None
+        )
 
         heading_path = (
             metadata.get("heading_path")
@@ -77,7 +104,11 @@ async def hydrate_langchain_documents(
         if page_end is None:
             page_end = getattr(chunk, "page_end", None)
 
-        source_file = metadata.get("source_file", "")
+        source_file = (
+            version.canonical_markdown_path
+            or version.source_path
+            or metadata.get("source_file", "")
+        )
         logical_item_key = metadata.get("logical_item_key")
         logical_item_keys = (
             metadata.get("logical_item_keys")
@@ -91,8 +122,8 @@ async def hydrate_langchain_documents(
                     metadata.get("postgres_parent_chunk_id")
                     or chunk.parent_chunk_id
                 ),
-                document_key=metadata.get("document_key", ""),
-                version_key=metadata.get("version_key", ""),
+                document_key=document.document_key,
+                version_key=version.version_key,
                 chunk_key=metadata.get(
                     "chunk_key",
                     chunk.chunk_key,
@@ -100,11 +131,11 @@ async def hydrate_langchain_documents(
                 parent_chunk_key=parent_chunk_key,
                 score=float(metadata.get("_score", 0.0)),
                 content=chunk.content,
-                title=metadata.get("title", ""),
+                title=version.title or document.title,
                 page_start=page_start,
                 page_end=page_end,
                 source_file=source_file,
-                source_url=metadata.get("source_url", ""),
+                source_url=version.source_url,
                 citation=build_citation(
                     source_file=source_file,
                     page_start=page_start,
@@ -133,6 +164,7 @@ async def hydrate_langchain_documents(
                 item_marker=metadata.get("item_marker"),
                 item_level=metadata.get("item_level"),
                 expansion_reason=expansion_reason,
+                parent_content=parent.content if parent is not None else None,
             )
         )
 

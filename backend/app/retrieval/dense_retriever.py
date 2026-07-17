@@ -1,64 +1,51 @@
-# Mục đích: semantic search bằng LangChain Qdrant retriever.
-# Tìm đoạn văn có ý nghĩa gần với câu hỏi, không chỉ tìm từ khóa giống nhau
 
-# - `vector_name=VECTOR_NAME`.
-# - Dense side dùng cùng `EligibilityPolicy` với sparse side.
-# - Chỉ lấy child chunk cho direct retrieval nếu đó là contract của dự án.
+# question
+# → embed_query() từ embedder.py
+# → search_points() từ repository.py
+# → Qdrant filter chunk_type = child
+# → LangChainDocument[] cho hydration.py
 
 
+"""Dense retrieval of eligible child chunks from Qdrant."""
 
-from __future__ import annotations
+from langchain_core.documents import Document as LangChainDocument
 
-from langchain_core.vectorstores import VectorStoreRetriever
-from langchain_qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
-
-from app.embedding.embedder import (
-    LangChainEmbeddingsAdapter,
-    TextEmbedder,
-)
-from app.retrieval.eligibility import (
-    EligibilityContext,
-    EligibilityPolicy,
-)
-from app.vectorstore.repository import (
-    DEFAULT_COLLECTION,
-    VECTOR_NAME,
-)
+from app.embedding.embedder import embed_query
+from app.vectorstore.models import QdrantSearchResult, RetrievalFilter
+from app.vectorstore.qdrant_client import get_qdrant_client
+from app.vectorstore.repository import search_points
 
 
 DEFAULT_TOP_K = 5
 
 
-def build_dense_retriever(
+def retrieve_child_chunks(
+    query: str,
     *,
-    qdrant_client: QdrantClient,
-    embedder: TextEmbedder,
-    collection_name: str = DEFAULT_COLLECTION,
     top_k: int = DEFAULT_TOP_K,
-    audience: str = "student",
     document_key: str | None = None,
     version_key: str | None = None,
-) -> VectorStoreRetriever:
-    vectorstore = QdrantVectorStore(
-        client=qdrant_client,
-        collection_name=collection_name,
-        embedding=LangChainEmbeddingsAdapter(embedder),
-        vector_name=VECTOR_NAME,
-    )
-
-    qdrant_filter = EligibilityPolicy.build_qdrant_filter(
-        EligibilityContext(
-            audience=audience,
+) -> list[LangChainDocument]:
+    """Embed a query and return its matching child chunks from Qdrant."""
+    query_vector = embed_query(query)
+    points: list[QdrantSearchResult] = search_points(
+        get_qdrant_client(),
+        query_vector=query_vector,
+        top_k=top_k,
+        filters=RetrievalFilter(
             document_key=document_key,
             version_key=version_key,
+            chunk_type="child",
         ),
-        chunk_type="child",
     )
 
-    return vectorstore.as_retriever(
-        search_kwargs={
-            "k": top_k,
-            "filter": qdrant_filter,
-        }
-    )
+    return [
+        LangChainDocument(
+            page_content=str(point.payload.get("content", "")),
+            metadata={
+                **point.payload,
+                "_score": point.score,
+            },
+        )
+        for point in points
+    ]

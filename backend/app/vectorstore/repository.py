@@ -5,7 +5,7 @@
 # Build filter
 # Build payload
 # Upsert vector
-# Search vector
+# Search vector: tìm kiếm vector theo query vector và filter
 
 
 """Qdrant CRUD operations for vector store.
@@ -27,6 +27,7 @@ from qdrant_client.models import (
     Distance,
     FieldCondition,
     Filter,
+    FilterSelector,
     MatchValue,
     PointStruct,
     VectorParams,
@@ -129,19 +130,50 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
                 match=MatchValue(value=filters.chunk_type),
             )
         )
+    if filters.review_status:
+        conditions.append(
+            FieldCondition(
+                key="review_status",
+                match=MatchValue(value=filters.review_status),
+            )
+        )
+    if filters.rag_status:
+        conditions.append(
+            FieldCondition(
+                key="rag_status",
+                match=MatchValue(value=filters.rag_status),
+            )
+        )
+    if filters.audience:
+        conditions.append(
+            FieldCondition(
+                key="audience",
+                match=MatchValue(value=filters.audience),
+            )
+        )
 
     if not conditions:
         return None
 
     return Filter(must=conditions)
 
-def build_payload(document: MarkdownDocument, chunk: Chunk) -> dict:
+# Tạo metadata đi kèm vector trước khi upsert_chunks ghi vào Qdrant
+def build_payload(
+    document: MarkdownDocument,
+    chunk: Chunk,
+    *,
+    postgres_chunk_id: int | None = None,
+    review_status: str | None = None,
+    rag_status: str | None = None,
+    is_latest: bool | None = None,
+    audience: list[str] | None = None,
+) -> dict:
     metadata = document.metadata
     payload = QdrantChunkPayload(
         document_key=chunk.document_key,
         version_key=chunk.version_key,
         title=metadata.title,
-        department=metadata.department,
+        department=getattr(metadata, "department", ""),
         document_type=metadata.document_type,
         domain=metadata.domain,
         chunk_key=chunk.chunk_key,
@@ -151,15 +183,26 @@ def build_payload(document: MarkdownDocument, chunk: Chunk) -> dict:
         page_start=chunk.page_start,
         page_end=chunk.page_end,
         content=chunk.content,
+        postgres_chunk_id=postgres_chunk_id,
+        review_status=review_status or metadata.review_status,
+        rag_status=rag_status or metadata.rag_status,
+        is_latest=metadata.is_latest if is_latest is None else is_latest,
+        audience=audience if audience is not None else list(metadata.audience),
     )
     return payload.model_dump()
 
+# update hoặc insert chunks vào Qdrant
 def upsert_chunks(
     client: QdrantClient,
     document: MarkdownDocument,
     chunks: list[Chunk],
     vectors: list[list[float]],
-    collection_name: str = COLLECTION_NAME
+    collection_name: str = COLLECTION_NAME,
+    postgres_chunk_ids: list[int | None] | None = None,
+    review_status: str | None = None,
+    rag_status: str | None = None,
+    is_latest: bool | None = None,
+    audience: list[str] | None = None,
     ) ->   int:
     
     if not chunks:
@@ -167,13 +210,30 @@ def upsert_chunks(
     
     ensure_collection(client, collection_name=collection_name, vector_size=len(vectors[0]))
     
+    chunk_ids = postgres_chunk_ids or [None] * len(chunks)
+    if len(chunk_ids) != len(chunks):
+        raise ValueError("postgres_chunk_ids must align with chunks")
+
     points = [
         PointStruct(
             id=make_point_id(chunk.version_key, chunk.chunk_key),
             vector={VECTOR_NAME: vector},
-            payload=build_payload(document, chunk),
+            payload=build_payload(
+                document,
+                chunk,
+                postgres_chunk_id=postgres_chunk_id,
+                review_status=review_status,
+                rag_status=rag_status,
+                is_latest=is_latest,
+                audience=audience,
+            ),
         )
-        for chunk, vector in zip(chunks, vectors, strict=True)
+        for chunk, vector, postgres_chunk_id in zip(
+            chunks,
+            vectors,
+            chunk_ids,
+            strict=True,
+        )
     ]
     
     client.upsert(
@@ -182,6 +242,32 @@ def upsert_chunks(
     )
     return len(points)
 
+
+def delete_points_by_version(
+    client: QdrantClient,
+    *,
+    version_key: str,
+    collection_name: str = COLLECTION_NAME,
+) -> None:
+    collections = client.get_collections().collections
+    if collection_name not in {collection.name for collection in collections}:
+        return
+
+    client.delete(
+        collection_name=collection_name,
+        points_selector=FilterSelector(
+            filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="version_key",
+                        match=MatchValue(value=version_key),
+                    )
+                ]
+            )
+        ),
+    )
+
+# 
 def search_points(
     client: QdrantClient,
     *,

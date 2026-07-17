@@ -74,3 +74,4 @@ class RetrievalResult:
     item_level: int | None = None
 
     expansion_reason: ExpansionReason = "direct_hit"
+    parent_content: str | None = None

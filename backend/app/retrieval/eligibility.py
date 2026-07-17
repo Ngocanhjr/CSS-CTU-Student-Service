@@ -1,5 +1,6 @@
 # định nghĩa tài liệu nào được phép tìm kiếm retrieval.
 # Cần kiểm tra: Tên field trong Qdrant payload phải đúng với dữ liệu upsert thực tế.
+# Không dùng is_latest để làm điều kiện 
 
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from app.databases.models import Document, DocumentVersion
 
 @dataclass(frozen=True)
 class EligibilityContext:
-    audience: str = "student"
+    audience: str = "sinh_vien"
     document_key: str | None = None
     version_key: str | None = None
 
@@ -26,11 +27,10 @@ class EligibilityPolicy:
         conditions: list[Any] = [
             DocumentVersion.review_status == "approved",
             DocumentVersion.rag_status == "published",
-            DocumentVersion.is_latest.is_(True),
         ]
 
-        if context.audience == "student":
-            conditions.append(Document.audience_student.is_(True))
+        if context.audience:
+            conditions.append(Document.audience.contains([context.audience]))
 
         if context.document_key:
             conditions.append(
@@ -60,20 +60,16 @@ class EligibilityPolicy:
                 match=qmodels.MatchValue(value="published"),
             ),
             qmodels.FieldCondition(
-                key="is_latest",
-                match=qmodels.MatchValue(value=True),
-            ),
-            qmodels.FieldCondition(
                 key="chunk_type",
                 match=qmodels.MatchValue(value=chunk_type),
             ),
         ]
 
-        if context.audience == "student":
+        if context.audience:
             must.append(
                 qmodels.FieldCondition(
-                    key="audience_student",
-                    match=qmodels.MatchValue(value=True),
+                    key="audience",
+                    match=qmodels.MatchValue(value=context.audience),
                 )
             )
 

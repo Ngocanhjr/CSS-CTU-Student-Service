@@ -19,13 +19,13 @@ from app.retrieval.dense_retriever import (
 )
 from app.retrieval.expansion import expand_structural_context
 from app.retrieval.finalizer import finalize_retrieval_results
-from app.retrieval.fusion import reciprocal_rank_fusion
+from app.retrieval.payload import reciprocal_rank_fusion
 from app.retrieval.hydration import hydrate_langchain_documents
 from app.retrieval.models import RetrievalResult
-from app.retrieval.payload import (
-    attach_point_id_from_document,
-    attach_qdrant_payloads,
-)
+# from app.retrieval.payload import (
+#     attach_point_id_from_document,
+#     attach_qdrant_payloads,
+# )
 from app.retrieval.reranker import Reranker
 from app.retrieval.sparse_retriever import (
     search_sparse_documents,

@@ -15,6 +15,9 @@ class RetrievalFilter:
     document_key: str | None = None
     version_key: str | None = None
     chunk_type: str | None = "child"
+    review_status: str | None = None
+    rag_status: str | None = None
+    audience: str | None = None
     
 class QdrantChunkPayload(BaseModel):
     document_key: str
@@ -27,9 +30,14 @@ class QdrantChunkPayload(BaseModel):
     parent_chunk_key: str | None
     chunk_type: str
     heading_path: list[str]
-    page_start: int
-    page_end: int
+    page_start: int | None
+    page_end: int | None
     content: str
+    postgres_chunk_id: int | None = None
+    review_status: str = "not_reviewed"
+    rag_status: str = "not_indexed"
+    is_latest: bool = False
+    audience: list[str] = []
     
 
 @dataclass(frozen=True)

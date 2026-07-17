@@ -1,5 +1,5 @@
 # Xử lý câu hỏi nhận từ user
-# Nếu là câu hỏi ngoài lề, thì sao
+# Nếu là câu hỏi ngoài lề, thì xử lý ntn
 # Nếu là câu hỏi nghiệp vụ thì sẽ gọi retrieval engine
 
 from __future__ import annotations
