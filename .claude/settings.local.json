@@ -48,7 +48,17 @@
       "Bash(rtk read *)",
       "Bash(rtk grep *)",
       "Bash(rm -rf .tmp_check)",
-      "Bash(rmdir /s /q .tmp_check)"
+      "Bash(rmdir /s /q .tmp_check)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(grep -v \"^$\")",
+      "Bash(cd \"E:\\\\RHNA\\\\1Visual\\\\NLCS\\\\CTU-Service\\\\chatbot-ctu-app\\\\frontend\" && echo \"---pubspec---\" && cat pubspec.yaml)",
+      "Read(//e/RHNA/1Visual/NLCS/CTU-Service/chatbot-ctu-app/frontend/**)",
+      "Read(//e/RHNA/1Visual/NLCS/CTU-Service/chatbot-ctu-app/frontend/lib/features/chat/**)",
+      "Read(//e/RHNA/1Visual/NLCS/CTU-Service/chatbot-ctu-app/frontend/lib/shared/models/**)",
+      "Bash(cd \"E:\\\\RHNA\\\\1Visual\\\\NLCS\\\\CTU-Service\\\\chatbot-ctu-app\\\\frontend\" && find lib -type f -name \"*.dart\" | sort && echo \"---manifest---\" && find android -iname \"AndroidManifest.xml\")",
+      "Read(//e/RHNA/1Visual/NLCS/CTU-Service/chatbot-ctu-app/frontend/lib/shared/mock/**)"
     ]
   }
 }

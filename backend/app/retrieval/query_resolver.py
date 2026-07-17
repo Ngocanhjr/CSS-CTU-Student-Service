@@ -1,4 +1,6 @@
-# Xử lý câu hỏi trước khi gửi đến retrieval engine.
+# Xử lý câu hỏi nhận từ user
+# Nếu là câu hỏi ngoài lề, thì sao
+# Nếu là câu hỏi nghiệp vụ thì sẽ gọi retrieval engine
 
 from __future__ import annotations
 
@@ -21,7 +23,7 @@ UNDERSPECIFIED_QUERIES = {
     "cần giấy gì",
 }
 
-
+# Chuẩn hóa câu hỏi bỏ khoảng trắng thừa
 def normalize_query(query: str) -> str:
     return " ".join(query.strip().split())
 
@@ -29,21 +31,22 @@ def normalize_query(query: str) -> str:
 def is_greeting_or_smalltalk(query: str) -> bool:
     return normalize_query(query).lower() in GREETINGS
 
-
+# 
 def complete_or_clarify_query(
     query: str,
     *,
     context: RetrievalContext | None = None,
 ) -> QueryDecision:
-    normalized = normalize_query(query)
+    normalized = normalize_query(query) #Chuẩn hóa câu hỏi
 
+    # Nếu câu hỏi trống thì yêu cầu nhập lại
     if not normalized:
         return QueryDecision(
             should_search=False,
             query="",
             clarification_question="Vui lòng nhập câu hỏi.",
         )
-
+    # Nếu câu chào hỏi hoặc câu hỏi ngoài lề thì trả lời chào hỏi
     if is_greeting_or_smalltalk(normalized):
         return QueryDecision(
             should_search=False,
@@ -53,8 +56,9 @@ def complete_or_clarify_query(
                 "sinh viên CTU. Bạn muốn hỏi về nội dung nào?"
             ),
         )
-
     context = context or RetrievalContext()
+    
+    # Nếu câu hỏi là câu hỏi nghiệp vụ nhưng chưa rõ ràng thì yêu cầu người dùng nhập thêm thông tin
     is_ambiguous = normalized.lower() in UNDERSPECIFIED_QUERIES
 
     has_context = bool(
@@ -63,6 +67,7 @@ def complete_or_clarify_query(
         or context.recent_topic
     )
 
+    # Nếu câu hỏi chưa rõ ràng và không có ngữ cảnh thì yêu cầu người dùng nhập thêm thông tin
     if is_ambiguous and not has_context:
         return QueryDecision(
             should_search=False,
@@ -73,12 +78,13 @@ def complete_or_clarify_query(
         )
 
     resolved_query = normalized
+    # Nếu câu hỏi chưa rõ ràng nhưng có ngữ cảnh thì bổ sung ngữ cảnh vào câu hỏi
     if is_ambiguous and context.recent_topic:
         resolved_query = f"{normalized} cho {context.recent_topic}"
 
     return QueryDecision(
-        should_search=True,
-        query=resolved_query,
+        should_search=True, #→ gọi Qdrant + PostgreSQL retrieval
+        query=resolved_query, #gọi retrieval engine để tìm kiếm câu trả lời
         document_key=context.current_document_key,
         version_key=context.current_version_key,
     )
