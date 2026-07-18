@@ -7,7 +7,7 @@ const STAGES = [
   { key: 'chunked', label: 'Lưu PostgreSQL', detail: 'Ghi document_chunks; PostgreSQL là nguồn dữ liệu chuẩn.' },
   { key: 'embedded', label: 'Tạo embedding', detail: 'Tạo vector cho các child chunk.' },
   { key: 'indexed', label: 'Upsert Qdrant', detail: 'Ghi vector và payload phục vụ tìm kiếm.' },
-  { key: 'published', label: 'Publish', detail: 'Cho phép retrieval sử dụng document version.' },
+  { key: 'published', label: 'Publish riêng', detail: 'Chỉ publish sau khi kiểm tra index thành công.' },
 ]
 
 const RAG_ORDER = ['not_indexed', 'chunked', 'embedded', 'indexed', 'published']
@@ -25,7 +25,7 @@ export default function IngestStep({ pipeline, update, goTo }) {
   if (!upload) {
     return (
       <>
-        <header className="page-head"><h1>4 — Index và publish</h1></header>
+        <header className="page-head"><h1>4 — Index document</h1></header>
         <aside className="banner warn">
           Chưa có tài liệu. Hãy tải canonical Markdown trước.
           <p><button type="button" className="btn small" onClick={() => goTo('upload')}>← Về bước tải lên</button></p>
@@ -52,8 +52,8 @@ export default function IngestStep({ pipeline, update, goTo }) {
   return (
     <>
       <header className="page-head">
-        <h1>4 — Index và publish</h1>
-        <p>Chunk → PostgreSQL → embedding → Qdrant → publish.</p>
+        <h1>4 — Index document</h1>
+        <p>Chunk → PostgreSQL → embedding → Qdrant. Publish là bước riêng sau validation.</p>
       </header>
 
       {error && <p className="banner warn" role="alert">{error}</p>}

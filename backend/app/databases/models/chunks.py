@@ -47,5 +47,11 @@ class DocumentChunk(Base):
         UniqueConstraint("document_version_id", "chunk_index", name="uq_document_chunk_index"),
         UniqueConstraint("document_version_id", "chunk_key", name="uq_document_chunk_key"), 
         CheckConstraint("chunk_type IN ('parent', 'child')", name="chk_document_chunks_type"),
-        CheckConstraint("page_start IS NULL OR page_end IS NULL OR page_start <= page_end", name="chk_document_chunks_page_range")
+        CheckConstraint("(chunk_type = 'parent' AND parent_chunk_id IS NULL) OR (chunk_type = 'child' AND parent_chunk_id IS NOT NULL)", name="chk_document_chunks_parent"),
+        CheckConstraint("jsonb_typeof(heading_path) = 'array'", name="chk_document_chunks_heading_path"),
+        CheckConstraint("page_start IS NULL OR page_start >= 1", name="chk_document_chunks_page_start"),
+        CheckConstraint("page_end IS NULL OR page_end >= 1", name="chk_document_chunks_page_end"),
+        CheckConstraint("page_start IS NULL OR page_end IS NULL OR page_start <= page_end", name="chk_document_chunks_page_range"),
+        CheckConstraint("token_count IS NULL OR token_count >= 0", name="chk_document_chunks_token_count"),
+        CheckConstraint("index_status IN ('not_indexed', 'indexed', 'deactivated', 'failed')", name="chk_document_chunks_index_status"),
     )

@@ -10,6 +10,7 @@ Functions:
 """
 
 
+import os
 import uuid
 
 from qdrant_client import QdrantClient
@@ -31,8 +32,9 @@ from app.vectorstore.models import (
 )
 
 
-COLLECTION_NAME = "ctu_chunks_test"
+COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", "ctu_chunks_bge_m3")
 VECTOR_NAME = "embedding"
+VECTOR_SIZE = 1024
 
 def make_point_id(version_key: str, chunk_key: str) -> str:
     return str(
@@ -60,8 +62,20 @@ def ensure_collection(
         None
     """
     
+    if vector_size != VECTOR_SIZE:
+        raise ValueError(f"BGE-M3 vector phải có dimension {VECTOR_SIZE}")
+
     collections = client.get_collections().collections
     if collection_name in [c.name for c in collections]:
+        info = client.get_collection(collection_name=collection_name)
+        vectors = info.config.params.vectors
+        named_vector = vectors.get(VECTOR_NAME) if isinstance(vectors, dict) else vectors
+        distance = getattr(getattr(named_vector, "distance", None), "name", None)
+        if getattr(named_vector, "size", None) != vector_size or distance != "COSINE":
+            raise ValueError(
+                f"Qdrant collection {collection_name} không khớp "
+                f"{VECTOR_NAME}/{vector_size}/COSINE"
+            )
         return
     
     client.create_collection(
@@ -75,13 +89,19 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
     if filters is None:
         filters = RetrievalFilter()
 
-    conditions = []
+    # Dense retrieval always starts from the same eligibility domain as PostgreSQL.
+    conditions = [
+        FieldCondition(key="review_status", match=MatchValue(value="approved")),
+        FieldCondition(key="rag_status", match=MatchValue(value="published")),
+        FieldCondition(key="audience_student", match=MatchValue(value=True)),
+        FieldCondition(key="chunk_type", match=MatchValue(value="child")),
+    ]
 
-    if filters.department:
+    if filters.audience:
         conditions.append(
             FieldCondition(
-                key="department",
-                match=MatchValue(value=filters.department),
+                key="audience",
+                match=MatchValue(value=filters.audience),
             )
         )
     if filters.document_type:
@@ -112,6 +132,8 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
                 match=MatchValue(value=filters.version_key),
             )
         )
+    if filters.chunk_type and filters.chunk_type != "child":
+        raise ValueError("Student retrieval chỉ hỗ trợ child chunks")
     if filters.chunk_type:
         conditions.append(
             FieldCondition(
@@ -125,22 +147,50 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
 
     return Filter(must=conditions)
 
-def build_payload(document: MarkdownDocument, chunk: Chunk) -> dict:
+def build_payload(
+    document: MarkdownDocument,
+    chunk: Chunk,
+    *,
+    postgres_chunk_id: int = 0,
+    postgres_parent_chunk_id: int | None = None,
+    review_status: str | None = None,
+    rag_status: str | None = None,
+) -> dict:
     metadata = document.metadata
     payload = QdrantChunkPayload(
         document_key=chunk.document_key,
         version_key=chunk.version_key,
         title=metadata.title,
-        department=metadata.department,
+        source_file=metadata.canonical_markdown_path or metadata.source_path,
+        source_url=metadata.source_url or None,
         document_type=metadata.document_type,
         domain=metadata.domain,
+        audience=list(metadata.audience),
+        audience_student="sinh_vien" in metadata.audience,
+        review_status=review_status or metadata.review_status,
+        rag_status=rag_status or metadata.rag_status,
+        is_latest=metadata.is_latest,
         chunk_key=chunk.chunk_key,
         parent_chunk_key=chunk.parent_chunk_key,
         chunk_type=chunk.chunk_type,
         heading_path=chunk.heading_path,
+        item_path=list(chunk.metadata.get("item_path", [])),
         page_start=chunk.page_start,
         page_end=chunk.page_end,
-        content=chunk.content,
+        chunk_index=chunk.chunk_index,
+        postgres_chunk_id=postgres_chunk_id,
+        postgres_parent_chunk_id=postgres_parent_chunk_id,
+        block_type=chunk.metadata.get("block_type", "paragraph"),
+        legal_unit_type=chunk.metadata.get("legal_unit_type", "none"),
+        logical_item_key=chunk.metadata.get("logical_item_key"),
+        parent_item_key=chunk.metadata.get("parent_item_key"),
+        logical_table_key=chunk.metadata.get("logical_table_key"),
+        logical_code_key=chunk.metadata.get("logical_code_key"),
+        logical_item_keys=list(chunk.metadata.get("logical_item_keys", [])),
+        split_index=int(chunk.metadata.get("split_index", 0)),
+        split_count=int(chunk.metadata.get("split_count", 1)),
+        item_marker=chunk.metadata.get("item_marker"),
+        item_level=chunk.metadata.get("item_level"),
     )
     return payload.model_dump()
 
@@ -149,11 +199,23 @@ def upsert_chunks(
     document: MarkdownDocument,
     chunks: list[Chunk],
     vectors: list[list[float]],
-    collection_name: str = COLLECTION_NAME
+    collection_name: str = COLLECTION_NAME,
+    postgres_ids: dict[str, tuple[int, int | None]] | None = None,
+    review_status: str | None = None,
+    rag_status: str | None = None,
     ) ->   int:
     
     if not chunks:
         return 0
+    if any(chunk.chunk_type != "child" for chunk in chunks):
+        raise ValueError("Qdrant chỉ nhận child chunks")
+    if len(chunks) != len(vectors):
+        raise ValueError("Số vector phải bằng số child chunks")
+    if not postgres_ids or any(
+        chunk.chunk_key not in postgres_ids or postgres_ids[chunk.chunk_key][0] <= 0
+        for chunk in chunks
+    ):
+        raise ValueError("Qdrant point phải có postgres_chunk_id")
     
     ensure_collection(client, collection_name=collection_name, vector_size=len(vectors[0]))
     
@@ -161,7 +223,14 @@ def upsert_chunks(
         PointStruct(
             id=make_point_id(chunk.version_key, chunk.chunk_key),
             vector={VECTOR_NAME: vector},
-            payload=build_payload(document, chunk),
+            payload=build_payload(
+                document,
+                chunk,
+                postgres_chunk_id=(postgres_ids or {}).get(chunk.chunk_key, (0, None))[0],
+                postgres_parent_chunk_id=(postgres_ids or {}).get(chunk.chunk_key, (0, None))[1],
+                review_status=review_status,
+                rag_status=rag_status,
+            ),
         )
         for chunk, vector in zip(chunks, vectors, strict=True)
     ]

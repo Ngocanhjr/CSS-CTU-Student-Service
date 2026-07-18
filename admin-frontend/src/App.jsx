@@ -55,7 +55,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <article className="app">
       <Sidebar
         steps={STEPS}
         active={active}
@@ -74,6 +74,6 @@ export default function App() {
           <DocumentEditPage documentId={editingVersionId} onBack={() => setActive('documents')} />
         )}
       </main>
-    </div>
+    </article>
   )
 }

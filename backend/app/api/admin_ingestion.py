@@ -24,12 +24,64 @@ from app.schemas.ingestion.responses import (
     CanonicalUploadResponse,
     ReviewCanonicalResponse,
 )
+from pydantic import ValidationError
+from app.schemas.ingestion.indexing import ChunkPreviewResponse, IndexingResponse
+from app.ingestion.indexing_service import build_chunk_preview, index_document_version
 
 
 router = APIRouter(
     prefix="/admin",
     tags=["admin-ingestion"],
 )
+
+
+def _upload_error_detail(exc: Exception) -> dict:
+    if isinstance(exc, ValidationError):
+        return {
+            "code": "metadata_validation_failed",
+            "phase": "metadata",
+            "message": "YAML frontmatter không hợp lệ",
+            "fields": [
+                {
+                    "field": ".".join(str(part) for part in error["loc"]),
+                    "message": error["msg"],
+                    "type": error["type"],
+                }
+                for error in exc.errors()
+            ],
+        }
+
+    message = str(exc)
+    if "document_type chưa được seed" in message:
+        code, phase = "reference_data_missing", "database_reference"
+    elif "version_key đã tồn tại" in message:
+        code, phase = "duplicate_version", "database"
+    elif "frontmatter" in message.lower():
+        code, phase = "invalid_frontmatter", "markdown"
+    else:
+        code, phase = "upload_validation_failed", "upload"
+
+    return {"code": code, "phase": phase, "message": message, "fields": []}
+
+
+@router.post("/document-versions/{document_version_id}/chunk-preview", response_model=ChunkPreviewResponse)
+async def preview_chunks(document_version_id: int, session: AsyncSession = Depends(get_session)):
+    try:
+        return await build_chunk_preview(session, document_version_id=document_version_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/document-versions/{document_version_id}/index", response_model=IndexingResponse)
+async def index_version(document_version_id: int, session: AsyncSession = Depends(get_session)):
+    try:
+        return await index_document_version(session, document_version_id=document_version_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post(
@@ -70,7 +122,7 @@ async def upload_canonical_markdown(
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
-            detail=str(exc),
+            detail=_upload_error_detail(exc),
         ) from exc
 
     finally:

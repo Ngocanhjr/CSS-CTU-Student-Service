@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 
@@ -7,7 +7,6 @@ export default function UploadStep({ pipeline, update, goTo }) {
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const inputRef = useRef(null)
 
   const result = pipeline.upload
 
@@ -46,7 +45,6 @@ export default function UploadStep({ pipeline, update, goTo }) {
         <h2 id="upload-file-heading">Chọn file</h2>
         <label
           className={`dropzone ${drag ? 'drag' : ''}`}
-          onClick={() => inputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
           onDragLeave={() => setDrag(false)}
           onDrop={(e) => {
@@ -64,7 +62,6 @@ export default function UploadStep({ pipeline, update, goTo }) {
             <span>Kéo thả file vào đây, hoặc bấm để chọn</span>
           )}
           <input
-            ref={inputRef}
             type="file"
             hidden
             accept=".md,text/markdown"

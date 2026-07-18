@@ -213,6 +213,7 @@ load DocumentVersion đã approved
 → cập nhật qdrant_point_id
 → cập nhật job/rag_status
 ---
+python -m uvicorn app.main:app --reload
 
 ## Checklist chunk pipeline
 

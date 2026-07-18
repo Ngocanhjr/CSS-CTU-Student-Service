@@ -6,7 +6,14 @@ async function request(path, options) {
     : text
 
   if (!response.ok) {
-    throw new Error(data?.detail || data || `HTTP ${response.status}`)
+    const detail = data?.detail ?? data
+    if (detail && typeof detail === 'object') {
+      const fields = (detail.fields || [])
+        .map((field) => `${field.field}: ${field.message}`)
+        .join('; ')
+      throw new Error([detail.message, fields].filter(Boolean).join(' — '))
+    }
+    throw new Error(detail || `HTTP ${response.status}`)
   }
   return data
 }

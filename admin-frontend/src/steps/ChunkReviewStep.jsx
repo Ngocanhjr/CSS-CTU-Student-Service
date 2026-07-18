@@ -103,6 +103,7 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
                   <tr>
                     <th scope="col">Loại</th>
                     <th scope="col">Chunk key</th>
+                    <th scope="col">Quan hệ item</th>
                     <th scope="col">Heading</th>
                     <th scope="col">Trang</th>
                     <th scope="col">Tokens</th>
@@ -114,6 +115,10 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
                     <tr key={chunk.chunk_key}>
                       <td>{chunk.chunk_type}</td>
                       <td className="mono">{chunk.chunk_key}<small className="document-key muted">{chunk.parent_chunk_key}</small></td>
+                      <td>
+                        <span className="mono">{chunk.item_path?.join(' › ') || '—'}</span>
+                        {chunk.parent_item_key && <small className="document-key muted">parent: {chunk.parent_item_key}</small>}
+                      </td>
                       <td>{chunk.heading_path?.join(' › ') || '—'}</td>
                       <td>{chunk.page_start || '—'}{chunk.page_end && chunk.page_end !== chunk.page_start ? `–${chunk.page_end}` : ''}</td>
                       <td>{chunk.token_count ?? '—'}</td>

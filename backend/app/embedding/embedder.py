@@ -120,7 +120,7 @@ def build_embedding_enriched_text(document: MarkdownDocument , chunk: Chunk)-> s
     return "\n".join(
         [
            f"Tài liệu: {metadata.title}",
-            f"Đơn vị: {metadata.department}",
+            f"Đơn vị: {', '.join(metadata.responsible_department)}",
             f"Loại: {metadata.document_type}",
             f"Mục: {' > '.join(chunk.heading_path)}",
             page,
