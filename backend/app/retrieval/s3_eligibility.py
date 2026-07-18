@@ -1,4 +1,4 @@
-# định nghĩa tài liệu nào được phép tìm kiếm retrieval.
+# định nghĩa tài liệu nào được phép đưa vào tìm kiếm retrieval (dense+sparse)
 # Cần kiểm tra: Tên field trong Qdrant payload phải đúng với dữ liệu upsert thực tế.
 # Không dùng is_latest để làm điều kiện 
 

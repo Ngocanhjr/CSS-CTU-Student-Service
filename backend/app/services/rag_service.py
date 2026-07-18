@@ -2,9 +2,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.rag_chain import RagAnswer, generate_rag_answer
-from app.retrieval.dense_retriever import retrieve_child_chunks
-from app.retrieval.hydration import hydrate_langchain_documents
-from app.retrieval.query_resolver import complete_or_clarify_query
+from backend.app.retrieval.s4_dense_retriever import retrieve_child_chunks
+from backend.app.retrieval.s7_hydration import hydrate_langchain_documents
+from app.retrieval.s1_query_resolver import complete_or_clarify_query
 
 
 class RagService:

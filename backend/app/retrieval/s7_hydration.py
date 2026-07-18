@@ -1,9 +1,4 @@
-# Mục đích: lấy canonical content từ PostgreSQL và chuyển thành ​RetrievalResult​.
-# BE dùng parent_chunk_id để lấy nội dung từ PostgresSQL
-# hild chunk canonical;
-# parent chunk qua parent_chunk_id;
-# DocumentVersion và Document;
-# title, source path/URL, page number và citation.
+#Lấy file chunk đã chọn lọc từ fusion để bổ sung dữ liệu cho từng chunk hoàn chỉnh
 
 from __future__ import annotations
 
@@ -14,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.databases.models import Document, DocumentChunk, DocumentVersion
 from app.retrieval.models import ExpansionReason, RetrievalResult
 
-
+#tạo citation - thông tin đi kèm chunk -> để LLM có thể nói rõ câu trả lời lấy từ đâu (Nguồn)
 def build_citation(
     *,
     source_file: str,
@@ -22,11 +17,13 @@ def build_citation(
     page_end: int | None,
     heading_path: list[str] | None = None,
 ) -> str:
+    #nếu có đầy đủ số trang
     if page_start is not None and page_end is not None:
         if page_start == page_end:
             return f"{source_file}, trang {page_start}"
         return f"{source_file}, trang {page_start}-{page_end}"
 
+    #nếu có heading
     if heading_path:
         return f"{source_file}, mục {heading_path[-1]}"
 
@@ -39,6 +36,8 @@ async def hydrate_langchain_documents(
     *,
     expansion_reason: ExpansionReason = "direct_hit",
 ) -> list[RetrievalResult]:
+    
+    #tìm chunk gốc trong postgreSQL
     chunk_ids = [
         int(doc.metadata["postgres_chunk_id"])
         for doc in docs
@@ -47,6 +46,7 @@ async def hydrate_langchain_documents(
     if not chunk_ids:
         return []
 
+    #Hàm query PostgreSQL để lấy cùng lúc: DocumentChunk + DocumentVersion + Document => nd chuẩn của chunk 
     rows = (
         await session.execute(
             select(DocumentChunk, DocumentVersion, Document)
@@ -60,6 +60,7 @@ async def hydrate_langchain_documents(
     ).all()
     records_by_chunk_id = {chunk.id: (chunk, version, document) for chunk, version, document in rows}
 
+    #nếu child_chunk có parent_chunk, truy vấn các parent_chunk để lấy content
     parent_ids = {
         chunk.parent_chunk_id
         for chunk, _, _ in records_by_chunk_id.values()
@@ -72,6 +73,8 @@ async def hydrate_langchain_documents(
         )
         parent_by_id = {parent.id: parent for parent in parent_rows.scalars()}
 
+    #Gộp metadata retrieval/Qdrant với canonical data từ PostgreSQL.
+    #Duyệt theo thứ tự `docs` để giữ nguyên thứ hạng đã được fusion tạo ra.
     results: list[RetrievalResult] = []
     for doc in docs:
         metadata = dict(doc.metadata or {})
@@ -115,6 +118,8 @@ async def hydrate_langchain_documents(
             or ([logical_item_key] if logical_item_key else [])
         )
 
+        #Chuẩn hóa thành RetrievalResult, bao gồm content, citation,
+        #metadata cấu trúc và parent_content cho các bước sau.
         results.append(
             RetrievalResult(
                 postgres_chunk_id=int(db_chunk_id),

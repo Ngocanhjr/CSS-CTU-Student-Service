@@ -275,19 +275,23 @@ def search_points(
     collection_name: str = COLLECTION_NAME,
     top_k: int = 5,
     filters: RetrievalFilter | None = None,
+    query_filter: Filter | None = None,
     ) -> list[QdrantSearchResult]:
-    
+    if filters is not None and query_filter is not None:
+        raise ValueError("Pass either filters or query_filter, not both")
+
     response = client.query_points(
         collection_name=collection_name,
         query=query_vector,
         using=VECTOR_NAME,
-        query_filter=build_context_filter(filters),
+        query_filter=query_filter or build_context_filter(filters),
         limit=top_k,
         with_payload=True,
     )
     
     return [
         QdrantSearchResult(
+            point_id=str(result.id),
             score=result.score,
             payload=result.payload or {},
         )

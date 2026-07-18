@@ -42,5 +42,6 @@ class QdrantChunkPayload(BaseModel):
 
 @dataclass(frozen=True)
 class QdrantSearchResult:
+    point_id: str
     score: float
     payload: dict

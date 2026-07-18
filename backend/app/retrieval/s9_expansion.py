@@ -13,7 +13,7 @@ from qdrant_client import QdrantClient
 from qdrant_client import models as qmodels
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.retrieval.hydration import hydrate_langchain_documents
+from backend.app.retrieval.s7_hydration import hydrate_langchain_documents
 from app.retrieval.models import RetrievalResult
 from langchain_core.documents import Document as LangChainDocument
 

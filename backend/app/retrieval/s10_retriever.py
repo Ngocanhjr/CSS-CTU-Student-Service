@@ -13,21 +13,21 @@ from qdrant_client import QdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.embedding.embedder import TextEmbedder
-from app.retrieval.dense_retriever import (
+from backend.app.retrieval.s4_dense_retriever import (
     DEFAULT_TOP_K,
     build_dense_retriever,
 )
-from app.retrieval.expansion import expand_structural_context
-from app.retrieval.finalizer import finalize_retrieval_results
-from app.retrieval.payload import reciprocal_rank_fusion
-from app.retrieval.hydration import hydrate_langchain_documents
+from backend.app.retrieval.s9_expansion import expand_structural_context
+# from app.retrieval.finalizer import finalize_retrieval_results
+from backend.app.retrieval.s6_fusion import reciprocal_rank_fusion
+from backend.app.retrieval.s7_hydration import hydrate_langchain_documents
 from app.retrieval.models import RetrievalResult
 # from app.retrieval.payload import (
 #     attach_point_id_from_document,
 #     attach_qdrant_payloads,
 # )
-from app.retrieval.reranker import Reranker
-from app.retrieval.sparse_retriever import (
+from backend.app.retrieval.s8_reranker import Reranker
+from backend.app.retrieval.s5_sparse_retriever import (
     search_sparse_documents,
 )
 from app.vectorstore.repository import DEFAULT_COLLECTION

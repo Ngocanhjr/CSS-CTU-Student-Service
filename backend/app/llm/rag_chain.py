@@ -9,7 +9,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 from app.llm.generator import get_chat_model
 from app.llm.prompts import RAG_ANSWER_PROMPT
-from app.retrieval.context_builder import build_retrieval_context
+from backend.app.retrieval.S11_context_builder import build_retrieval_context
 from app.retrieval.models import RetrievalResult
 
 

@@ -1,4 +1,4 @@
-from app.retrieval.eligibility import EligibilityContext, EligibilityPolicy
+from app.retrieval.s3_eligibility import EligibilityContext, EligibilityPolicy
 
 
 def test_postgres_eligibility_uses_publish_status_and_json_audience() -> None:
