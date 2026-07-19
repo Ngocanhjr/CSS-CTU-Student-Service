@@ -1,4 +1,4 @@
-from backend.app.retrieval.S11_context_builder import build_retrieval_context
+from app.retrieval.s11_context_builder import build_retrieval_context
 from app.retrieval.models import RetrievalResult
 
 

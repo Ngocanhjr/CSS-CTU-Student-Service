@@ -2,7 +2,7 @@ from importlib import import_module
 
 
 extract_metadata_filter = import_module(
-    "app.retrieval.02_metadata_filter"
+    "app.retrieval.s2_metadata_filter"
 ).extract_metadata_filter
 
 

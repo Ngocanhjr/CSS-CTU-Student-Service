@@ -2,12 +2,19 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.rag_chain import RagAnswer, generate_rag_answer
-from backend.app.retrieval.s4_dense_retriever import retrieve_child_chunks
-from backend.app.retrieval.s7_hydration import hydrate_langchain_documents
 from app.retrieval.s1_query_resolver import complete_or_clarify_query
+from app.retrieval.s10_retriever import Retriever
+from app.retrieval.s8_reranker import LexicalReranker
+from app.vectorstore.qdrant_client import get_qdrant_client
 
 
 class RagService:
+    def __init__(self, *, retriever: Retriever | None = None) -> None:
+        self.retriever = retriever or Retriever(
+            qdrant_client=get_qdrant_client(),
+            reranker=LexicalReranker(),
+        )
+
     async def answer(
         self,
         session: AsyncSession,
@@ -17,13 +24,19 @@ class RagService:
     ) -> tuple[bool, str, RagAnswer | None]:
         decision = complete_or_clarify_query(question)
         if not decision.should_search:
-            return False, decision.clarification_question or "", None
+            return (
+                False,
+                decision.response_message
+                or decision.clarification_question
+                or "",
+                None,
+            )
 
-        dense_docs = retrieve_child_chunks(
-            decision.query,
+        results = await self.retriever.search_resolved_query(
+            session,
+            query=decision.query,
             top_k=top_k,
             document_key=decision.document_key,
             version_key=decision.version_key,
         )
-        results = await hydrate_langchain_documents(session, dense_docs)
         return True, "", generate_rag_answer(question, results)

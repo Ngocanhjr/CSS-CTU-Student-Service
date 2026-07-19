@@ -10,6 +10,7 @@
 """Dense retrieval of eligible child chunks from Qdrant."""
 
 from langchain_core.documents import Document as LangChainDocument
+from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Filter,
     IsEmptyCondition,
@@ -28,7 +29,11 @@ from app.retrieval.s3_eligibility import (
 )
 from app.vectorstore.models import QdrantSearchResult, RetrievalFilter
 from app.vectorstore.qdrant_client import get_qdrant_client
-from app.vectorstore.repository import build_context_filter, search_points
+from app.vectorstore.repository import (
+    COLLECTION_NAME,
+    build_context_filter,
+    search_points,
+)
 
 
 DEFAULT_TOP_K = 5 #số chunk cần lấy, mặc định 5
@@ -42,6 +47,8 @@ def retrieve_child_chunks(
     document_key: str | None = None,
     version_key: str | None = None,
     metadata_filter: QueryMetadataFilter | None = None, #lấy kết quả đã tách từ metadata_filter
+    qdrant_client: QdrantClient | None = None,
+    collection_name: str = COLLECTION_NAME,
 ) -> list[LangChainDocument]:
     """Embed a query and return its matching child chunks from Qdrant."""
     metadata_filter = metadata_filter or extract_metadata_filter(
@@ -91,8 +98,9 @@ def retrieve_child_chunks(
     
     #search_points dùng vector đó tìm các vector gần nhất trong Qdrant 
     points: list[QdrantSearchResult] = search_points(
-        get_qdrant_client(),
+        qdrant_client or get_qdrant_client(),
         query_vector=query_vector,
+        collection_name=collection_name,
         top_k=top_k,
         query_filter=combined_filter,
     )

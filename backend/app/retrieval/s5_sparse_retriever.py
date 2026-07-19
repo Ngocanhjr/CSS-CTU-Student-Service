@@ -8,8 +8,6 @@
 
 from __future__ import annotations
 
-from importlib import import_module
-
 from langchain_core.documents import Document as LangChainDocument
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,14 +20,14 @@ from app.databases.models import (
     DocumentType,
     DocumentVersion,
 )
-from backend.app.retrieval.s3_eligibility import (
+from app.retrieval.s2_metadata_filter import (
+    QueryMetadataFilter,
+    extract_metadata_filter,
+)
+from app.retrieval.s3_eligibility import (
     EligibilityContext,
     EligibilityPolicy,
 )
-
-_metadata_filter_module = import_module("app.retrieval.02_metadata_filter")
-QueryMetadataFilter = _metadata_filter_module.QueryMetadataFilter
-extract_metadata_filter = _metadata_filter_module.extract_metadata_filter
 
 
 async def search_sparse_documents(
