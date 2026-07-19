@@ -1,3 +1,13 @@
+# Chứa các thao tác chính với Qdrant:
+
+# Tạo collection
+# Tạo point ID
+# Build filter
+# Build payload
+# Upsert vector
+# Search vector: tìm kiếm vector theo query vector và filter
+
+
 """Qdrant CRUD operations for vector store.
 
 Functions:
@@ -18,6 +28,7 @@ from qdrant_client.models import (
     Distance,
     FieldCondition,
     Filter,
+    FilterSelector,
     MatchValue,
     PointStruct,
     VectorParams,
@@ -141,6 +152,27 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
                 match=MatchValue(value=filters.chunk_type),
             )
         )
+    if filters.review_status:
+        conditions.append(
+            FieldCondition(
+                key="review_status",
+                match=MatchValue(value=filters.review_status),
+            )
+        )
+    if filters.rag_status:
+        conditions.append(
+            FieldCondition(
+                key="rag_status",
+                match=MatchValue(value=filters.rag_status),
+            )
+        )
+    if filters.audience:
+        conditions.append(
+            FieldCondition(
+                key="audience",
+                match=MatchValue(value=filters.audience),
+            )
+        )
 
     if not conditions:
         return None
@@ -194,6 +226,7 @@ def build_payload(
     )
     return payload.model_dump()
 
+# update hoặc insert chunks vào Qdrant
 def upsert_chunks(
     client: QdrantClient,
     document: MarkdownDocument,
@@ -218,7 +251,7 @@ def upsert_chunks(
         raise ValueError("Qdrant point phải có postgres_chunk_id")
     
     ensure_collection(client, collection_name=collection_name, vector_size=len(vectors[0]))
-    
+
     points = [
         PointStruct(
             id=make_point_id(chunk.version_key, chunk.chunk_key),
@@ -232,7 +265,6 @@ def upsert_chunks(
                 rag_status=rag_status,
             ),
         )
-        for chunk, vector in zip(chunks, vectors, strict=True)
     ]
     
     client.upsert(
@@ -241,6 +273,32 @@ def upsert_chunks(
     )
     return len(points)
 
+
+def delete_points_by_version(
+    client: QdrantClient,
+    *,
+    version_key: str,
+    collection_name: str = COLLECTION_NAME,
+) -> None:
+    collections = client.get_collections().collections
+    if collection_name not in {collection.name for collection in collections}:
+        return
+
+    client.delete(
+        collection_name=collection_name,
+        points_selector=FilterSelector(
+            filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="version_key",
+                        match=MatchValue(value=version_key),
+                    )
+                ]
+            )
+        ),
+    )
+
+# 
 def search_points(
     client: QdrantClient,
     *,
@@ -248,19 +306,23 @@ def search_points(
     collection_name: str = COLLECTION_NAME,
     top_k: int = 5,
     filters: RetrievalFilter | None = None,
+    query_filter: Filter | None = None,
     ) -> list[QdrantSearchResult]:
-    
+    if filters is not None and query_filter is not None:
+        raise ValueError("Pass either filters or query_filter, not both")
+
     response = client.query_points(
         collection_name=collection_name,
         query=query_vector,
         using=VECTOR_NAME,
-        query_filter=build_context_filter(filters),
+        query_filter=query_filter or build_context_filter(filters),
         limit=top_k,
         with_payload=True,
     )
     
     return [
         QdrantSearchResult(
+            point_id=str(result.id),
             score=result.score,
             payload=result.payload or {},
         )

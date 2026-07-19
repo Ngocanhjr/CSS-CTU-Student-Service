@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.api.admin_ingestion import router as admin_ingestion_router
 from app.api.health import router as health_router
 from app.api.documents import router as documents_router
+from app.api.router import api_router
 
 
 app = FastAPI(
@@ -11,6 +12,7 @@ app = FastAPI(
 )
 
 app.include_router(health_router)
+app.include_router(api_router)
 
 app.include_router(
     admin_ingestion_router,
@@ -20,3 +22,5 @@ app.include_router(
     documents_router,
     prefix="/api/v1",
 )
+
+

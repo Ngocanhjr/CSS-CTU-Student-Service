@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from pprint import pprint
+# from pprint import pprint
 
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 
@@ -18,7 +18,23 @@ from app.vectorstore.repository import (
     RetrievalFilter,
     COLLECTION_NAME,
     search_points,
+    upsert_chunks,
 )
+
+
+SAMPLE_MARKDOWN_PATH = Path(__file__).parent / "test" / "test_doc.md"
+
+
+def index_sample_document() -> int:
+    """Index the bundled Markdown document for the interactive RAG demo."""
+    document = read_markdown_document(SAMPLE_MARKDOWN_PATH)
+    chunks = chunk_markdown_document(document)
+    child_chunks = [chunk for chunk in chunks if chunk.chunk_type == "child"]
+    if not child_chunks:
+        raise ValueError("The sample document did not produce child chunks")
+
+    vectors = embed_chunks_with_cache(document, child_chunks)
+    return upsert_chunks(get_qdrant_client(), document, child_chunks, vectors)
 
 
 def is_greeting_or_smalltalk(query: str) -> bool:
@@ -67,7 +83,11 @@ def search_document(
     ]
 
 def main() -> None:
-    import json
+    indexed_count = index_sample_document()
+    print(
+        f"Loaded {indexed_count} sample chunks into {COLLECTION_NAME}. "
+        "Try asking about the conditions or procedure for a birth certificate."
+    )
 
     llm = ChatNVIDIA(
         model="qwen/qwen3-next-80b-a3b-instruct",

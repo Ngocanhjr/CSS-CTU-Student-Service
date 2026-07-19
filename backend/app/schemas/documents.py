@@ -1,3 +1,5 @@
+# Schema metadata tài liệu và phiên bản tài liệu.
+
 """
 schema cho document metadata
 """

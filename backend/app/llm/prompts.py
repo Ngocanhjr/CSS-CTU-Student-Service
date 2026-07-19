@@ -1,3 +1,5 @@
+# Chứa RAG_ANSWER_PROMPT, yêu cầu LLM trả lời dựa trên context.
+
 from langchain_core.prompts import ChatPromptTemplate
 
 template = """

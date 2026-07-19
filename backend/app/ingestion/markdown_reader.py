@@ -1,3 +1,5 @@
+# Đọc file markdown và tách phần frontmatter YAML khỏi nội dung chính.
+
 from __future__ import annotations
 
 from dataclasses import dataclass

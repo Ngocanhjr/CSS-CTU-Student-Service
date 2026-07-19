@@ -1,3 +1,9 @@
+# Các model hỗ trợ Qdrant:
+
+# RetrievalFilter: bộ lọc tìm kiếm;
+# QdrantChunkPayload: cấu trúc payload;
+# QdrantSearchResult: kết quả tìm kiếm.
+
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
@@ -10,6 +16,9 @@ class RetrievalFilter:
     document_key: str | None = None
     version_key: str | None = None
     chunk_type: str | None = "child"
+    review_status: str | None = None
+    rag_status: str | None = None
+    audience: str | None = None
     
 class QdrantChunkPayload(BaseModel):
     document_key: str
@@ -49,5 +58,6 @@ class QdrantChunkPayload(BaseModel):
 
 @dataclass(frozen=True)
 class QdrantSearchResult:
+    point_id: str
     score: float
     payload: dict

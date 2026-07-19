@@ -1,0 +1,88 @@
+"""Grounded answer generation from hydrated retrieval results."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from langchain_core.output_parsers import StrOutputParser
+
+from app.llm.generator import get_chat_model
+from app.llm.prompts import RAG_ANSWER_PROMPT
+from app.retrieval.s11_context_builder import build_retrieval_context
+from app.retrieval.models import RetrievalResult
+
+
+NO_CONTEXT_ANSWER = "Tôi không tìm thấy thông tin phù hợp trong tài liệu đã được duyệt."
+
+
+@dataclass(frozen=True)
+class AnswerCitation:
+    document_key: str
+    version_key: str
+    chunk_key: str
+    title: str
+    page_start: int | None
+    page_end: int | None
+    citation: str
+
+
+@dataclass(frozen=True)
+class RagAnswer:
+    answer: str
+    citations: list[AnswerCitation]
+
+def build_answer_citations(results: list[RetrievalResult]) -> list[AnswerCitation]:
+    citations: list[AnswerCitation] = []
+    seen_chunk_keys: set[str] = set()
+
+    for result in results:
+        if result.chunk_key in seen_chunk_keys:
+            continue
+
+        citations.append(
+            AnswerCitation(
+                document_key=result.document_key,
+                version_key=result.version_key,
+                chunk_key=result.chunk_key,
+                title=result.title,
+                page_start=result.page_start,
+                page_end=result.page_end,
+                citation=result.citation,
+            )
+        )
+        seen_chunk_keys.add(result.chunk_key)
+
+    return citations
+
+
+def generate_rag_answer(
+    question: str,
+    results: list[RetrievalResult],
+    *,
+    model: Any | None = None,
+    max_context_characters: int = 12_000,
+) -> RagAnswer:
+    """Generate an answer only from retrieval context and return trusted citations."""
+    context = build_retrieval_context(
+        results,
+        max_characters=max_context_characters,
+    )
+    if not context:
+        return RagAnswer(answer=NO_CONTEXT_ANSWER, citations=[])
+
+    chat_model = model if model is not None else get_chat_model()
+    chain = RAG_ANSWER_PROMPT | chat_model | StrOutputParser()
+    answer = str(
+        chain.invoke(
+            {
+                "question": question.strip(),
+                "context": context,
+            }
+        )
+    ).strip()
+
+    return RagAnswer(
+        answer=answer,
+        citations=build_answer_citations(results),
+    )
