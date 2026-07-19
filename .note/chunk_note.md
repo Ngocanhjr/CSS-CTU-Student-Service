@@ -1,6 +1,7 @@
 # chunk_note.md — Working Note: Chunking Pipeline
 
 > **Nguồn chính thức:**
+>
 > - Schema chunk: `chatbot/.docs/spec/ctu-service/05_DATABASE_SPEC.md`
 > - RAG pipeline: `chatbot/.docs/spec/ctu-service/07_RAG_SPEC.md`
 > - Retrieval guide: `chatbot/.docs/RAG_RETRIEVAL.md`
@@ -88,14 +89,14 @@ Ví dụ:
 
 ## Phân biệt parent / child
 
-| | parent chunk | child chunk |
-|---|---|---|
-| `chunk_type` | `"parent"` | `"child"` |
-| `parent_chunk_id` | NULL | ID của parent tương ứng |
-| Dùng để embed? | Không | Có |
-| Dùng để search Qdrant? | Không | Có |
-| Dùng để expand context? | Có (khi tìm được child) | — |
-| Kích thước gợi ý | 800–1500 tokens | 300–600 tokens |
+|                         | parent chunk            | child chunk             |
+| ----------------------- | ----------------------- | ----------------------- |
+| `chunk_type`            | `"parent"`              | `"child"`               |
+| `parent_chunk_id`       | NULL                    | ID của parent tương ứng |
+| Dùng để embed?          | Không                   | Có                      |
+| Dùng để search Qdrant?  | Không                   | Có                      |
+| Dùng để expand context? | Có (khi tìm được child) | —                       |
+| Kích thước gợi ý        | 800–1500 tokens         | 300–600 tokens          |
 
 ---
 
@@ -171,37 +172,39 @@ SQLAlchemy DocumentChunk
 PostgreSQL insert (css.document_chunks)
 ```
 
-
 Markdown body
-    ↓
+↓
 split_body_by_page_markers()
-    ↓
+↓
 PageBlock[]
-    ↓
+↓
 parse_page_blocks()
-    ↓
+↓
 StructuralBlock[]
-    ↓
+↓
 build_parent_sections()
-    ↓
+↓
 ParentSection[]
-    ↓
+↓
 make_parent_chunk()
-    ↓
+↓
 build_child_units()
-    ↓
+↓
 make_child_chunks()
-    ↓
+↓
 ChunkingResult
 
--------
+---
+
 Upload canonical Markdown
 → Review/chỉnh sửa
 → Đọc YAML + page markers
 → Structural parser
 → Parent/child chunking
 → Validation
----------
+
+---
+
 load DocumentVersion đã approved
 → đọc canonical Markdown
 → tạo IngestionJob
@@ -212,7 +215,9 @@ load DocumentVersion đã approved
 → upsert child vào Qdrant
 → cập nhật qdrant_point_id
 → cập nhật job/rag_status
+
 ---
+
 python -m uvicorn app.main:app --reload
 
 ## Checklist chunk pipeline
