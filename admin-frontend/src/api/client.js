@@ -8,8 +8,9 @@ async function request(path, options) {
   if (!response.ok) {
     const detail = data?.detail ?? data
     if (detail && typeof detail === 'object') {
-      const fields = (detail.fields || [])
-        .map((field) => `${field.field}: ${field.message}`)
+      const rawFields = detail.fields || (Array.isArray(detail) ? detail : [])
+      const fields = rawFields
+        .map((field) => `${field.field || field.loc?.join('.')}: ${field.message || field.msg}`)
         .join('; ')
       throw new Error([detail.message, fields].filter(Boolean).join(' — '))
     }

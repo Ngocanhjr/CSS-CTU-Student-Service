@@ -291,12 +291,7 @@ def test_standalone_number_inside_normal_content_is_preserved():
 - [ ] Tests page marker pass.
 - [ ] Tests chunker pass.
 
-## 8. Contract Bổ Sung Bắt Buộc
+## 8. Reconciliation Contract
 
-```text
-PageBlock.content bắt đầu sau current page marker và kết thúc trước next page marker.
-Page marker đã được consume thành PageBlock.page_number, không còn trong content.
-HTML comment kỹ thuật không tạo StructuralBlock, paragraph Child hoặc embedding text.
-Số trang OCR đứng riêng và dấu --- chỉ được bỏ khi nằm sát page boundary đã xác định.
-Không được xóa standalone number hoặc horizontal rule ở nội dung bình thường.
-```
+Contract liên-file nằm tại
+[`22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md`](22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md).

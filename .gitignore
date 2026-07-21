@@ -43,8 +43,7 @@ AGENTS.md
 .codegraph/
 .kiro/
 RTK.md
-/AGENTS_README.md
-AGENTS.md
-RTK.md
-
-!admin-frontend/AGENTS.md
+.rtk/
+.vscode/
+.claude/
+/backend/storage/canonical/

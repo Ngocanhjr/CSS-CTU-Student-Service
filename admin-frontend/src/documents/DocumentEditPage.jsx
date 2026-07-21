@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 import {
   documentTypes,
   departments,
   audienceOptions,
   domainOptions,
-  reviewStatuses,
 } from '../api/referenceData.js'
 
 const VALIDITY_STATUSES = ['unchecked', 'valid', 'expired', 'replaced', 'unknown']
@@ -23,18 +23,18 @@ function toForm(doc) {
     issued_date: doc.issued_date,
     effective_date: doc.effective_date,
     expiry_date: doc.expiry_date,
-    review_status: doc.review_status,
     validity_status: doc.validity_status,
   }
 }
 
-export default function DocumentEditPage({ documentId, onBack }) {
+export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   const [doc, setDoc] = useState(null)
   const [form, setForm] = useState(null)
   const [markdown, setMarkdown] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -57,7 +57,7 @@ export default function DocumentEditPage({ documentId, onBack }) {
   if (loading) {
     return (
       <>
-        <header className="page-head"><h1>Sửa tài liệu</h1></header>
+        <PageHeader eyebrow="Documents / Edit" title="Sửa tài liệu" />
         <p className="hint" role="status">Đang tải…</p>
       </>
     )
@@ -66,7 +66,7 @@ export default function DocumentEditPage({ documentId, onBack }) {
   if (!doc) {
     return (
       <>
-        <header className="page-head"><h1>Sửa tài liệu</h1></header>
+        <PageHeader eyebrow="Documents / Edit" title="Sửa tài liệu" />
         <aside className="banner warn">
           Không tìm thấy tài liệu.
           <p><button type="button" className="btn small" onClick={onBack}>← Quay lại danh sách</button></p>
@@ -76,10 +76,12 @@ export default function DocumentEditPage({ documentId, onBack }) {
   }
 
   function set(key, value) {
+    setResult(null)
     setForm((f) => ({ ...f, [key]: value }))
   }
 
   function toggleAudience(a) {
+    setResult(null)
     setForm((f) => ({
       ...f,
       audience: f.audience.includes(a) ? f.audience.filter((x) => x !== a) : [...f.audience, a],
@@ -89,6 +91,7 @@ export default function DocumentEditPage({ documentId, onBack }) {
   async function onSave() {
     setBusy(true)
     setResult(null)
+    setError('')
     try {
       const res = await api.updateDocument(
         documentId,
@@ -98,19 +101,38 @@ export default function DocumentEditPage({ documentId, onBack }) {
       setForm(toForm(res.document))
       setMarkdown(res.document.canonical_markdown)
       setResult(res)
+      return res
+    } catch (err) {
+      setError(err.message)
+      return null
     } finally {
       setBusy(false)
     }
   }
 
+  async function saveAndContinue() {
+    try {
+      if (result?.updated) {
+        onContinue(result.document)
+        return
+      }
+      const saved = await onSave()
+      if (saved) onContinue(saved.document)
+    } catch (err) {
+      setError(err.message || 'Không thể mở Chunk preview')
+    }
+  }
+
   const valid = form.title.trim() && form.document_type_id
+  const editable = doc.rag_status === 'not_indexed'
 
   return (
     <>
-      <header className="page-head">
-        <h1>Sửa tài liệu</h1>
-        <p className="mono muted">{doc.document_key} — {doc.version_key}</p>
-      </header>
+      <PageHeader
+        eyebrow="Documents / Edit"
+        title="Sửa tài liệu"
+        description={<span className="mono muted">{doc.document_key} — {doc.version_key}</span>}
+      />
 
       <form onSubmit={(event) => { event.preventDefault(); onSave() }}>
       <section className="card" aria-labelledby="current-status-heading">
@@ -123,15 +145,25 @@ export default function DocumentEditPage({ documentId, onBack }) {
               {VALIDITY_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </dd>
-          <dt>Duyệt nội dung</dt>
-          <dd>
-            <select aria-label="Trạng thái duyệt nội dung" value={form.review_status} onChange={(e) => set('review_status', e.target.value)}>
-              {reviewStatuses.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </dd>
+          <dt>Duyệt nội dung</dt><dd><StatusBadge status={doc.review_status} /></dd>
           <dt>RAG</dt><dd><StatusBadge status={doc.rag_status} /></dd>
         </dl>
         <p className="hint">OCR và RAG là kết quả của pipeline tự động, không sửa trực tiếp ở đây.</p>
+        {doc.rag_status === 'failed' && (
+          <aside className="banner warn" role="alert">
+            <strong>Index thất bại — không sửa trực tiếp version này.</strong>
+            <p>Bước lỗi: <span className="mono">{doc.last_job_step || 'unknown'}</span></p>
+            {doc.last_job_error && <p className="mono error-detail">{doc.last_job_error}</p>}
+            <button type="button" className="btn small" onClick={() => onContinue(doc)}>
+              Thử lại Index →
+            </button>
+          </aside>
+        )}
+        {['chunked', 'embedded', 'indexed', 'published'].includes(doc.rag_status) && (
+          <aside className="banner warn" role="status">
+            Version đã có dữ liệu RAG. Muốn sửa phải deindex và dọn chunks/vector trước.
+          </aside>
+        )}
       </section>
 
       <section className="card" aria-labelledby="document-information-heading">
@@ -194,7 +226,7 @@ export default function DocumentEditPage({ documentId, onBack }) {
             </label>
             <label className="field">
               <span>Nhãn version</span>
-              <input value={form.version_label || ''} onChange={(e) => set('version_label', e.target.value)} />
+              <input value={form.version_label || ''} readOnly aria-describedby="version-key-hint" />
             </label>
         </fieldset>
         <fieldset className="form-grid three-columns">
@@ -212,6 +244,7 @@ export default function DocumentEditPage({ documentId, onBack }) {
               <input type="date" value={form.expiry_date || ''} onChange={(e) => set('expiry_date', e.target.value)} />
             </label>
         </fieldset>
+        <p id="version-key-hint" className="hint">Version key là định danh provenance, không sửa trong workflow này.</p>
       </section>
 
       <section className="card" aria-labelledby="canonical-markdown-heading">
@@ -221,9 +254,28 @@ export default function DocumentEditPage({ documentId, onBack }) {
           id="document-markdown"
           className="markdown-editor"
           value={markdown}
-          onChange={(e) => setMarkdown(e.target.value)}
+          onChange={(e) => { setResult(null); setMarkdown(e.target.value) }}
         />
-        <p className="hint">Sửa nội dung sẽ kích hoạt chunk lại, embed lại và cập nhật Qdrant khi lưu.</p>
+        <p className="hint">
+          Lưu thay đổi cập nhật canonical Markdown và metadata trong PostgreSQL.
+          Sau đó chuyển qua Review → Chunks → Index để tạo chunk, embedding và upsert Qdrant.
+        </p>
+      </section>
+
+      <section className="card workflow-card" aria-labelledby="index-workflow-heading">
+        <h2 id="index-workflow-heading">Tiếp tục indexing</h2>
+        <p className="hint">
+          Lưu xong sẽ chuyển tài liệu sang Chunk preview. Sau khi duyệt preview,
+          bước Index sẽ lưu PostgreSQL chunks, tạo embedding và upsert Qdrant.
+        </p>
+        <button
+          type="button"
+          className="btn"
+          disabled={!valid || busy || !editable}
+          onClick={(event) => { event.preventDefault(); void saveAndContinue() }}
+        >
+          {busy ? 'Đang lưu…' : result?.updated ? 'Mở Chunk preview →' : 'Lưu và mở Chunk preview →'}
+        </button>
       </section>
 
       {result && !result.updated && (
@@ -231,14 +283,14 @@ export default function DocumentEditPage({ documentId, onBack }) {
       )}
       {result?.updated && (
         <p className="banner" role="status">
-          Đã lưu và đồng bộ thành công. Cập nhật lúc {new Date(result.document.updated_at).toLocaleString('vi-VN')}.
+          Đã lưu thay đổi thành công. Cập nhật lúc {new Date(result.document.updated_at).toLocaleString('vi-VN')}.
         </p>
       )}
-
+      {error && <p className="banner warn" role="alert">{error}</p>}
       <footer className="foot-nav">
         <button type="button" className="btn ghost" onClick={onBack}>← Quay lại danh sách</button>
-        <button type="submit" className="btn" disabled={!valid || busy}>
-          {busy ? 'Đang lưu…' : 'Lưu & đồng bộ'}
+        <button type="submit" className="btn" disabled={!valid || busy || !editable}>
+          {busy ? 'Đang lưu…' : 'Lưu thay đổi'}
         </button>
       </footer>
       </form>

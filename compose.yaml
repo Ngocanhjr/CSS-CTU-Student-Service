@@ -61,6 +61,39 @@ services:
 
     stop_grace_period: 30s
 
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:86-1.9
+    restart: unless-stopped
+    gpus: all
+
+    environment:
+      API_KEY: ${TEI_API_KEY:?TEI_API_KEY_is_required}
+
+    command:
+      - --model-id
+      - BAAI/bge-m3
+      - --dtype
+      - float16
+      - --max-client-batch-size
+      - "4"
+      - --max-batch-tokens
+      - "8192"
+
+    ports:
+      - "${TEI_PORT:-8080}:80"
+
+    volumes:
+      - tei-data:/data
+
+    networks:
+      - ctu-network
+
+    logging: *default-logging
+
 networks:
   ctu-network:
     driver: bridge
+
+volumes:
+  tei-data:
+    name: tei-data

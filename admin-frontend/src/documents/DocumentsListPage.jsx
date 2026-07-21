@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 import { documentTypes, departments, ragStatuses, reviewStatuses } from '../api/referenceData.js'
 
 export default function DocumentsListPage({ onEdit }) {
@@ -49,10 +50,11 @@ export default function DocumentsListPage({ onEdit }) {
 
   return (
     <>
-      <header className="page-head">
-        <h1>Quản lý tài liệu</h1>
-        <p>Tìm kiếm tài liệu đã tải lên và sửa thông tin. Thay đổi sẽ được đồng bộ vào PostgreSQL và Qdrant.</p>
-      </header>
+      <PageHeader
+        eyebrow="Documents"
+        title="Quản lý tài liệu"
+        description="Tìm kiếm tài liệu đã tải lên và sửa metadata/canonical Markdown. Chunk và Qdrant được xử lý ở workflow Index."
+      />
 
       <form className="card" onSubmit={(event) => { event.preventDefault(); search() }}>
         <fieldset className="filter-grid">
