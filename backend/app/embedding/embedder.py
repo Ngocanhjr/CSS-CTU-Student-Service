@@ -42,7 +42,7 @@ def get_embedding() -> NVIDIAEmbeddings:
         raise ValueError("NVIDIA_API_KEY environment variable is not set.")
     
     return NVIDIAEmbeddings(
-        model_name=EMBEDDING_MODEL_NAME,
+        model=EMBEDDING_MODEL_NAME,
         api_key=api_key
         )
     
