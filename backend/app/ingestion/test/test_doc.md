@@ -17,10 +17,9 @@ file_type: md
 language: vi
 citation_type: page
 checksum: test-checksum
-rag_status: collected
+rag_status: indexed
 ocr_status: done
 review_status: approved
-rag_status: published
 ---
 
 <!-- page: 1 -->

@@ -26,7 +26,7 @@ class EligibilityPolicy:
     ) -> list[Any]:
         conditions: list[Any] = [
             DocumentVersion.review_status == "approved",
-            DocumentVersion.rag_status == "published",
+            DocumentVersion.rag_status == "indexed",
         ]
 
         if context.audience:
@@ -57,7 +57,7 @@ class EligibilityPolicy:
             ),
             qmodels.FieldCondition(
                 key="rag_status",
-                match=qmodels.MatchValue(value="published"),
+                match=qmodels.MatchValue(value="indexed"),
             ),
             qmodels.FieldCondition(
                 key="chunk_type",

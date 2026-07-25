@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 export default function UploadStep({ pipeline, update, goTo }) {
   const [file, setFile] = useState(null)
@@ -36,10 +37,11 @@ export default function UploadStep({ pipeline, update, goTo }) {
 
   return (
     <>
-      <header className="page-head">
-        <h1>1 — Tải canonical Markdown</h1>
-        <p>Tải Markdown đã OCR, gồm YAML frontmatter và page markers. PostgreSQL phải hoạt động ở bước này.</p>
-      </header>
+      <PageHeader
+        eyebrow="Ingestion / 01"
+        title="Tải canonical Markdown"
+        description="Tải Markdown đã OCR, gồm YAML frontmatter và page markers. PostgreSQL phải hoạt động ở bước này."
+      />
 
       <form className="card" aria-labelledby="upload-file-heading" onSubmit={(event) => { event.preventDefault(); onUpload() }}>
         <h2 id="upload-file-heading">Chọn file</h2>

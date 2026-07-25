@@ -39,6 +39,10 @@ async def answer_question(
                 page_start=citation.page_start,
                 page_end=citation.page_end,
                 citation=citation.citation,
+                source_file=citation.source_file,
+                issued_date=citation.issued_date,
+                issuing_authority=citation.issuing_authority,
+                document_type=citation.document_type,
             )
             for citation in rag_answer.citations
         ],

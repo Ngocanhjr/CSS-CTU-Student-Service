@@ -108,7 +108,7 @@ class IngestionService:
             vectors,
             postgres_chunk_ids=[record.id for record in child_records],
             review_status=version.review_status,
-            rag_status="published",
+            rag_status="indexed",
             is_latest=version.is_latest,
             audience=list(document.audience),
         )
@@ -117,9 +117,9 @@ class IngestionService:
             record.qdrant_point_id = make_point_id(version.version_key, record.chunk_key)
             record.index_status = "indexed"
 
-        version.rag_status = "published"
+        version.rag_status = "indexed"
         job.status = "completed"
-        job.current_step = "published"
+        job.current_step = "indexed"
         job.processed_chunks = len(chunks)
         job.finished_at = datetime.now(timezone.utc)
         await session.commit()

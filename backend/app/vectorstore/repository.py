@@ -103,7 +103,7 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
     # Dense retrieval always starts from the same eligibility domain as PostgreSQL.
     conditions = [
         FieldCondition(key="review_status", match=MatchValue(value="approved")),
-        FieldCondition(key="rag_status", match=MatchValue(value="published")),
+        FieldCondition(key="rag_status", match=MatchValue(value="indexed")),
         FieldCondition(key="audience_student", match=MatchValue(value=True)),
         FieldCondition(key="chunk_type", match=MatchValue(value="child")),
     ]

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const STAGES = [
   { key: 'chunked', label: 'Chunk parent/child', detail: 'Tạo cấu trúc parent và child chunk.' },
@@ -16,16 +17,13 @@ export default function IngestStep({ pipeline, update, goTo }) {
   const upload = pipeline.upload
   const metadata = upload?.metadata
   const ingest = pipeline.ingest
-  const canIngest = metadata?.ocr_status === 'done'
-    && metadata?.review_status === 'approved'
-    && pipeline.chunkApproved
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   if (!upload) {
     return (
       <>
-        <header className="page-head"><h1>4 — Index document</h1></header>
+        <PageHeader eyebrow="Ingestion / 04" title="Index document" />
         <aside className="banner warn">
           Chưa có tài liệu. Hãy tải canonical Markdown trước.
           <p><button type="button" className="btn small" onClick={() => goTo('upload')}>← Về bước tải lên</button></p>
@@ -48,15 +46,27 @@ export default function IngestStep({ pipeline, update, goTo }) {
   }
 
   const ragStatus = ingest?.rag_status || metadata.rag_status || 'not_indexed'
+  const alreadyIndexed = ['indexed', 'published'].includes(ragStatus)
+  const canIngest = metadata?.ocr_status === 'done'
+    && metadata?.review_status === 'approved'
+    && pipeline.chunkApproved
+    && ['not_indexed', 'failed', 'chunked', 'embedded'].includes(ragStatus)
 
   return (
     <>
-      <header className="page-head">
-        <h1>4 — Index document</h1>
-        <p>Chunk → PostgreSQL → embedding → Qdrant. Publish là bước riêng sau validation.</p>
-      </header>
+      <PageHeader
+        eyebrow="Ingestion / 04"
+        title="Index document"
+        description="Chunk → PostgreSQL → embedding → Qdrant. Publish là bước riêng sau validation."
+      />
 
       {error && <p className="banner warn" role="alert">{error}</p>}
+
+      {alreadyIndexed && (
+        <p className="banner" role="status">
+          Tài liệu đã index thành công. Không cần chạy lại nếu nội dung không thay đổi.
+        </p>
+      )}
 
       <aside className={canIngest ? 'banner' : 'banner warn'}>
         Index yêu cầu <span className="mono">ocr_status = done</span> và{' '}
@@ -79,7 +89,15 @@ export default function IngestStep({ pipeline, update, goTo }) {
           <dt>rag_status</dt><dd><StatusBadge status={ragStatus} /></dd>
         </dl>
         <button type="button" className="btn" disabled={busy || !canIngest} onClick={onRun}>
-          {busy ? 'Đang index…' : ingest ? 'Chạy lại index' : 'Bắt đầu index'}
+          {busy
+            ? 'Đang index…'
+            : alreadyIndexed
+              ? 'Đã index — không cần chạy lại'
+              : ragStatus === 'failed'
+                ? 'Thử lại index'
+                : ragStatus === 'not_indexed'
+                  ? 'Bắt đầu index'
+                  : 'Tiếp tục index'}
         </button>
       </section>
 

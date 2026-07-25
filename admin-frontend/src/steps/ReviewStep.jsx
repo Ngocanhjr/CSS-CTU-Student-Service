@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client.js'
+import PageHeader from '../components/PageHeader.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 
 export default function ReviewStep({ pipeline, update, goTo }) {
@@ -12,7 +13,7 @@ export default function ReviewStep({ pipeline, update, goTo }) {
   if (!upload) {
     return (
       <>
-        <header className="page-head"><h1>2 — Review nội dung</h1></header>
+        <PageHeader eyebrow="Ingestion / 02" title="Review nội dung" />
         <aside className="banner warn">
           Chưa có canonical Markdown.
           <p><button type="button" className="btn small" onClick={() => goTo('upload')}>← Tải Markdown</button></p>
@@ -40,10 +41,11 @@ export default function ReviewStep({ pipeline, update, goTo }) {
 
   return (
     <>
-      <header className="page-head">
-        <h1>2 — Review và approve</h1>
-        <p>Chỉnh toàn bộ YAML và nội dung. Backend bảo vệ các trường provenance bất biến.</p>
-      </header>
+      <PageHeader
+        eyebrow="Ingestion / 02"
+        title="Review và approve"
+        description="Chỉnh toàn bộ YAML và nội dung. Backend bảo vệ các trường provenance bất biến."
+      />
 
       {error && <p className="banner warn" role="alert">{error}</p>}
 

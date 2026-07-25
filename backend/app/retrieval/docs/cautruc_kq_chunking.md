@@ -35,7 +35,6 @@ Quy ước chính:
 
 Định nghĩa cấu trúc này nằm tại [chunks.py](D:\\Code\\CTU_Student_Service\\CSS-CTU-Student-Service\\backend\\app\\schemas\\chunks.py), còn quy tắc tạo parent/child ở [parent_chunker.py](D:\\Code\\CTU_Student_Service\\CSS-CTU-Student-Service\\backend\\app\\ingestion\\chunking\\parent_chunker.py) và [child_chunker.py](D:\\Code\\CTU_Student_Service\\CSS-CTU-Student-Service\\backend\\app\\ingestion\\chunking\\child_chunker.py).
 
-
 ---
 
 Kết quả trả về từ dense + parse phải có chunk_id và postgres_chunk_id
@@ -46,12 +45,9 @@ chunk_key          → khóa nghiệp vụ, dễ đọc và ổn định theo ve
 qdrant_point_id    → ID bản ghi vector trong Qdrant
 ```
 
-
 ---
 
 # Luồng Ingestion
-
-
 
 ```mermaid
 flowchart LR
@@ -117,3 +113,44 @@ payload của Qdrant gồm:
 index_status = indexed**
 
 và phiên bản tài liệu rag_status = published
+
+---
+
+Khử trùng tại liệu khi chat đưa nguồn tham khảo (tránh lặp lại)
+
+Trong rag_chain.py: hàm build_answer_citations sẽ khử trùng theo: tài liệu + phiên bản + khoảng trang thay vì theo chunk_key
+
+---
+
+Còn 1 vài lỗi chưa xử lý ổn:
+
+1. **Các trường hợp người dùng gửi câu hỏi mơ hồ không ngữ cảnh thì xử lý ntn, để tránh trùng với câu hỏi không ngữ cảnh khi đã có topic trước đó**
+
+   Câu hỏi vào
+      │
+      ├─ Câu RÕ (có chủ thể: "điều kiện học bổng")     → heuristic cho qua ngay, KHÔNG gọi LLM phân loại
+      │                                   → chỉ tốn ~0ms
+      │
+      ├─ Câu CHẮC CHẮN mơ hồ ("điều kiện")             → heuristic chặn ngay, hỏi lại, KHÔNG gọi LLM
+      │   + không có ngữ cảnh                → chỉ tốn ~0ms
+      │
+      └─ Câu VÙNG XÁM (đáng ngờ, khó nói)              → mới gọi LLM phân loại
+                                           → tốn ~0,5–1,5s
+
+   Có nhiều cách xử lý:
+
+   1. Heuristic + ngữ cảnh(chưa tối ưu vẫn có thể gây nhầm lẫn) nhưng ít tốn tg gen câu trl: luôn đảm bảo <1ms và ổn định
+   2. nếu dùng LLM phân loại + ngữ cảnh thì chính xác hơn nhưng sẽ + thêm 1 lượt gọi LLM (chậm hơn và tốn hơn): có thể tốn đến 0.5s - 1.5s. Nếu provider quá tải có thể sẽ lên tới 2-3s
+   3. Hybrid heuristic + llm: heuristic phân loại đó là câu hỏi có cần gọi tới llm hay không, hay tự nó xử lý được: với pa này thì có thể sẽ khắc phục được hạn chế của tốn tg cho tất cả prompt của llm. Vì chỉ khi câu hỏi thuộc vùng xám cần llm phân loại => tốn thời gian. KHÁ PHỨC TẠP
+
+---
+
+Lệnh chạy backend: lệnh này chạy được ở cả 2 môi trường: emulator và chrome
+
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+Lệnh chạy frontend:
+
+- cd myapp/frontend
+- Kiểm tra các thiết bị hiện có: flutter devices
+- Run: flutter run -d <tên TB>

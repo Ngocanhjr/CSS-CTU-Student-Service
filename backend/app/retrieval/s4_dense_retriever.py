@@ -27,11 +27,10 @@ from app.retrieval.s3_eligibility import (
     EligibilityContext,
     EligibilityPolicy,
 )
-from app.vectorstore.models import QdrantSearchResult, RetrievalFilter
+from app.vectorstore.models import QdrantSearchResult
 from app.vectorstore.qdrant_client import get_qdrant_client
 from app.vectorstore.repository import (
     COLLECTION_NAME,
-    build_context_filter,
     search_points,
 )
 
@@ -67,19 +66,14 @@ def retrieve_child_chunks(
         chunk_type="child",
     )
     
-    #Tạo metadata_filter từ s2
-    metadata_qdrant_filter = build_context_filter(
-        RetrievalFilter(
-            department=metadata_filter.department,
-            document_type=metadata_filter.document_type,
-            domain=metadata_filter.domain,
-        )
-    )
-    #gộp vào s3 -> Qdrant chỉ tìm trong tập dữ liệu vừa hợp lệ vừa đúng ngữ cảnh câu hỏi.
+    # LƯU Ý: domain/document_type/department do s2 suy đoán từ chữ trong câu hỏi
+    # (vd "ký túc xá" -> domain=sinh_vien). KHÔNG dùng chúng làm filter cứng vì
+    # dễ loại nhầm tài liệu đúng khi suy đoán sai. Topical relevance đã được
+    # semantic search + LexicalReranker (s8) xử lý. Chỉ giữ eligibility (s3) và
+    # document_key/version_key tường minh (đã nằm trong eligibility_filter).
     combined_filter = Filter(
         must=[
             *eligibility_filter.must,
-            *(metadata_qdrant_filter.must if metadata_qdrant_filter else []),
         ],
         # Hydration requires a PostgreSQL chunk ID. Exclude old or incomplete
         # Qdrant points that cannot be hydrated into a RetrievalResult.

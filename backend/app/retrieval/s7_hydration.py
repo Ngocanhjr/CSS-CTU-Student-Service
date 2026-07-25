@@ -6,7 +6,12 @@ from langchain_core.documents import Document as LangChainDocument
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.databases.models import Document, DocumentChunk, DocumentVersion
+from app.databases.models import (
+    Document,
+    DocumentChunk,
+    DocumentType,
+    DocumentVersion,
+)
 from app.retrieval.models import ExpansionReason, RetrievalResult
 
 #tạo citation - thông tin đi kèm chunk -> để LLM có thể nói rõ câu trả lời lấy từ đâu (Nguồn)
@@ -49,21 +54,25 @@ async def hydrate_langchain_documents(
     #Hàm query PostgreSQL để lấy cùng lúc: DocumentChunk + DocumentVersion + Document => nd chuẩn của chunk 
     rows = (
         await session.execute(
-            select(DocumentChunk, DocumentVersion, Document)
+            select(DocumentChunk, DocumentVersion, Document, DocumentType)
             .join(
                 DocumentVersion,
                 DocumentVersion.id == DocumentChunk.document_version_id,
             )
             .join(Document, Document.id == DocumentVersion.document_id)
+            .outerjoin(DocumentType, DocumentType.id == Document.document_type_id)
             .where(DocumentChunk.id.in_(set(chunk_ids)))
         )
     ).all()
-    records_by_chunk_id = {chunk.id: (chunk, version, document) for chunk, version, document in rows}
+    records_by_chunk_id = {
+        chunk.id: (chunk, version, document, document_type)
+        for chunk, version, document, document_type in rows
+    }
 
     #nếu child_chunk có parent_chunk, truy vấn các parent_chunk để lấy content
     parent_ids = {
         chunk.parent_chunk_id
-        for chunk, _, _ in records_by_chunk_id.values()
+        for chunk, _, _, _ in records_by_chunk_id.values()
         if chunk.parent_chunk_id is not None
     }
     parent_by_id: dict[int, DocumentChunk] = {}
@@ -86,7 +95,7 @@ async def hydrate_langchain_documents(
         if record is None:
             continue
 
-        chunk, version, document = record
+        chunk, version, document, document_type = record
         parent = parent_by_id.get(chunk.parent_chunk_id)
         parent_chunk_key = metadata.get("parent_chunk_key") or (
             parent.chunk_key if parent is not None else None
@@ -170,6 +179,9 @@ async def hydrate_langchain_documents(
                 item_level=metadata.get("item_level"),
                 expansion_reason=expansion_reason,
                 parent_content=parent.content if parent is not None else None,
+                issued_date=version.issued_date,
+                issuing_authority=version.issuing_authority,
+                document_type=document_type.name if document_type is not None else None,
             )
         )
 

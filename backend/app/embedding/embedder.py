@@ -1,85 +1,135 @@
-# Quản lý embedding.
-
-# Chức năng:
-
-# Tạo NVIDIAEmbeddings
-# → embed câu hỏi
-# → embed danh sách nội dung
-# → tạo enriched text
-# → cache vector theo hash
-
-import os
-
-from dotenv import load_dotenv, find_dotenv
-
-load_dotenv(find_dotenv())
-
-from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
-
-#save embeddings to a file
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+from dotenv import find_dotenv, load_dotenv
 
 from app.ingestion.markdown_reader import MarkdownDocument
 from app.schemas.chunks import Chunk
 
-#Neu khong co bien moi truong, mac dinh là baai
-EMBEDDING_MODEL_NAME = os.getenv("NVIDIA_EMBEDDING_MODEL", "baai/bge-m3")
+
+load_dotenv(find_dotenv())
+
+
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+EMBEDDING_VECTOR_SIZE = 1024
+EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "4"))
 
 CACHE_DIR = Path(".cache/embedding_vectors.json")
 
-def get_embedding() -> NVIDIAEmbeddings:
-    """
-    Get the NVIDIA embedding model.
 
-    Returns:
-        NVIDIAEmbeddings: The NVIDIA embedding model.
-    """
-    api_key = os.getenv("NVIDIA_API_KEY")
-    if not api_key:
-        raise ValueError("NVIDIA_API_KEY environment variable is not set.")
-    
-    return NVIDIAEmbeddings(
-        model=EMBEDDING_MODEL_NAME,
-        api_key=api_key
+if EMBEDDING_BATCH_SIZE < 1:
+    raise ValueError("EMBEDDING_BATCH_SIZE phải lớn hơn 0.")
+
+
+class TEIEmbeddings:
+    """HTTP client tối thiểu cho Text Embeddings Inference."""
+
+    def __init__(self, *, base_url: str, api_key: str) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.model = EMBEDDING_MODEL_NAME
+
+    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
+        request = Request(
+            f"{self.base_url}/embed",
+            data=json.dumps({"inputs": texts}).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
         )
-    
+
+        try:
+            with urlopen(request, timeout=120) as response:
+                vectors = json.loads(
+                    response.read().decode("utf-8")
+                )
+        except HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"TEI trả HTTP {exc.code}: {detail}"
+            ) from exc
+        except URLError as exc:
+            raise RuntimeError(
+                f"Không kết nối được TEI: {exc.reason}"
+            ) from exc
+
+        if (
+            not isinstance(vectors, list)
+            or len(vectors) != len(texts)
+            or any(not isinstance(vector, list) for vector in vectors)
+        ):
+            raise RuntimeError(
+                "TEI trả response không đúng contract."
+            )
+
+        invalid_sizes = {
+            len(vector)
+            for vector in vectors
+            if len(vector) != EMBEDDING_VECTOR_SIZE
+        }
+
+        if invalid_sizes:
+            raise RuntimeError(
+                f"{self.model} phải trả vector "
+                f"{EMBEDDING_VECTOR_SIZE} chiều, "
+                f"nhận được {sorted(invalid_sizes)}."
+            )
+
+        return vectors
+
+    def embed_documents(
+        self,
+        texts: list[str],
+    ) -> list[list[float]]:
+        vectors: list[list[float]] = []
+
+        for start in range(0, len(texts), EMBEDDING_BATCH_SIZE):
+            batch = texts[start : start + EMBEDDING_BATCH_SIZE]
+            vectors.extend(self._embed_batch(batch))
+
+        return vectors
+
+    def embed_query(self, query: str) -> list[float]:
+        query = query.strip()
+
+        if not query:
+            raise ValueError("Query không được để trống.")
+
+        return self._embed_batch([query])[0]
+
+
+def get_embedding() -> TEIEmbeddings:
+    base_url = os.getenv("TEI_BASE_URL")
+    api_key = os.getenv("TEI_API_KEY")
+
+    if not base_url:
+        raise ValueError("TEI_BASE_URL chưa được cấu hình.")
+
+    if not api_key:
+        raise ValueError("TEI_API_KEY chưa được cấu hình.")
+
+    return TEIEmbeddings(
+        base_url=base_url,
+        api_key=api_key,
+    )
+
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """
-    Embed a list of texts using the NVIDIA embedding model.
-
-    Args:
-        texts (list[str]): A list of texts to embed.
-
-    Returns:
-        list[list[float]]: A list of embeddings for the input texts.
-    """
     if not texts:
-        raise ValueError("The input list of texts is empty.")
-        return []
-    
-    embedding_model = get_embedding()
-    return embedding_model.embed_documents(texts)
+        raise ValueError("Danh sách text không được để trống.")
+
+    return get_embedding().embed_documents(texts)
+
 
 def embed_query(query: str) -> list[float]:
-    """
-    Embed a single query using the NVIDIA embedding model.
-
-    Args:
-        query (str): The query to embed.
-
-    Returns:
-        list[float]: The embedding for the input query.
-    """
-    query = query.strip()
-    if not query:
-        raise ValueError("The input query is empty.")
-        return []
-    
-    embedding_model = get_embedding()
-    return embedding_model.embed_query(query)
+    return get_embedding().embed_query(query)
 
 #method for save embedding file
 def hash_text(text:str) -> str:
@@ -158,6 +208,7 @@ def embed_chunks_with_cache(
             cached_vector 
             and cached_vector.get("model") == model_name
             and cached_vector.get("hash_text") == hash_text_key
+            and len(cached_vector.get("vector", [])) == EMBEDDING_VECTOR_SIZE
         ): 
             vectors_by_key[chunk.chunk_key] = cached_vector["vector"]
         else:
@@ -169,6 +220,11 @@ def embed_chunks_with_cache(
             for chunk in missing_chunks
         ]
         new_vectors = embed_texts(embedding_texts)
+        invalid_sizes = {len(vector) for vector in new_vectors if len(vector) != EMBEDDING_VECTOR_SIZE}
+        if invalid_sizes:
+            raise ValueError(
+                f"{model_name} phải trả vector {EMBEDDING_VECTOR_SIZE} chiều, nhận được {sorted(invalid_sizes)}"
+            )
         for chunk, vector in zip(missing_chunks, new_vectors, strict=True):
             embedding_text = build_embedding_enriched_text(document, chunk)
             cache[chunk.chunk_key] = {

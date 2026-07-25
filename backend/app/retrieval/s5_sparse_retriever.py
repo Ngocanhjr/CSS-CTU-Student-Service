@@ -13,11 +13,8 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.models import (
-    Department,
     Document,
     DocumentChunk,
-    DocumentRecipient,
-    DocumentType,
     DocumentVersion,
 )
 from app.retrieval.s2_metadata_filter import (
@@ -75,25 +72,11 @@ async def search_sparse_documents(
         )
     )
 
-    #thêm metadata từ s2 
-    metadata_conditions = []
-    
-    if metadata_filter.department:
-        metadata_conditions.append(
-            DocumentVersion.recipients.any(
-                DocumentRecipient.department.has(
-                    Department.code == metadata_filter.department
-                )
-            )
-        )
-    if metadata_filter.document_type:
-        metadata_conditions.append(
-            Document.document_type.has(
-                DocumentType.code == metadata_filter.document_type
-            )
-        )
-    if metadata_filter.domain:
-        metadata_conditions.append(Document.domain == metadata_filter.domain)
+    # LƯU Ý: domain/document_type/department do s2 suy đoán từ chữ trong câu hỏi
+    # (vd "ký túc xá" -> domain=sinh_vien). KHÔNG dùng chúng làm điều kiện WHERE
+    # cứng vì đoán sai sẽ loại nhầm tài liệu đúng. Độ khớp chủ đề đã do FTS rank
+    # + LexicalReranker (s8) xử lý. Chỉ giữ eligibility (s3) và document_key/
+    # version_key tường minh.
 
     #Câu lệnh sql
     statement = (
@@ -118,7 +101,6 @@ async def search_sparse_documents(
             DocumentChunk.index_status == "indexed",
             DocumentChunk.qdrant_point_id.is_not(None),
             *eligibility_conditions,
-            *metadata_conditions,
             search_vector.op("@@")(ts_query),
         )
         #Sắp xếp kết quả theo điểm khớp từ khóa giảm dần: chunk khớp nhất đứng đầu.

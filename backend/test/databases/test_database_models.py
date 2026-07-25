@@ -95,7 +95,7 @@ async def test_insert_core_database_models():
                 accessed_date=date(2026, 6, 19),
                 ocr_status="done",
                 review_status="approved",
-                rag_status="published",
+                rag_status="indexed",
             )
             session.add(version)
             await session.flush()
@@ -139,7 +139,7 @@ async def test_insert_core_database_models():
                 chunk_key="test-document-v1::p::0001",
                 chunk_index=0,
                 chunk_type="parent",
-                heading_path="Root",
+                heading_path=["Root"],
                 section_title="Root",
                 content="Parent content",
                 page_start=1,
@@ -157,7 +157,7 @@ async def test_insert_core_database_models():
                 chunk_key="test-document-v1::c::0001",
                 chunk_index=1,
                 chunk_type="child",
-                heading_path="Root > Child",
+                heading_path=["Root", "Child"],
                 section_title="Child",
                 content="Child content",
                 page_start=1,

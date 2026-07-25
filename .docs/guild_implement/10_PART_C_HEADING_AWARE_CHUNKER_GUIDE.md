@@ -1730,28 +1730,8 @@ Tang child_chunk_size va them test small table.
 Neu van khong du, implement protect table blocks truoc khi split.
 ```
 
-## 19. Reconciliation Contract Bắt Buộc
+## 19. Reconciliation Contract
 
-Các rule dưới đây ghi đè pseudocode cũ nếu có mâu thuẫn:
-
-```text
-1. Mỗi Markdown heading mở Parent mới; Parent cũ đóng ngay trước heading tiếp theo.
-2. Không merge hai Parent có hai source heading khác nhau.
-3. Parent không body nhưng heading chứa nội dung độc lập tạo heading_content Child nguyên văn.
-4. Heading context như Chương/Phần/Mục có thể context_only; mọi Parent phải có Child hoặc context_only_reason.
-5. Cặp "Chương I" + "TÊN CHƯƠNG" liên tiếp giữ derived heading_path kết hợp, không sửa raw Markdown.
-6. Table và fenced code luôn là atomic Child riêng; không append vào Child item.
-7. Table dài split theo row group và lặp header; code dài split theo dòng, giữ fence hợp lệ và logical_code_key.
-8. legal_unit_type chỉ gán khi có legal context, không suy ra chỉ từ marker.
-9. Validation report có severity; warning không block publish, error mới block theo mặc định.
-10. Chunk.metadata duoc mirror sang Qdrant payload; PostgreSQL khong them structural_metadata trong MVP.
-11. Mat/recreate Qdrant thi rebuild tu canonical Markdown qua parser/chunker, khong rebuild chi tu document_chunks.
-12. Page marker chi quyet dinh page metadata; Markdown heading quyet dinh Parent; numbered/lettered/bullet item quyet dinh Child boundary.
-13. Legal `legal_unit_type` chi gan khi da xac nhan legal context; khong suy ra chi tu hinh dang marker.
-14. Heading context-only co the khong tao Child, nhung phai co `context_only_reason`; heading doc lap phai tao `heading_content` Child.
-15. Cap heading lien tiep nhu `Chuong I` + ten chuong giu derived heading_path ket hop, khong sua raw Markdown.
-16. `embedding_text` cua Child prepend context that (`heading_path`, ancestor item labels, legal context) va khong chua page marker/HTML comment ky thuat.
-```
-
-`embedding_text` của item con prepend `heading_path` và ancestor item labels (`item_path[:-1]`).
-Không lặp current label vì raw content đã chứa item hiện tại.
+Rule liên-file và retrieval dùng
+[`22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md`](22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md).
+Guide này chỉ giữ chi tiết implement chunker.

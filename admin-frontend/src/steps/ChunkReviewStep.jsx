@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client.js'
+import PageHeader from '../components/PageHeader.jsx'
 
 function reportText(report) {
   if (typeof report === 'string') return report
@@ -19,7 +20,7 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
   if (!pipeline.review) {
     return (
       <>
-        <header className="page-head"><h1>3 — Review chunks</h1></header>
+        <PageHeader eyebrow="Ingestion / 03" title="Review chunks" />
         <aside className="banner warn">
           Canonical Markdown chưa được approve.
           <p><button type="button" className="btn small" onClick={() => goTo('review')}>← Review Markdown</button></p>
@@ -48,10 +49,11 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
 
   return (
     <>
-      <header className="page-head">
-        <h1>3 — Review chunks</h1>
-        <p>Kiểm tra parent/child, heading, trang, độ dài và cảnh báo trước khi embedding.</p>
-      </header>
+      <PageHeader
+        eyebrow="Ingestion / 03"
+        title="Review chunks"
+        description="Kiểm tra parent/child, heading, trang, độ dài và cảnh báo trước khi embedding."
+      />
 
       {error && <p className="banner warn" role="alert">{error}</p>}
 

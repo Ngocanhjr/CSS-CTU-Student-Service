@@ -6,16 +6,13 @@ import ChunkReviewStep from './steps/ChunkReviewStep.jsx'
 import IngestStep from './steps/IngestStep.jsx'
 import DocumentsListPage from './documents/DocumentsListPage.jsx'
 import DocumentEditPage from './documents/DocumentEditPage.jsx'
+import WorkflowProgress from './components/WorkflowProgress.jsx'
 
 const STEPS = [
   { key: 'upload', label: 'Tải Markdown' },
   { key: 'review', label: 'Review & approve' },
   { key: 'chunks', label: 'Review chunks' },
   { key: 'ingest', label: 'Index & publish' },
-]
-
-const EXTRA_NAV = [
-  { key: 'documents', label: 'Quản lý tài liệu', icon: '📋' },
 ]
 
 const emptyPipeline = {
@@ -54,25 +51,73 @@ export default function App() {
     setActive('documents-edit')
   }
 
+  function continueIndexing(document) {
+    const metadata = {
+      document_key: document.document_key,
+      version_key: document.version_key,
+      title: document.title,
+      document_type: 'unknown',
+      domain: document.domain || '',
+      audience: document.audience || [],
+      responsible_department: [],
+      checksum: document.checksum,
+      ocr_status: document.ocr_status,
+      review_status: document.review_status,
+      rag_status: document.rag_status,
+    }
+    setPipeline((current) => ({
+      ...current,
+      upload: {
+        document_id: document.document_id,
+        document_version_id: document.id,
+        ingestion_job_id: null,
+        markdown: document.canonical_markdown,
+        metadata,
+      },
+      review: {
+        document_version_id: document.id,
+        review_status: document.review_status,
+        rag_status: document.rag_status,
+        markdown: document.canonical_markdown,
+        metadata,
+      },
+      chunkPreview: null,
+      chunkApproved: false,
+      ingest: null,
+    }))
+    setActive('chunks')
+  }
+
   return (
-    <article className="app">
+    <article className="app-shell">
       <Sidebar
         steps={STEPS}
         active={active}
-        done={done}
         onSelect={setActive}
         onReset={reset}
-        extraNav={EXTRA_NAV}
       />
-      <main className="main" id="main-content">
+      <main className="workspace" id="main-content">
+        <header className="workspace-bar">
+          <div className="workspace-identity">
+            <p className="workspace-eyebrow">CTU Student Service</p>
+            <p className="workspace-context">Admin console / Ingestion</p>
+          </div>
+          <WorkflowProgress steps={STEPS} active={active} done={done} onSelect={setActive} />
+        </header>
+        <section className="workspace-content" aria-label="Nội dung quản trị">
         {active === 'upload' && <UploadStep {...shared} />}
         {active === 'review' && <ReviewStep {...shared} />}
         {active === 'chunks' && <ChunkReviewStep {...shared} />}
         {active === 'ingest' && <IngestStep {...shared} />}
         {active === 'documents' && <DocumentsListPage onEdit={openEdit} />}
         {active === 'documents-edit' && (
-          <DocumentEditPage documentId={editingVersionId} onBack={() => setActive('documents')} />
+          <DocumentEditPage
+            documentId={editingVersionId}
+            onBack={() => setActive('documents')}
+            onContinue={continueIndexing}
+          />
         )}
+        </section>
       </main>
     </article>
   )

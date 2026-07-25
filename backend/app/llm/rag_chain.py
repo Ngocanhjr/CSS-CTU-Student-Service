@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 from langchain_core.output_parsers import StrOutputParser
@@ -25,6 +26,11 @@ class AnswerCitation:
     page_start: int | None
     page_end: int | None
     citation: str
+    # Metadata tài liệu phục vụ màn "Chi tiết tài liệu" trên client.
+    source_file: str
+    issued_date: date | None
+    issuing_authority: str | None
+    document_type: str | None
 
 
 @dataclass(frozen=True)
@@ -34,10 +40,16 @@ class RagAnswer:
 
 def build_answer_citations(results: list[RetrievalResult]) -> list[AnswerCitation]:
     citations: list[AnswerCitation] = []
-    seen_chunk_keys: set[str] = set()
+    seen_sources: set[tuple[str, str, int | None, int | None]] = set()
 
     for result in results:
-        if result.chunk_key in seen_chunk_keys:
+        source_key = (
+            result.document_key,
+            result.version_key,
+            result.page_start,
+            result.page_end,
+        )
+        if source_key in seen_sources:
             continue
 
         citations.append(
@@ -49,9 +61,13 @@ def build_answer_citations(results: list[RetrievalResult]) -> list[AnswerCitatio
                 page_start=result.page_start,
                 page_end=result.page_end,
                 citation=result.citation,
+                source_file=result.source_file,
+                issued_date=result.issued_date,
+                issuing_authority=result.issuing_authority,
+                document_type=result.document_type,
             )
         )
-        seen_chunk_keys.add(result.chunk_key)
+        seen_sources.add(source_key)
 
     return citations
 

@@ -1,48 +1,42 @@
-export default function Sidebar({ steps, active, done, onSelect, onReset, extraNav }) {
+export default function Sidebar({ steps, active, onSelect, onReset }) {
+  const processingActive = steps.some((step) => step.key === active)
+
   return (
     <aside className="sidebar" aria-label="Thanh điều hướng quản trị">
       <header className="brand">
-        <strong>CTU Ingestion</strong>
-        <small>Quản trị tài liệu</small>
+        <span className="brand-mark" aria-hidden="true">CTU</span>
+        <span className="brand-copy">
+          <strong>Ingestion</strong>
+          <small>Quản trị tài liệu</small>
+        </span>
       </header>
 
-      <nav aria-label="Quy trình nhập liệu">
-        <ol className="nav-list">
-          {steps.map((step, index) => (
-            <li key={step.key}>
-              <button
-                type="button"
-                className={`nav-item ${active === step.key ? 'active' : ''} ${done[step.key] ? 'done' : ''}`}
-                aria-current={active === step.key ? 'step' : undefined}
-                onClick={() => onSelect(step.key)}
-              >
-                <span className="idx" aria-hidden="true">{done[step.key] ? '✓' : index + 1}</span>
-                {step.label}
-              </button>
-            </li>
-          ))}
-        </ol>
+      <nav aria-label="Khu vực quản trị">
+        <ul className="nav-list section-list">
+          <li>
+            <button
+              type="button"
+              className={`nav-item section-item ${processingActive ? 'active' : ''}`}
+              aria-current={processingActive ? 'page' : undefined}
+              onClick={() => onSelect(processingActive ? active : 'upload')}
+            >
+              <span className="idx" aria-hidden="true">01</span>
+              Xử lý tài liệu
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={`nav-item section-item ${active.startsWith('documents') ? 'active' : ''}`}
+              aria-current={active.startsWith('documents') ? 'page' : undefined}
+              onClick={() => onSelect('documents')}
+            >
+              <span className="idx" aria-hidden="true">02</span>
+              Quản lý tài liệu
+            </button>
+          </li>
+        </ul>
       </nav>
-
-      {extraNav?.length > 0 && (
-        <nav className="secondary-nav" aria-label="Quản lý dữ liệu">
-          <ul className="nav-list">
-            {extraNav.map((item) => (
-              <li key={item.key}>
-                <button
-                  type="button"
-                  className={`nav-item ${active === item.key ? 'active' : ''}`}
-                  aria-current={active === item.key ? 'page' : undefined}
-                  onClick={() => onSelect(item.key)}
-                >
-                  <span className="idx" aria-hidden="true">{item.icon || '📄'}</span>
-                  {item.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
 
       <button type="button" className="btn ghost small reset-action" onClick={onReset}>
         Bắt đầu tài liệu mới

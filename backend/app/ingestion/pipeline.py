@@ -3,8 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 # from pprint import pprint
 
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
-
+from app.llm.generator import get_chat_model
 from app.llm.prompts import RAG_ANSWER_PROMPT
     
 from langchain_core.output_parsers import StrOutputParser
@@ -89,12 +88,7 @@ def main() -> None:
         "Try asking about the conditions or procedure for a birth certificate."
     )
 
-    llm = ChatNVIDIA(
-        model="qwen/qwen3-next-80b-a3b-instruct",
-        temperature=0.1,
-        top_p=0.7, #Limit scope of token most likely ones
-        max_completion_tokens=1024,
-    )
+    llm = get_chat_model()
 
     prompt = RAG_ANSWER_PROMPT
     top_k = 5

@@ -276,7 +276,7 @@ def _build_chunk_records(frontmatter, parents, source_file: str):
                     "audience": ["sinh_vien"],
                     "audience_student": True,
                     "review_status": "approved",
-                    "rag_status": "published",
+                    "rag_status": "indexed",
                     "is_latest": True,
                     "chunk_key": chunk_key,
                     "parent_chunk_key": parent_key,
@@ -378,7 +378,7 @@ def build_fixture(source: Path) -> dict:
             {
                 "field": "rag_status",
                 "source": metadata.get("rag_status"),
-                "fixture": "published",
+                "fixture": "indexed",
                 "reason": "Fixture represents the final state needed by retrieval.",
             },
         ],
@@ -422,7 +422,7 @@ def build_fixture(source: Path) -> dict:
                 },
                 "ocr_status": "done",
                 "review_status": "approved",
-                "rag_status": "published",
+                "rag_status": "indexed",
                 "status_note": "QD3266 retrieval fixture",
             },
             "document_recipients": [

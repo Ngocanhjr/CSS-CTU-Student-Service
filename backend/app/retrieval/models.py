@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Literal
 
 
@@ -89,3 +90,8 @@ class RetrievalResult:
     # kết quả tìm trực tiếp; kết quả được bổ sung sau expansion.
     expansion_reason: ExpansionReason = "direct_hit"
     parent_content: str | None = None
+
+    # Metadata tài liệu phục vụ màn "Chi tiết tài liệu" trên client.
+    issued_date: date | None = None
+    issuing_authority: str | None = None
+    document_type: str | None = None

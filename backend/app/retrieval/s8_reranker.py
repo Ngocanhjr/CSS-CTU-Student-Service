@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
-import os
 import re
 from typing import Protocol
-
-from langchain_core.documents import Document as LangChainDocument
-from langchain_nvidia_ai_endpoints import NVIDIARerank
 
 from app.retrieval.models import RetrievalResult
 
@@ -132,88 +128,3 @@ class LexicalReranker:
         #sắp xếp chunk theo điểm từ cao xuống thấp
         reranked.sort(key=lambda item: (-item[0], item[1]))
         return [result for _, _, result in reranked]
-
-
-class NVIDIAReranker:
-    """Rerank hydrated chunks with NVIDIA NeMo Retriever Reranking NIM.
-
-    The hosted endpoint reads ``NVIDIA_API_KEY`` automatically. Set
-    ``NVIDIA_RERANK_BASE_URL`` when the reranking NIM is self-hosted.
-    """
-
-    def __init__(
-        self,
-        *,
-        model: str | None = None,
-        api_key: str | None = None,
-        base_url: str | None = None,
-        truncate: str = "END",
-    ) -> None:
-        self.model = model or os.getenv(
-            "NVIDIA_RERANK_MODEL",
-            "nvidia/llama-nemotron-rerank-1b-v2",
-        )
-        self.api_key = api_key
-        self.base_url = base_url or os.getenv("NVIDIA_RERANK_BASE_URL")
-        self.truncate = truncate
-
-    def _build_client(self, *, top_n: int) -> NVIDIARerank:
-        options: dict[str, object] = {
-            "model": self.model,
-            "top_n": top_n,
-            "truncate": self.truncate,
-        }
-        if self.api_key:
-            options["api_key"] = self.api_key
-        if self.base_url:
-            options["base_url"] = self.base_url
-
-        return NVIDIARerank(**options)
-
-    def rerank(
-        self,
-        query: str,
-        results: list[RetrievalResult],
-    ) -> list[RetrievalResult]:
-        if not query.strip() or len(results) < 2:
-            return results
-        if len(results) > 512:
-            raise ValueError("NVIDIA reranking supports at most 512 candidates")
-
-        candidates = [
-            LangChainDocument(
-                page_content=result.content,
-                metadata={"_retrieval_result_index": index},
-            )
-            for index, result in enumerate(results)
-        ]
-        reranked_documents = self._build_client(
-            top_n=len(candidates)
-        ).compress_documents(
-            documents=candidates,
-            query=query,
-        )
-
-        reranked_results: list[RetrievalResult] = []
-        selected_indexes: set[int] = set()
-        for document in reranked_documents:
-            index = document.metadata.get("_retrieval_result_index")
-            if not isinstance(index, int) or index in selected_indexes:
-                continue
-
-            selected_indexes.add(index)
-            relevance_score = document.metadata.get("relevance_score")
-            score = (
-                float(relevance_score)
-                if relevance_score is not None
-                else results[index].score
-            )
-            reranked_results.append(replace(results[index], score=score))
-
-        # Keep a complete result set even if a provider returns fewer candidates.
-        reranked_results.extend(
-            result
-            for index, result in enumerate(results)
-            if index not in selected_indexes
-        )
-        return reranked_results

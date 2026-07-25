@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from datetime import date
+
 from app.schemas.base import StrictSchema
+from pydantic import Field
 
 
 class DocumentVersionSummary(StrictSchema):
@@ -31,3 +34,35 @@ class DocumentVersionDetail(DocumentVersionSummary):
     source_path: str
     source_url: str
     checksum: str
+    last_job_id: int | None = None
+    last_job_status: str | None = None
+    last_job_step: str | None = None
+    last_job_error: str | None = None
+    last_job_processed_chunks: int | None = None
+    last_job_total_chunks: int | None = None
+
+
+class DocumentVersionUpdateMetadata(StrictSchema):
+    """Editable fields exposed by the admin document editor."""
+
+    title: str
+    document_type_id: int | None = None
+    department_id: int | None = None
+    domain: str = ""
+    audience: list[str] = Field(default_factory=list)
+    code: str | None = None
+    version_label: str | None = None
+    issued_date: date | None = None
+    effective_date: date | None = None
+    expiry_date: date | None = None
+    validity_status: str = "unknown"
+
+
+class DocumentVersionUpdateRequest(StrictSchema):
+    metadata: DocumentVersionUpdateMetadata
+    canonical_markdown: str
+
+
+class DocumentVersionUpdateResponse(StrictSchema):
+    updated: bool
+    document: DocumentVersionDetail

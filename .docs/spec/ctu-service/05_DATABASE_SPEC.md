@@ -1,8 +1,6 @@
 # 05. Đặc Tả Database
 
-**Version:** 3.0  
-**Last Updated:** 2026-07-04  
-**Status:** Final
+**Status:** Overview
 
 > Deployable PostgreSQL DDL, Qdrant collection/payload, cross-store lifecycle, and retrieval
 > eligibility are defined normatively in `10_POSTGRES_QDRANT_RETRIEVAL_CONTRACT.md`. That file

@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import Field
 
 from app.schemas.base import StrictSchema
@@ -16,6 +18,11 @@ class CitationResponse(StrictSchema):
     page_start: int | None = None
     page_end: int | None = None
     citation: str
+    # Metadata tài liệu phục vụ màn "Chi tiết tài liệu" trên client.
+    source_file: str = ""
+    issued_date: date | None = None
+    issuing_authority: str | None = None
+    document_type: str | None = None
 
 
 class AnswerResponse(StrictSchema):
