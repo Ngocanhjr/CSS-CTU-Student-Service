@@ -122,35 +122,69 @@ Trong rag_chain.py: hàm build_answer_citations sẽ khử trùng theo: tài li�
 
 ---
 
-Còn 1 vài lỗi chưa xử lý ổn:
+## Còn 1 vài lỗi chưa xử lý ổn:
 
-1. **Các trường hợp người dùng gửi câu hỏi mơ hồ không ngữ cảnh thì xử lý ntn, để tránh trùng với câu hỏi không ngữ cảnh khi đã có topic trước đó**
+1/ **Các trường hợp người dùng gửi câu hỏi mơ hồ không ngữ cảnh thì xử lý ntn, để tránh trùng với câu hỏi không ngữ cảnh khi đã có topic trước đó**
 
-   Câu hỏi vào
-      │
-      ├─ Câu RÕ (có chủ thể: "điều kiện học bổng")     → heuristic cho qua ngay, KHÔNG gọi LLM phân loại
-      │                                   → chỉ tốn ~0ms
-      │
-      ├─ Câu CHẮC CHẮN mơ hồ ("điều kiện")             → heuristic chặn ngay, hỏi lại, KHÔNG gọi LLM
-      │   + không có ngữ cảnh                → chỉ tốn ~0ms
-      │
-      └─ Câu VÙNG XÁM (đáng ngờ, khó nói)              → mới gọi LLM phân loại
-                                           → tốn ~0,5–1,5s
+Câu hỏi vào
+│
+├─ Câu RÕ (có chủ thể: "điều kiện học bổng")     → heuristic cho qua ngay, KHÔNG gọi LLM phân loại
+│                                   → chỉ tốn ~0ms
+│
+├─ Câu CHẮC CHẮN mơ hồ ("điều kiện")             → heuristic chặn ngay, hỏi lại, KHÔNG gọi LLM
+│   + không có ngữ cảnh                → chỉ tốn ~0ms
+│
+└─ Câu VÙNG XÁM (đáng ngờ, khó nói)              → mới gọi LLM phân loại
+→ tốn ~0,5–1,5s
 
-   Có nhiều cách xử lý:
+Có nhiều cách xử lý:
 
-   1. Heuristic + ngữ cảnh(chưa tối ưu vẫn có thể gây nhầm lẫn) nhưng ít tốn tg gen câu trl: luôn đảm bảo <1ms và ổn định
-   2. nếu dùng LLM phân loại + ngữ cảnh thì chính xác hơn nhưng sẽ + thêm 1 lượt gọi LLM (chậm hơn và tốn hơn): có thể tốn đến 0.5s - 1.5s. Nếu provider quá tải có thể sẽ lên tới 2-3s
-   3. Hybrid heuristic + llm: heuristic phân loại đó là câu hỏi có cần gọi tới llm hay không, hay tự nó xử lý được: với pa này thì có thể sẽ khắc phục được hạn chế của tốn tg cho tất cả prompt của llm. Vì chỉ khi câu hỏi thuộc vùng xám cần llm phân loại => tốn thời gian. KHÁ PHỨC TẠP
+- Heuristic + ngữ cảnh(chưa tối ưu vẫn có thể gây nhầm lẫn) nhưng ít tốn tg gen câu trl: luôn đảm bảo <1ms và ổn định
+- nếu dùng LLM phân loại + ngữ cảnh thì chính xác hơn nhưng sẽ + thêm 1 lượt gọi LLM (chậm hơn và tốn hơn): có thể tốn đến 0.5s - 1.5s. Nếu provider quá tải có thể sẽ lên tới 2-3s
+- Hybrid heuristic + llm: heuristic phân loại đó là câu hỏi có cần gọi tới llm hay không, hay tự nó xử lý được: với pa này thì có thể sẽ khắc phục được hạn chế của tốn tg cho tất cả prompt của llm. Vì chỉ khi câu hỏi thuộc vùng xám cần llm phân loại => tốn thời gian. KHÁ PHỨC TẠP
+
+2/ Đổi reranker từ dùng LexicalReranker -> Cross-Encoder với model bge-reranker-v2-m3 giống model của embedding. Tạo thêm 1 container tei thứ 2 cho reranker
 
 ---
 
-Lệnh chạy backend: lệnh này chạy được ở cả 2 môi trường: emulator và chrome
+## Lệnh khởi động docker
 
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+**cd CSS-CTU-Student-Service**
 
-Lệnh chạy frontend:
+**docker compose up -d**
 
-- cd myapp/frontend
-- Kiểm tra các thiết bị hiện có: flutter devices
-- Run: flutter run -d <tên TB>
+Các lệnh hay dùng khác:
+
+```powershell
+docker compose ps            # xem trạng thái các container
+docker compose logs -f       # xem log tất cả service
+docker compose logs -f qdrant   # xem log 1 service
+docker compose down          # dừng và xóa container (giữ lại data trong volume)
+docker compose up -d postgres qdrant   # chỉ khởi động service cần thiết
+```
+
+## Lệnh tạo key tei:
+
+**python -c "import secrets; print(secrets.token_hex(32))"**
+
+
+## Truy cập vào trang openRouter để lấy key cho model Qwen
+
+
+## Lệnh chạy backend: lệnh này chạy được ở cả 2 môi trường: emulator và chrome
+
+**cd backend**
+
+Khởi động venv: 
+
+**`.\.venv\Scripts\Activate.ps1`**
+
+**python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload**
+
+Với điện thoại thật: dùng IP LAN
+
+## Lệnh chạy frontend:
+
+- **cd myapp/frontend**
+- **Kiểm tra các thiết bị hiện có: flutter devices**
+- **Run: flutter run -d <tên TB>**
