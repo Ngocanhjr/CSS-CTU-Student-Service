@@ -1,6 +1,7 @@
 const COLOR = {
   // ocr_status
   not_started: 'slate',
+  completed: 'green',
   processing: 'blue',
   need_review: 'amber',
   failed: 'red',
@@ -30,6 +31,7 @@ const COLOR = {
 
 const LABEL = {
   not_started: 'Chưa bắt đầu',
+  completed: 'Hoàn tất',
   processing: 'Đang xử lý',
   need_review: 'Chờ duyệt',
   failed: 'Thất bại',

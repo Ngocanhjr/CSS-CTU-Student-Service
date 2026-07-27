@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
@@ -17,6 +17,7 @@ export default function IngestStep({ pipeline, update, goTo }) {
   const upload = pipeline.upload
   const metadata = upload?.metadata
   const ingest = pipeline.ingest
+  const [job, setJob] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -37,6 +38,7 @@ export default function IngestStep({ pipeline, update, goTo }) {
     setError('')
     try {
       const res = await api.indexDocumentVersion(upload.document_version_id)
+      setJob(res)
       update('ingest', res)
     } catch (err) {
       setError(err.message)
@@ -45,7 +47,27 @@ export default function IngestStep({ pipeline, update, goTo }) {
     }
   }
 
-  const ragStatus = ingest?.rag_status || metadata.rag_status || 'not_indexed'
+  useEffect(() => {
+    if (!job?.ingestion_job_id || !['pending', 'processing'].includes(job.job_status)) return undefined
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const next = await api.getIndexingJob(job.ingestion_job_id)
+        if (cancelled) return
+        setJob(next)
+        if (!['pending', 'processing'].includes(next.job_status)) update('ingest', next)
+      } catch (err) {
+        if (!cancelled) setError(err.message)
+      }
+    }
+    const timer = setInterval(poll, 1000)
+    void poll()
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [job?.ingestion_job_id, job?.job_status, update])
+
+  const progress = job || ingest
+  const ragStatus = progress?.rag_status || metadata.rag_status || 'not_indexed'
+  const indexing = progress?.job_status === 'processing'
   const alreadyIndexed = ['indexed', 'published'].includes(ragStatus)
   const canIngest = metadata?.ocr_status === 'done'
     && metadata?.review_status === 'approved'
@@ -88,9 +110,11 @@ export default function IngestStep({ pipeline, update, goTo }) {
           <dt>review_status</dt><dd><StatusBadge status={metadata.review_status || 'not_reviewed'} /></dd>
           <dt>rag_status</dt><dd><StatusBadge status={ragStatus} /></dd>
         </dl>
-        <button type="button" className="btn" disabled={busy || !canIngest} onClick={onRun}>
+        <button type="button" className="btn" disabled={busy || indexing || !canIngest} onClick={onRun}>
           {busy
-            ? 'Đang index…'
+            ? 'Đang tạo job…'
+            : indexing
+              ? 'Đang index…'
             : alreadyIndexed
               ? 'Đã index — không cần chạy lại'
               : ragStatus === 'failed'
@@ -100,6 +124,22 @@ export default function IngestStep({ pipeline, update, goTo }) {
                   : 'Tiếp tục index'}
         </button>
       </section>
+
+      {progress?.ingestion_job_id && (
+        <section className="card" aria-labelledby="embedding-progress-heading">
+          <h2 id="embedding-progress-heading">Tiến độ embedding</h2>
+          <dl className="kv">
+            <dt>job.status</dt><dd><StatusBadge status={progress.job_status} /></dd>
+            <dt>current_step</dt><dd className="mono">{progress.current_step}</dd>
+            <dt>Child chunks</dt><dd>{progress.processed_chunks} / {progress.total_chunks}</dd>
+            <dt>Còn lại</dt><dd>{progress.remaining_chunks} chunks</dd>
+          </dl>
+          <progress value={progress.processed_chunks} max={progress.total_chunks || 1}>
+            {progress.processed_chunks} / {progress.total_chunks}
+          </progress>
+          {progress.error_message && <p className="banner warn" role="alert">{progress.error_message}</p>}
+        </section>
+      )}
 
       <section className="card" aria-labelledby="pipeline-heading">
         <h2 id="pipeline-heading">Tiến trình indexing</h2>

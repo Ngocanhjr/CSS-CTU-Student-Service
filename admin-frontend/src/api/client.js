@@ -20,6 +20,10 @@ async function request(path, options) {
 }
 
 export const api = {
+  getDatabaseHealth() {
+    return request('/api/v1/health/database')
+  },
+
   uploadCanonicalMarkdown(file) {
     const body = new FormData()
     body.append('file', file)
@@ -28,6 +32,10 @@ export const api = {
 
   indexDocumentVersion(versionId) {
     return request(`/api/v1/admin/document-versions/${versionId}/index`, { method: 'POST' })
+  },
+
+  getIndexingJob(jobId) {
+    return request(`/api/v1/admin/ingestion-jobs/${jobId}`)
   },
 
   reviewCanonicalMarkdown(versionId, canonicalMarkdown) {
@@ -59,5 +67,44 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
+  },
+
+  deleteDocument(versionId) {
+    return request(`/api/v1/versions/${versionId}`, { method: 'DELETE' })
+  },
+
+  publishDocument(versionId) {
+    return request(`/api/v1/versions/${versionId}/publish`, { method: 'POST' })
+  },
+
+  unpublishDocument(versionId) {
+    return request(`/api/v1/versions/${versionId}/unpublish`, { method: 'POST' })
+  },
+
+  deindexDocument(versionId) {
+    return request(`/api/v1/versions/${versionId}/deindex`, { method: 'POST' })
+  },
+
+  getDocumentTypes() {
+    return request('/api/v1/reference/document-types')
+  },
+
+  getDepartments() {
+    return request('/api/v1/reference/departments')
+  },
+
+  // Debug APIs
+  getChunksDebug(versionId) {
+    return request(`/api/v1/admin/chunks/${versionId}`)
+  },
+
+  getVectorsDebug(versionId) {
+    return request(`/api/v1/admin/vectors/${versionId}`)
+  },
+
+  searchTest(query, topK = 5, departmentId = null) {
+    const params = new URLSearchParams({ q: query, top_k: topK })
+    if (departmentId) params.append('department_id', departmentId)
+    return request(`/api/v1/admin/search-test?${params}`)
   },
 }

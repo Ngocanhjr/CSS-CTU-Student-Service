@@ -3,7 +3,7 @@ from pathlib import Path
 def index_document(path: str | Path) -> int:
     raise RuntimeError(
         "Legacy one-shot indexing is disabled; use "
-        "app.ingestion.indexing_service.index_document_version"
+        "POST /api/v1/admin/document-versions/{id}/index"
     )
 
 path = Path(__file__).parent / "chunking" / "test" / "Noi quy KTX nam 2016_llp.md"

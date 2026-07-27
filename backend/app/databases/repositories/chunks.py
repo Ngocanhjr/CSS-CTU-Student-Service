@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.models.chunks import DocumentChunk
@@ -76,3 +76,27 @@ async def get_version_chunks(session: AsyncSession, document_version_id: int) ->
         .order_by(DocumentChunk.chunk_index)
     )
     return list(result.scalars().all())
+
+
+async def delete_chunks_by_version(
+    session: AsyncSession,
+    document_version_id: int,
+) -> int:
+    """Delete all chunks for a document version. Returns count deleted."""
+
+    # Count before delete
+    count_result = await session.execute(
+        select(func.count()).where(
+            DocumentChunk.document_version_id == document_version_id
+        )
+    )
+    count = count_result.scalar() or 0
+
+    # Delete chunks
+    await session.execute(
+        delete(DocumentChunk).where(
+            DocumentChunk.document_version_id == document_version_id
+        )
+    )
+
+    return count

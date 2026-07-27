@@ -2,9 +2,27 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
-import { documentTypes, departments, ragStatuses, reviewStatuses } from '../api/referenceData.js'
+import { useReferenceData } from '../hooks/useReferenceData.js'
+import { ragStatuses, reviewStatuses } from '../api/referenceData.js'
 
-export default function DocumentsListPage({ onEdit }) {
+function EmptyStateIcon() {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path
+        d="M11 4h7l5 5v13a2 2 0 01-2 2H11a2 2 0 01-2-2V6a2 2 0 012-2z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M18 4v5h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="14.5" cy="16.5" r="3.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M17.2 19.2L20 22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export default function DocumentsListPage({ onEdit, onUploadNew }) {
+  const { documentTypes, departments, loading: refLoading } = useReferenceData()
   const [query, setQuery] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [documentTypeId, setDocumentTypeId] = useState('')
@@ -13,6 +31,7 @@ export default function DocumentsListPage({ onEdit }) {
   const [results, setResults] = useState(null)
   const [busy, setBusy] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -45,6 +64,26 @@ export default function DocumentsListPage({ onEdit }) {
     }
   }
 
+  function clearFilters() {
+    setQuery('')
+    setDepartmentId('')
+    setDocumentTypeId('')
+    setRagStatus('')
+    setReviewStatus('')
+  }
+
+  async function handleDelete(versionId) {
+    if (!confirm('Bạn có chắc muốn xóa tài liệu này?')) return
+    setDeleteError(null)
+    try {
+      await api.deleteDocument(versionId)
+      setResults((prev) => prev.filter((d) => d.id !== versionId))
+    } catch (err) {
+      setDeleteError(err.message)
+    }
+  }
+
+  const hasFilters = Boolean(query || departmentId || documentTypeId || ragStatus || reviewStatus)
   const deptName = (id) => departments.find((d) => d.id === id)?.name || id
   const typeName = (id) => documentTypes.find((t) => t.id === id)?.name || id
 
@@ -97,6 +136,13 @@ export default function DocumentsListPage({ onEdit }) {
         </fieldset>
       </form>
 
+      {deleteError && (
+        <div className="card error" role="alert">
+          <p>Lỗi khi xóa: {deleteError}</p>
+          <button type="button" className="btn ghost small" onClick={() => setDeleteError(null)}>Đóng</button>
+        </div>
+      )}
+
       <section className="card" aria-labelledby="document-results-heading">
         <h2 id="document-results-heading">Kết quả {results ? `(${results.length})` : ''}</h2>
         {results && results.length > 0 ? (
@@ -137,14 +183,39 @@ export default function DocumentsListPage({ onEdit }) {
                   </td>
                   <td className="table-action">
                     <button type="button" className="btn ghost small" onClick={() => onEdit(d.id)}>Sửa</button>
+                    {(d.rag_status === 'not_indexed' || d.rag_status === 'failed') && (
+                      <button type="button" className="btn ghost small danger" onClick={() => handleDelete(d.id)}>Xóa</button>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
           </div>
+        ) : busy ? (
+          <p className="hint">Đang tìm kiếm…</p>
         ) : (
-          <p className="hint">{busy ? 'Đang tìm kiếm…' : 'Không có tài liệu phù hợp.'}</p>
+          <div className="empty-state">
+            <span className="empty-state-art" aria-hidden="true"><EmptyStateIcon /></span>
+            <h3>{hasFilters ? 'Không có tài liệu nào khớp bộ lọc' : 'Chưa có tài liệu nào'}</h3>
+            <p>
+              {hasFilters
+                ? 'Thử bỏ vài điều kiện lọc hoặc dùng từ khoá ngắn hơn. Tài liệu mới cũng có thể chưa được tải lên.'
+                : 'Tải canonical Markdown đầu tiên lên để bắt đầu quy trình duyệt và index.'}
+            </p>
+            <div className="empty-state-actions">
+              {hasFilters && (
+                <button type="button" className="btn ghost" onClick={clearFilters}>
+                  Xoá bộ lọc
+                </button>
+              )}
+              {onUploadNew && (
+                <button type="button" className="btn" onClick={onUploadNew}>
+                  Tải tài liệu mới
+                </button>
+              )}
+            </div>
+          </div>
         )}
       </section>
     </>

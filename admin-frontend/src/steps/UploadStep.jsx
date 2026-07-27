@@ -1,18 +1,92 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
+
+const MAX_SIZE_MB = 20
+const ACCEPTED_EXTENSIONS = ['.md', '.markdown']
+const NEXT_STEPS = [
+  ['02', 'Review & Approve', 'Kiểm tra nội dung'],
+  ['03', 'Review Chunks', 'Phân đoạn văn bản'],
+  ['04', 'Index & Publish', 'Đưa vào hệ thống'],
+]
+
+function getUploadErrorMessage(err) {
+  // Network timeout (AbortError from AbortController)
+  if (err.name === 'AbortError') {
+    return 'Kết nối quá thời gian. Vui lòng kiểm tra mạng và thử lại.'
+  }
+
+  // Network error (TypeError from fetch - connection refused, DNS failure, etc.)
+  if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
+    return 'Không thể kết nối server. Vui lòng thử lại sau.'
+  }
+
+  // Server error (5xx) - check if message contains HTTP 5xx pattern
+  if (/HTTP\s*5\d{2}/i.test(err.message)) {
+    return 'Lỗi server. Vui lòng thử lại sau.'
+  }
+
+  // File validation errors from server - these typically come with descriptive messages
+  // Check for common validation error patterns
+  if (err.message && (
+    err.message.includes('file') ||
+    err.message.includes('File') ||
+    err.message.includes('invalid') ||
+    err.message.includes('không hợp lệ') ||
+    err.message.includes('frontmatter') ||
+    err.message.includes('YAML')
+  )) {
+    return `File không hợp lệ: ${err.message}`
+  }
+
+  // Default: return original message or generic error
+  return err.message || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.'
+}
+
+function UploadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 15v2.5A2.5 2.5 0 006.5 20h11a2.5 2.5 0 002.5-2.5V15"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 export default function UploadStep({ pipeline, update, goTo }) {
   const [file, setFile] = useState(null)
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [databaseStatus, setDatabaseStatus] = useState('checking')
 
   const result = pipeline.upload
 
+  useEffect(() => {
+    let active = true
+    api.getDatabaseHealth()
+      .then(({ status }) => active && setDatabaseStatus(status))
+      .catch(() => active && setDatabaseStatus('unavailable'))
+    return () => { active = false }
+  }, [])
+
   function pick(f) {
     if (!f) return
+    const name = f.name.toLowerCase()
+    if (!ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+      setError(`Chỉ nhận tệp Markdown (${ACCEPTED_EXTENSIONS.join(', ')}).`)
+      return
+    }
+    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+      setError(`Tệp vượt giới hạn ${MAX_SIZE_MB} MB.`)
+      return
+    }
     setFile(f)
     setError('')
   }
@@ -29,7 +103,7 @@ export default function UploadStep({ pipeline, update, goTo }) {
       update('ingest', null)
       goTo('review')
     } catch (err) {
-      setError(err.message)
+      setError(getUploadErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -38,16 +112,27 @@ export default function UploadStep({ pipeline, update, goTo }) {
   return (
     <>
       <PageHeader
-        eyebrow="Ingestion / 01"
+        eyebrow="Ingestion · Bước 01 / 04"
         title="Tải canonical Markdown"
-        description="Tải Markdown đã OCR, gồm YAML frontmatter và page markers. PostgreSQL phải hoạt động ở bước này."
+        description="Tải file Markdown đã OCR, có YAML frontmatter và page markers. Hệ thống sẽ xác thực cấu trúc trước khi chuyển sang bước review."
       />
 
-      <form className="card" aria-labelledby="upload-file-heading" onSubmit={(event) => { event.preventDefault(); onUpload() }}>
-        <h2 id="upload-file-heading">Chọn file</h2>
+      <p className={`database-health ${databaseStatus}`} role="status" aria-live="polite">
+        <span aria-hidden="true">●</span>
+        {databaseStatus === 'checking' && 'Đang kiểm tra PostgreSQL…'}
+        {databaseStatus === 'available' && 'PostgreSQL đang hoạt động'}
+        {databaseStatus === 'unavailable' && 'Không thể kết nối PostgreSQL'}
+      </p>
+
+      <form className="card upload-form" aria-labelledby="upload-file-heading" onSubmit={(event) => { event.preventDefault(); onUpload() }}>
+        <header className="upload-card-head">
+          <h2 id="upload-file-heading">Chọn file</h2>
+          <span className="file-types">.md&nbsp;&nbsp;·&nbsp;&nbsp;.markdown</span>
+        </header>
         <label
           className={`dropzone ${drag ? 'drag' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+          onDragEnter={(e) => { e.preventDefault(); setDrag(true) }}
           onDragLeave={() => setDrag(false)}
           onDrop={(e) => {
             e.preventDefault()
@@ -55,28 +140,68 @@ export default function UploadStep({ pipeline, update, goTo }) {
             pick(e.dataTransfer.files?.[0])
           }}
         >
+          <span className="dropzone-icon" aria-hidden="true"><UploadIcon /></span>
           {file ? (
             <span className="selected-file">
               <strong>{file.name}</strong>
-              <small className="hint">{(file.size / 1024).toFixed(1)} KB — bấm để chọn file khác</small>
+              <small className="hint">{(file.size / 1024).toFixed(1)} KB — bấm để chọn tệp khác</small>
             </span>
           ) : (
-            <span>Kéo thả file vào đây, hoặc bấm để chọn</span>
+            <>
+              <span className="dropzone-title">
+                Kéo thả tệp vào đây, hoặc <em>bấm để chọn</em>
+              </span>
+              <small className="dropzone-meta">
+                Chấp nhận {ACCEPTED_EXTENSIONS.join(', ')} · tối đa {MAX_SIZE_MB} MB · cần YAML frontmatter và page markers
+              </small>
+            </>
           )}
           <input
             type="file"
-            hidden
-            accept=".md,text/markdown"
+            className="sr-only"
+            accept=".md,.markdown,text/markdown"
             onChange={(e) => pick(e.target.files?.[0])}
           />
         </label>
 
-        <button type="submit" className="btn upload-button" disabled={!file || busy}>
-          {busy ? 'Đang tải lên…' : 'Tải lên'}
-        </button>
+        <div className="upload-actions">
+          <button type="submit" className="btn" disabled={!file || busy} aria-busy={busy}>
+            {busy ? <Loader2 size={16} className="spin" /> : <UploadIcon />}
+            {busy ? 'Đang tải lên...' : 'Tải lên'}
+          </button>
+          {file && !busy && (
+            <button type="button" className="btn ghost" onClick={() => setFile(null)}>
+              Bỏ chọn
+            </button>
+          )}
+          {!file && <span className="hint">Chọn tệp Markdown để bật nút tải lên.</span>}
+        </div>
       </form>
 
-      {error && <p className="banner warn" role="alert">{error}</p>}
+      {error && <p className="banner" role="alert">{error}</p>}
+
+      <aside className="upload-tip">
+        <span aria-hidden="true">◇</span>
+        <p><strong>Mẹo:</strong> Đảm bảo file có YAML frontmatter hợp lệ để hệ thống xác thực chính xác.</p>
+      </aside>
+
+      <aside className="upload-notice">
+        <span aria-hidden="true">!</span>
+        <p>PostgreSQL phải hoạt động ở bước này để lưu bản ghi ingestion. Trạng thái kết nối đang hiển thị phía trên.</p>
+      </aside>
+
+      <section className="next-steps" aria-labelledby="next-steps-heading">
+        <h2 id="next-steps-heading">Các bước tiếp theo</h2>
+        <ol>
+          {NEXT_STEPS.map(([number, title, description]) => (
+            <li key={number}>
+              <small><span aria-hidden="true">○</span> Bước {number}</small>
+              <strong>{title}</strong>
+              <span>{description}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       {result && (
         <section className="card" aria-labelledby="upload-result-heading">

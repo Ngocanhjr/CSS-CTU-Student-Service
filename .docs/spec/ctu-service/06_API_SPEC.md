@@ -2,6 +2,15 @@
 
 Use `/api/v1` prefix for all public API routes.
 
+## Health
+
+```http
+GET /api/v1/health/database
+```
+
+Returns `{"status":"available"}` when PostgreSQL answers `SELECT 1`, otherwise
+`{"status":"unavailable"}`. This endpoint is informational and always returns HTTP 200.
+
 ## RAG answer
 
 ```http

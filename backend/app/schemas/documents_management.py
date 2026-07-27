@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from app.schemas.base import StrictSchema
 from pydantic import Field
@@ -66,3 +66,22 @@ class DocumentVersionUpdateRequest(StrictSchema):
 class DocumentVersionUpdateResponse(StrictSchema):
     updated: bool
     document: DocumentVersionDetail
+
+
+class DeindexResponse(StrictSchema):
+    document_version_id: int
+    chunks_deleted: int
+    vectors_deleted: int
+    new_rag_status: str
+
+
+class PublishResponse(StrictSchema):
+    document_version_id: int
+    rag_status: str
+    published_at: datetime
+
+
+class UnpublishResponse(StrictSchema):
+    document_version_id: int
+    rag_status: str
+    unpublished_at: datetime

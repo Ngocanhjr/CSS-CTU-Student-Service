@@ -45,3 +45,15 @@ class IndexingResponse(StrictSchema):
     rag_status: str
     warnings: list[dict] = Field(default_factory=list)
     errors: list[dict] = Field(default_factory=list)
+
+
+class IndexingJobProgress(StrictSchema):
+    ingestion_job_id: int
+    document_version_id: int
+    job_status: str
+    current_step: str
+    total_chunks: int
+    processed_chunks: int
+    remaining_chunks: int
+    rag_status: str
+    error_message: str | None = None

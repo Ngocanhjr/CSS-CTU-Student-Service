@@ -2,12 +2,8 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
-import {
-  documentTypes,
-  departments,
-  audienceOptions,
-  domainOptions,
-} from '../api/referenceData.js'
+import { useReferenceData } from '../hooks/useReferenceData.js'
+import { audienceOptions, domainOptions } from '../api/referenceData.js'
 
 const VALIDITY_STATUSES = ['unchecked', 'valid', 'expired', 'replaced', 'unknown']
 
@@ -28,6 +24,7 @@ function toForm(doc) {
 }
 
 export default function DocumentEditPage({ documentId, onBack, onContinue }) {
+  const { documentTypes, departments, loading: refLoading } = useReferenceData()
   const [doc, setDoc] = useState(null)
   const [form, setForm] = useState(null)
   const [markdown, setMarkdown] = useState('')
@@ -54,7 +51,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
     return () => { cancelled = true }
   }, [documentId])
 
-  if (loading) {
+  if (loading || refLoading) {
     return (
       <>
         <PageHeader eyebrow="Documents / Edit" title="Sửa tài liệu" />
@@ -123,6 +120,60 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
     }
   }
 
+  async function handlePublish() {
+    setBusy(true)
+    setError('')
+    try {
+      await api.publishDocument(documentId)
+      const updated = await api.getDocument(documentId)
+      setDoc(updated)
+      setForm(toForm(updated))
+      setResult({ updated: true, message: 'Đã publish thành công' })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleUnpublish() {
+    if (!confirm('Unpublish sẽ ẩn tài liệu khỏi chatbot. Tiếp tục?')) return
+    setBusy(true)
+    setError('')
+    try {
+      await api.unpublishDocument(documentId)
+      const updated = await api.getDocument(documentId)
+      setDoc(updated)
+      setForm(toForm(updated))
+      setResult({ updated: true, message: 'Đã unpublish' })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDeindex() {
+    if (!confirm('Deindex sẽ xóa tất cả chunks và vectors. Tiếp tục?')) return
+    setBusy(true)
+    setError('')
+    try {
+      const res = await api.deindexDocument(documentId)
+      const updated = await api.getDocument(documentId)
+      setDoc(updated)
+      setForm(toForm(updated))
+      setMarkdown(updated.canonical_markdown)
+      setResult({
+        updated: true,
+        message: `Đã xóa ${res.chunks_deleted} chunks và ${res.vectors_deleted} vectors`,
+      })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const valid = form.title.trim() && form.document_type_id
   const editable = doc.rag_status === 'not_indexed'
 
@@ -161,7 +212,15 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
         )}
         {['chunked', 'embedded', 'indexed', 'published'].includes(doc.rag_status) && (
           <aside className="banner warn" role="status">
-            Version đã có dữ liệu RAG. Muốn sửa phải deindex và dọn chunks/vector trước.
+            <p>Version đã có dữ liệu RAG. Muốn sửa phải deindex và dọn chunks/vector trước.</p>
+            <button
+              type="button"
+              className="btn small ghost warn"
+              onClick={handleDeindex}
+              disabled={busy}
+            >
+              {busy ? 'Đang xử lý…' : 'Deindex'}
+            </button>
           </aside>
         )}
       </section>

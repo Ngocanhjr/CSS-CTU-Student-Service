@@ -249,7 +249,7 @@ def search_points(
     top_k: int = 5,
     filters: RetrievalFilter | None = None,
     ) -> list[QdrantSearchResult]:
-    
+
     response = client.query_points(
         collection_name=collection_name,
         query=query_vector,
@@ -258,7 +258,7 @@ def search_points(
         limit=top_k,
         with_payload=True,
     )
-    
+
     return [
         QdrantSearchResult(
             score=result.score,
@@ -266,3 +266,51 @@ def search_points(
         )
         for result in response.points
     ]
+
+
+def delete_vectors_by_chunk_ids(
+    client: QdrantClient,
+    collection_name: str,
+    postgres_chunk_ids: list[int],
+) -> int:
+    """Delete vectors by their postgres chunk IDs. Returns count deleted."""
+
+    if not postgres_chunk_ids:
+        return 0
+
+    # Check if collection exists
+    collections = client.get_collections().collections
+    if collection_name not in [c.name for c in collections]:
+        return 0
+
+    deleted_count = 0
+
+    for chunk_id in postgres_chunk_ids:
+        # Count before delete
+        count_result = client.count(
+            collection_name=collection_name,
+            count_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="postgres_chunk_id",
+                        match=MatchValue(value=chunk_id),
+                    )
+                ]
+            ),
+        )
+        deleted_count += count_result.count
+
+        # Delete vectors matching this chunk_id
+        client.delete(
+            collection_name=collection_name,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="postgres_chunk_id",
+                        match=MatchValue(value=chunk_id),
+                    )
+                ]
+            ),
+        )
+
+    return deleted_count

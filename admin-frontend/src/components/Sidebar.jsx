@@ -1,17 +1,21 @@
+import RagLogo from './RagLogo.jsx'
+import { FolderOpen, Upload } from 'lucide-react'
+
 export default function Sidebar({ steps, active, onSelect, onReset }) {
   const processingActive = steps.some((step) => step.key === active)
 
   return (
     <aside className="sidebar" aria-label="Thanh điều hướng quản trị">
       <header className="brand">
-        <span className="brand-mark" aria-hidden="true">CTU</span>
+        <RagLogo className="brand-mark" />
         <span className="brand-copy">
-          <strong>Ingestion</strong>
-          <small>Quản trị tài liệu</small>
+          <strong>CTU Student<br />Service Center</strong>
+          <small>Procedure Assistant</small>
         </span>
       </header>
 
       <nav aria-label="Khu vực quản trị">
+        <p className="nav-heading">Quy trình</p>
         <ul className="nav-list section-list">
           <li>
             <button
@@ -20,8 +24,9 @@ export default function Sidebar({ steps, active, onSelect, onReset }) {
               aria-current={processingActive ? 'page' : undefined}
               onClick={() => onSelect(processingActive ? active : 'upload')}
             >
+              <span className="nav-icon" aria-hidden="true"><Upload size={16} /></span>
+              <span className="nav-copy"><b>Xử lý tài liệu</b><small>Tải · review · publish</small></span>
               <span className="idx" aria-hidden="true">01</span>
-              Xử lý tài liệu
             </button>
           </li>
           <li>
@@ -31,8 +36,9 @@ export default function Sidebar({ steps, active, onSelect, onReset }) {
               aria-current={active.startsWith('documents') ? 'page' : undefined}
               onClick={() => onSelect('documents')}
             >
+              <span className="nav-icon" aria-hidden="true"><FolderOpen size={16} /></span>
+              <span className="nav-copy"><b>Quản lý tài liệu</b><small>Danh sách đã publish</small></span>
               <span className="idx" aria-hidden="true">02</span>
-              Quản lý tài liệu
             </button>
           </li>
         </ul>
