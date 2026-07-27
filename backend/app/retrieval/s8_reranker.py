@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
+import os
 import re
 from typing import Protocol
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from app.retrieval.models import RetrievalResult
 
@@ -128,3 +132,100 @@ class LexicalReranker:
         #sắp xếp chunk theo điểm từ cao xuống thấp
         reranked.sort(key=lambda item: (-item[0], item[1]))
         return [result for _, _, result in reranked]
+
+
+#Xếp hạng lại bằng cross-encoder chạy trên Text Embeddings Inference (BAAI/bge-reranker-v2-m3).
+#Gọi endpoint /rerank của container TEI thứ 2, model chấm trực tiếp cặp (query, chunk).
+class CrossEncoderReranker:
+    """HTTP client tối thiểu cho reranker cross-encoder chạy trên TEI.
+
+    TEI expose endpoint ``/rerank`` nhận ``{"query", "texts"}`` và trả về danh
+    sách ``{"index", "score"}`` đã sắp xếp giảm dần theo độ liên quan.  Ta ánh xạ
+    score đó ngược lại từng ``RetrievalResult`` và giữ nguyên toàn bộ metadata.
+    """
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        timeout: float = 120.0,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.timeout = timeout
+
+    def _score(self, query: str, texts: list[str]) -> list[float]:
+        request = Request(
+            f"{self.base_url}/rerank",
+            data=json.dumps(
+                {"query": query, "texts": texts}
+            ).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+
+        try:
+            with urlopen(request, timeout=self.timeout) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"TEI reranker trả HTTP {exc.code}: {detail}"
+            ) from exc
+        except URLError as exc:
+            raise RuntimeError(
+                f"Không kết nối được TEI reranker: {exc.reason}"
+            ) from exc
+
+        #TEI trả list[{"index", "score"}] đã sắp xếp; ta khôi phục theo index gốc.
+        if not isinstance(payload, list) or len(payload) != len(texts):
+            raise RuntimeError(
+                "TEI reranker trả response không đúng contract."
+            )
+
+        scores = [0.0] * len(texts)
+        for entry in payload:
+            index = entry["index"]
+            scores[index] = float(entry["score"])
+        return scores
+
+    def rerank(
+        self,
+        query: str,
+        results: list[RetrievalResult],
+    ) -> list[RetrievalResult]:
+        if not query.strip() or len(results) < 2:
+            return results
+
+        scores = self._score(query, [result.content for result in results])
+
+        reranked: list[tuple[float, int, RetrievalResult]] = [
+            (
+                score,
+                position,
+                replace(result, score=score),
+            )
+            for position, (result, score) in enumerate(zip(results, scores))
+        ]
+        #điểm cao xuống thấp; giữ thứ tự gốc khi bằng điểm
+        reranked.sort(key=lambda item: (-item[0], item[1]))
+        return [result for _, _, result in reranked]
+
+
+def get_reranker() -> Reranker:
+    """Tạo reranker cross-encoder từ cấu hình môi trường.
+
+    Fallback về :class:`LexicalReranker` khi TEI reranker chưa được cấu hình,
+    giúp môi trường dev/test không bắt buộc phải chạy container thứ 2.
+    """
+    base_url = os.getenv("TEI_RERANKER_BASE_URL")
+    api_key = os.getenv("TEI_RERANKER_API_KEY")
+
+    if not base_url or not api_key:
+        return LexicalReranker()
+
+    return CrossEncoderReranker(base_url=base_url, api_key=api_key)

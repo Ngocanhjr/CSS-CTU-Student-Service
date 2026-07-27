@@ -113,6 +113,9 @@ services:
 
     logging: *default-logging
 
+  # tei-reranker đã được tắt - dùng LexicalReranker thay thế (nhẹ hơn)
+  # Để bật lại, uncomment block dưới và cấu hình TEI_RERANKER_* trong .env
+
 networks:
   ctu-network:
     driver: bridge
@@ -120,5 +123,7 @@ networks:
 volumes:
   tei-data:
     name: tei-data
+  tei-reranker-data:
+    name: tei-reranker-data
   pgadmin-data:
     name: pgadmin-data

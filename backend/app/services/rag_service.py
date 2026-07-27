@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.llm.rag_chain import RagAnswer, generate_rag_answer
 from app.retrieval.s1_query_resolver import complete_or_clarify_query
 from app.retrieval.s10_retriever import Retriever
-from app.retrieval.s8_reranker import LexicalReranker
+from app.retrieval.s8_reranker import get_reranker
 from app.vectorstore.qdrant_client import get_qdrant_client
 
 
@@ -12,7 +12,7 @@ class RagService:
     def __init__(self, *, retriever: Retriever | None = None) -> None:
         self.retriever = retriever or Retriever(
             qdrant_client=get_qdrant_client(),
-            reranker=LexicalReranker(),
+            reranker=get_reranker(),
         )
 
     async def answer(

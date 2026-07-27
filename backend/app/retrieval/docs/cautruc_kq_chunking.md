@@ -141,7 +141,7 @@ Có nhiều cách xử lý:
 
 - Heuristic + ngữ cảnh(chưa tối ưu vẫn có thể gây nhầm lẫn) nhưng ít tốn tg gen câu trl: luôn đảm bảo <1ms và ổn định
 - nếu dùng LLM phân loại + ngữ cảnh thì chính xác hơn nhưng sẽ + thêm 1 lượt gọi LLM (chậm hơn và tốn hơn): có thể tốn đến 0.5s - 1.5s. Nếu provider quá tải có thể sẽ lên tới 2-3s
-- Hybrid heuristic + llm: heuristic phân loại đó là câu hỏi có cần gọi tới llm hay không, hay tự nó xử lý được: với pa này thì có thể sẽ khắc phục được hạn chế của tốn tg cho tất cả prompt của llm. Vì chỉ khi câu hỏi thuộc vùng xám cần llm phân loại => tốn thời gian. KHÁ PHỨC TẠP
+- Hybrid heuristic + llm: heuristic phân loại đó là câu hỏi có cần gọi tới llm hay không, hay tự nó xử lý được: với phương án này thì có thể sẽ khắc phục được hạn chế của việc tốn tg cho tất cả prompt của llm. Vì chỉ khi câu hỏi thuộc vùng xám cần llm phân loại => tốn thời gian. KHÁ PHỨC TẠP
 
 2/ Đổi reranker từ dùng LexicalReranker -> Cross-Encoder với model bge-reranker-v2-m3 giống model của embedding. Tạo thêm 1 container tei thứ 2 cho reranker
 
@@ -167,19 +167,21 @@ docker compose up -d postgres qdrant   # chỉ khởi động service cần thi�
 
 **python -c "import secrets; print(secrets.token_hex(32))"**
 
-
 ## Truy cập vào trang openRouter để lấy key cho model Qwen
-
 
 ## Lệnh chạy backend: lệnh này chạy được ở cả 2 môi trường: emulator và chrome
 
 **cd backend**
 
-Khởi động venv: 
+Khởi động venv:
 
 **`.\.venv\Scripts\Activate.ps1`**
 
 **python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload**
+
+Nếu lỗi uvicorn thì do transformers yêu cầu >= 2.4, cần nâng cấp pytorch:
+
+**pip install --upgrade torch torchvision torchaudio**
 
 Với điện thoại thật: dùng IP LAN
 
