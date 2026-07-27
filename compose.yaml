@@ -61,57 +61,57 @@ services:
 
     stop_grace_period: 30s
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    restart: unless-stopped
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   restart: unless-stopped
 
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ctu.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ctu.local}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+  #     PGADMIN_CONFIG_SERVER_MODE: "False"
+  #     PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
 
-    ports:
-      - "${PGADMIN_PORT:-5050}:80"
+  #   ports:
+  #     - "${PGADMIN_PORT:-5050}:80"
 
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
+  #   volumes:
+  #     - pgadmin-data:/var/lib/pgadmin
 
-    depends_on:
-      - postgres
+  #   depends_on:
+  #     - postgres
 
-    networks:
-      - ctu-network
+  #   networks:
+  #     - ctu-network
 
-    logging: *default-logging
+  #   logging: *default-logging
 
-  tei:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
-    restart: unless-stopped
+  # tei:
+  #   image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+  #   restart: unless-stopped
 
-    environment:
-      API_KEY: ${TEI_API_KEY:?TEI_API_KEY_is_required}
+  #   environment:
+  #     API_KEY: ${TEI_API_KEY:?TEI_API_KEY_is_required}
 
-    command:
-      - --model-id
-      - BAAI/bge-m3
-      - --dtype
-      - float16
-      - --max-client-batch-size
-      - "4"
-      - --max-batch-tokens
-      - "4096"
+  #   command:
+  #     - --model-id
+  #     - BAAI/bge-m3
+  #     - --dtype
+  #     - float16
+  #     - --max-client-batch-size
+  #     - "4"
+  #     - --max-batch-tokens
+  #     - "4096"
 
-    ports:
-      - "${TEI_PORT:-8080}:80"
+  #   ports:
+  #     - "${TEI_PORT:-8080}:80"
 
-    volumes:
-      - tei-data:/data
+  #   volumes:
+  #     - tei-data:/data
 
-    networks:
-      - ctu-network
+  #   networks:
+  #     - ctu-network
 
-    logging: *default-logging
+  #   logging: *default-logging
 
   # tei-reranker đã được tắt - dùng LexicalReranker thay thế (nhẹ hơn)
   # Để bật lại, uncomment block dưới và cấu hình TEI_RERANKER_* trong .env
@@ -120,10 +120,10 @@ networks:
   ctu-network:
     driver: bridge
 
-volumes:
-  tei-data:
-    name: tei-data
-  tei-reranker-data:
-    name: tei-reranker-data
-  pgadmin-data:
-    name: pgadmin-data
+# volumes:
+#   tei-data:
+#     name: tei-data
+#   tei-reranker-data:
+#     name: tei-reranker-data
+#   pgadmin-data:
+#     name: pgadmin-data

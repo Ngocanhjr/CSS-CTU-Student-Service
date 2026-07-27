@@ -236,21 +236,34 @@ def upsert_chunks(
     postgres_ids: dict[str, tuple[int, int | None]] | None = None,
     review_status: str | None = None,
     rag_status: str | None = None,
-    ) ->   int:
-    
+) -> int:
+
     if not chunks:
         return 0
+
     if any(chunk.chunk_type != "child" for chunk in chunks):
         raise ValueError("Qdrant chỉ nhận child chunks")
+
     if len(chunks) != len(vectors):
         raise ValueError("Số vector phải bằng số child chunks")
+
     if not postgres_ids or any(
-        chunk.chunk_key not in postgres_ids or postgres_ids[chunk.chunk_key][0] <= 0
+        chunk.chunk_key not in postgres_ids
+        or postgres_ids[chunk.chunk_key][0] <= 0
         for chunk in chunks
     ):
         raise ValueError("Qdrant point phải có postgres_chunk_id")
-    
-    ensure_collection(client, collection_name=collection_name, vector_size=len(vectors[0]))
+
+    vector_size = len(vectors[0])
+
+    if any(len(vector) != vector_size for vector in vectors):
+        raise ValueError("Các vector embedding phải có cùng dimension")
+
+    ensure_collection(
+        client,
+        collection_name=collection_name,
+        vector_size=vector_size,
+    )
 
     points = [
         PointStruct(
@@ -259,18 +272,21 @@ def upsert_chunks(
             payload=build_payload(
                 document,
                 chunk,
-                postgres_chunk_id=(postgres_ids or {}).get(chunk.chunk_key, (0, None))[0],
-                postgres_parent_chunk_id=(postgres_ids or {}).get(chunk.chunk_key, (0, None))[1],
+                postgres_chunk_id=postgres_ids[chunk.chunk_key][0],
+                postgres_parent_chunk_id=postgres_ids[chunk.chunk_key][1],
                 review_status=review_status,
                 rag_status=rag_status,
             ),
         )
+        for chunk, vector in zip(chunks, vectors)
     ]
-    
+
     client.upsert(
         collection_name=collection_name,
         points=points,
+        wait=True,
     )
+
     return len(points)
 
 

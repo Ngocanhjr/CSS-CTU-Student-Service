@@ -15,7 +15,7 @@ from app.schemas.chunks import Chunk
 load_dotenv(find_dotenv())
 
 
-EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL","@cf/baai/bge-m3",)
 EMBEDDING_VECTOR_SIZE = 1024
 EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "4"))
 
@@ -26,20 +26,35 @@ if EMBEDDING_BATCH_SIZE < 1:
     raise ValueError("EMBEDDING_BATCH_SIZE phải lớn hơn 0.")
 
 
-class TEIEmbeddings:
-    """HTTP client tối thiểu cho Text Embeddings Inference."""
+class CloudflareEmbeddings:
+    """HTTP client tối thiểu cho Cloudflare Workers AI."""
 
-    def __init__(self, *, base_url: str, api_key: str) -> None:
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
+    def __init__(
+        self,
+        *,
+        account_id: str,
+        api_token: str,
+    ) -> None:
+        self.account_id = account_id
+        self.api_token = api_token
         self.model = EMBEDDING_MODEL_NAME
 
-    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
+        self.base_url = (
+            "https://api.cloudflare.com/client/v4/accounts/"
+            f"{self.account_id}/ai/run/{self.model}"
+        )
+
+    def _embed_batch(
+        self,
+        texts: list[str],
+    ) -> list[list[float]]:
         request = Request(
-            f"{self.base_url}/embed",
-            data=json.dumps({"inputs": texts}).encode("utf-8"),
+            self.base_url,
+            data=json.dumps(
+                {"text": texts}
+            ).encode("utf-8"),
             headers={
-                "Authorization": f"Bearer {self.api_key}",
+                "Authorization": f"Bearer {self.api_token}",
                 "Content-Type": "application/json",
             },
             method="POST",
@@ -47,26 +62,40 @@ class TEIEmbeddings:
 
         try:
             with urlopen(request, timeout=120) as response:
-                vectors = json.loads(
+                response_data = json.loads(
                     response.read().decode("utf-8")
                 )
         except HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
+            detail = exc.read().decode(
+                "utf-8",
+                errors="replace",
+            )
             raise RuntimeError(
-                f"TEI trả HTTP {exc.code}: {detail}"
+                f"Cloudflare trả HTTP {exc.code}: {detail}"
             ) from exc
         except URLError as exc:
             raise RuntimeError(
-                f"Không kết nối được TEI: {exc.reason}"
+                f"Không kết nối được Cloudflare: {exc.reason}"
             ) from exc
+
+        if not response_data.get("success"):
+            raise RuntimeError(
+                f"Cloudflare embedding thất bại: {response_data}"
+            )
+
+        result = response_data.get("result", {})
+        vectors = result.get("data")
 
         if (
             not isinstance(vectors, list)
             or len(vectors) != len(texts)
-            or any(not isinstance(vector, list) for vector in vectors)
+            or any(
+                not isinstance(vector, list)
+                for vector in vectors
+            )
         ):
             raise RuntimeError(
-                "TEI trả response không đúng contract."
+                "Cloudflare trả response không đúng contract."
             )
 
         invalid_sizes = {
@@ -90,13 +119,24 @@ class TEIEmbeddings:
     ) -> list[list[float]]:
         vectors: list[list[float]] = []
 
-        for start in range(0, len(texts), EMBEDDING_BATCH_SIZE):
-            batch = texts[start : start + EMBEDDING_BATCH_SIZE]
-            vectors.extend(self._embed_batch(batch))
+        for start in range(
+            0,
+            len(texts),
+            EMBEDDING_BATCH_SIZE,
+        ):
+            batch = texts[
+                start : start + EMBEDDING_BATCH_SIZE
+            ]
+            vectors.extend(
+                self._embed_batch(batch)
+            )
 
         return vectors
 
-    def embed_query(self, query: str) -> list[float]:
+    def embed_query(
+        self,
+        query: str,
+    ) -> list[float]:
         query = query.strip()
 
         if not query:
@@ -105,19 +145,23 @@ class TEIEmbeddings:
         return self._embed_batch([query])[0]
 
 
-def get_embedding() -> TEIEmbeddings:
-    base_url = os.getenv("TEI_BASE_URL")
-    api_key = os.getenv("TEI_API_KEY")
+def get_embedding() -> CloudflareEmbeddings:
+    account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID")
+    api_token = os.getenv("CLOUDFLARE_API_TOKEN")
 
-    if not base_url:
-        raise ValueError("TEI_BASE_URL chưa được cấu hình.")
+    if not account_id:
+        raise ValueError(
+            "CLOUDFLARE_ACCOUNT_ID chưa được cấu hình."
+        )
 
-    if not api_key:
-        raise ValueError("TEI_API_KEY chưa được cấu hình.")
+    if not api_token:
+        raise ValueError(
+            "CLOUDFLARE_API_TOKEN chưa được cấu hình."
+        )
 
-    return TEIEmbeddings(
-        base_url=base_url,
-        api_key=api_key,
+    return CloudflareEmbeddings(
+        account_id=account_id,
+        api_token=api_token,
     )
 
 
