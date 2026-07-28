@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import get_args
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -6,8 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.session import get_session
 from app.databases.models.documents import DocumentType, Department
-from app.schemas.reference import DocumentTypeResponse, DepartmentResponse
+from app.schemas.reference import DocumentTypeResponse, DepartmentResponse, EnumOptionsResponse
 
+from app.schemas.enums import (
+    Audience,
+    Domain,
+    OcrStatus,
+    RagStatus,
+    ReviewStatus,
+)
 
 router = APIRouter(prefix="/reference", tags=["reference"])
 
@@ -30,3 +38,13 @@ async def list_departments(
         select(Department).where(Department.is_active == True)
     )
     return result.scalars().all()
+
+@router.get("/enums", response_model=EnumOptionsResponse)
+async def list_enum_options() -> EnumOptionsResponse:
+    return EnumOptionsResponse(
+        domains=list(get_args(Domain)),
+        audiences=list(get_args(Audience)),
+        ocr_statuses=list(get_args(OcrStatus)),
+        review_statuses=list(get_args(ReviewStatus)),
+        rag_statuses=list(get_args(RagStatus)),
+    )
