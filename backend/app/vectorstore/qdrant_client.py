@@ -1,3 +1,5 @@
+# Tạo kết nối đến Qdrant bằng cấu hình môi trường.
+
 import os
 
 from qdrant_client import QdrantClient

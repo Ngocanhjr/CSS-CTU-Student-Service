@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Upload } from 'lucide-react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
@@ -12,51 +12,12 @@ const NEXT_STEPS = [
   ['04', 'Index & Publish', 'Đưa vào hệ thống'],
 ]
 
-function getUploadErrorMessage(err) {
-  // Network timeout (AbortError from AbortController)
-  if (err.name === 'AbortError') {
-    return 'Kết nối quá thời gian. Vui lòng kiểm tra mạng và thử lại.'
-  }
-
-  // Network error (TypeError from fetch - connection refused, DNS failure, etc.)
-  if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
-    return 'Không thể kết nối server. Vui lòng thử lại sau.'
-  }
-
-  // Server error (5xx) - check if message contains HTTP 5xx pattern
-  if (/HTTP\s*5\d{2}/i.test(err.message)) {
-    return 'Lỗi server. Vui lòng thử lại sau.'
-  }
-
-  // File validation errors from server - these typically come with descriptive messages
-  // Check for common validation error patterns
-  if (err.message && (
-    err.message.includes('file') ||
-    err.message.includes('File') ||
-    err.message.includes('invalid') ||
-    err.message.includes('không hợp lệ') ||
-    err.message.includes('frontmatter') ||
-    err.message.includes('YAML')
-  )) {
-    return `File không hợp lệ: ${err.message}`
-  }
-
-  // Default: return original message or generic error
-  return err.message || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.'
-}
-
-function UploadIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 15v2.5A2.5 2.5 0 006.5 20h11a2.5 2.5 0 002.5-2.5V15"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+function getUploadErrorMessage({ name, message = '' }) {
+  if (name === 'AbortError') return 'Kết nối quá thời gian. Vui lòng kiểm tra mạng và thử lại.'
+  if (name === 'TypeError' || message === 'Failed to fetch') return 'Không thể kết nối server. Vui lòng thử lại sau.'
+  if (/HTTP\s*5\d{2}/i.test(message)) return 'Lỗi server. Vui lòng thử lại sau.'
+  if (/file|invalid|không hợp lệ|frontmatter|yaml/i.test(message)) return `File không hợp lệ: ${message}`
+  return message || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.'
 }
 
 export default function UploadStep({ pipeline, update, goTo }) {
@@ -140,7 +101,7 @@ export default function UploadStep({ pipeline, update, goTo }) {
             pick(e.dataTransfer.files?.[0])
           }}
         >
-          <span className="dropzone-icon" aria-hidden="true"><UploadIcon /></span>
+          <span className="dropzone-icon" aria-hidden="true"><Upload /></span>
           {file ? (
             <span className="selected-file">
               <strong>{file.name}</strong>
@@ -166,7 +127,7 @@ export default function UploadStep({ pipeline, update, goTo }) {
 
         <div className="upload-actions">
           <button type="submit" className="btn" disabled={!file || busy} aria-busy={busy}>
-            {busy ? <Loader2 size={16} className="spin" /> : <UploadIcon />}
+            {busy ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
             {busy ? 'Đang tải lên...' : 'Tải lên'}
           </button>
           {file && !busy && (

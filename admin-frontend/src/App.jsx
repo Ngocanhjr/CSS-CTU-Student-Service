@@ -8,6 +8,7 @@ import DocumentsListPage from './documents/DocumentsListPage.jsx'
 import DocumentEditPage from './documents/DocumentEditPage.jsx'
 import WorkflowProgress from './components/WorkflowProgress.jsx'
 import RagLogo from './components/RagLogo.jsx'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
 const STEPS = [
   { key: 'upload', label: 'Tải Markdown' },
@@ -28,6 +29,7 @@ export default function App() {
   const [active, setActive] = useState('upload')
   const [pipeline, setPipeline] = useState(emptyPipeline)
   const [editingVersionId, setEditingVersionId] = useState(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const done = {
     upload: !!pipeline.upload,
@@ -92,15 +94,27 @@ export default function App() {
   return (
     <article className="app-frame">
       <a href="#main-content" className="skip-link">Chuyển đến nội dung chính</a>
-      <section className="app-shell" aria-label="Ứng dụng quản trị tài liệu">
+      <section className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} aria-label="Ứng dụng quản trị tài liệu">
         <Sidebar
           steps={STEPS}
           active={active}
           onSelect={setActive}
           onReset={reset}
+          collapsed={sidebarCollapsed}
         />
         <main className="workspace">
           <header className="workspace-bar">
+            <button
+              type="button"
+              className="sidebar-toggle"
+              aria-controls="admin-sidebar"
+              aria-expanded={!sidebarCollapsed}
+              aria-label={sidebarCollapsed ? 'Mở thanh bên' : 'Thu gọn thanh bên'}
+              title={sidebarCollapsed ? 'Mở thanh bên' : 'Thu gọn thanh bên'}
+              onClick={() => setSidebarCollapsed((value) => !value)}
+            >
+              {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
             <WorkflowProgress steps={STEPS} active={active} done={done} onSelect={setActive} />
           </header>
           <section className="workspace-content" id="main-content" aria-label="Nội dung quản trị">

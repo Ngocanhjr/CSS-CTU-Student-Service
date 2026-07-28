@@ -1,3 +1,5 @@
+# Khai báo SQLAlchemy Base để các model kế thừa.
+
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
 

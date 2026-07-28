@@ -1,3 +1,13 @@
+# Chứa các thao tác chính với Qdrant:
+
+# Tạo collection
+# Tạo point ID
+# Build filter
+# Build payload
+# Upsert vector
+# Search vector: tìm kiếm vector theo query vector và filter
+
+
 """Qdrant CRUD operations for vector store.
 
 Functions:
@@ -18,6 +28,7 @@ from qdrant_client.models import (
     Distance,
     FieldCondition,
     Filter,
+    FilterSelector,
     MatchValue,
     PointStruct,
     VectorParams,
@@ -92,7 +103,7 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
     # Dense retrieval always starts from the same eligibility domain as PostgreSQL.
     conditions = [
         FieldCondition(key="review_status", match=MatchValue(value="approved")),
-        FieldCondition(key="rag_status", match=MatchValue(value="published")),
+        FieldCondition(key="rag_status", match=MatchValue(value="indexed")),
         FieldCondition(key="audience_student", match=MatchValue(value=True)),
         FieldCondition(key="chunk_type", match=MatchValue(value="child")),
     ]
@@ -139,6 +150,27 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
             FieldCondition(
                 key="chunk_type",
                 match=MatchValue(value=filters.chunk_type),
+            )
+        )
+    if filters.review_status:
+        conditions.append(
+            FieldCondition(
+                key="review_status",
+                match=MatchValue(value=filters.review_status),
+            )
+        )
+    if filters.rag_status:
+        conditions.append(
+            FieldCondition(
+                key="rag_status",
+                match=MatchValue(value=filters.rag_status),
+            )
+        )
+    if filters.audience:
+        conditions.append(
+            FieldCondition(
+                key="audience",
+                match=MatchValue(value=filters.audience),
             )
         )
 
@@ -194,6 +226,7 @@ def build_payload(
     )
     return payload.model_dump()
 
+# update hoặc insert chunks vào Qdrant
 def upsert_chunks(
     client: QdrantClient,
     document: MarkdownDocument,
@@ -203,22 +236,35 @@ def upsert_chunks(
     postgres_ids: dict[str, tuple[int, int | None]] | None = None,
     review_status: str | None = None,
     rag_status: str | None = None,
-    ) ->   int:
-    
+) -> int:
+
     if not chunks:
         return 0
+
     if any(chunk.chunk_type != "child" for chunk in chunks):
         raise ValueError("Qdrant chỉ nhận child chunks")
+
     if len(chunks) != len(vectors):
         raise ValueError("Số vector phải bằng số child chunks")
+
     if not postgres_ids or any(
-        chunk.chunk_key not in postgres_ids or postgres_ids[chunk.chunk_key][0] <= 0
+        chunk.chunk_key not in postgres_ids
+        or postgres_ids[chunk.chunk_key][0] <= 0
         for chunk in chunks
     ):
         raise ValueError("Qdrant point phải có postgres_chunk_id")
-    
-    ensure_collection(client, collection_name=collection_name, vector_size=len(vectors[0]))
-    
+
+    vector_size = len(vectors[0])
+
+    if any(len(vector) != vector_size for vector in vectors):
+        raise ValueError("Các vector embedding phải có cùng dimension")
+
+    ensure_collection(
+        client,
+        collection_name=collection_name,
+        vector_size=vector_size,
+    )
+
     points = [
         PointStruct(
             id=make_point_id(chunk.version_key, chunk.chunk_key),
@@ -226,21 +272,49 @@ def upsert_chunks(
             payload=build_payload(
                 document,
                 chunk,
-                postgres_chunk_id=(postgres_ids or {}).get(chunk.chunk_key, (0, None))[0],
-                postgres_parent_chunk_id=(postgres_ids or {}).get(chunk.chunk_key, (0, None))[1],
+                postgres_chunk_id=postgres_ids[chunk.chunk_key][0],
+                postgres_parent_chunk_id=postgres_ids[chunk.chunk_key][1],
                 review_status=review_status,
                 rag_status=rag_status,
             ),
         )
-        for chunk, vector in zip(chunks, vectors, strict=True)
+        for chunk, vector in zip(chunks, vectors)
     ]
-    
+
     client.upsert(
         collection_name=collection_name,
         points=points,
+        wait=True,
     )
+
     return len(points)
 
+
+def delete_points_by_version(
+    client: QdrantClient,
+    *,
+    version_key: str,
+    collection_name: str = COLLECTION_NAME,
+) -> None:
+    collections = client.get_collections().collections
+    if collection_name not in {collection.name for collection in collections}:
+        return
+
+    client.delete(
+        collection_name=collection_name,
+        points_selector=FilterSelector(
+            filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="version_key",
+                        match=MatchValue(value=version_key),
+                    )
+                ]
+            )
+        ),
+    )
+
+# 
 def search_points(
     client: QdrantClient,
     *,
@@ -248,19 +322,23 @@ def search_points(
     collection_name: str = COLLECTION_NAME,
     top_k: int = 5,
     filters: RetrievalFilter | None = None,
+    query_filter: Filter | None = None,
     ) -> list[QdrantSearchResult]:
+    if filters is not None and query_filter is not None:
+        raise ValueError("Pass either filters or query_filter, not both")
 
     response = client.query_points(
         collection_name=collection_name,
         query=query_vector,
         using=VECTOR_NAME,
-        query_filter=build_context_filter(filters),
+        query_filter=query_filter or build_context_filter(filters),
         limit=top_k,
         with_payload=True,
     )
 
     return [
         QdrantSearchResult(
+            point_id=str(result.id),
             score=result.score,
             payload=result.payload or {},
         )

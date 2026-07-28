@@ -1,53 +1,104 @@
-"""RAG chain for generating answers with retrieved context.
+"""Grounded answer generation from hydrated retrieval results."""
 
-Functions:
-    generate_answer: Generate answer using LLM with retrieved context.
-"""
+from __future__ import annotations
 
-import os
+from dataclasses import dataclass
+from datetime import date
+from typing import Any
 
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_core.output_parsers import StrOutputParser
 
-from app.llm.prompts import RAG_SYSTEM_PROMPT, RAG_USER_TEMPLATE
+from app.llm.generator import get_chat_model
+from app.llm.prompts import RAG_ANSWER_PROMPT
+from app.retrieval.s11_context_builder import build_retrieval_context
+from app.retrieval.models import RetrievalResult
 
 
-def get_llm_client() -> ChatNVIDIA:
-    """Get NVIDIA LLM client."""
-    api_key = os.getenv("NVIDIA_API_KEY")
-    model = os.getenv("NVIDIA_LLM_MODEL", "meta/llama-3.1-8b-instruct")
+NO_CONTEXT_ANSWER = "Tôi không tìm thấy thông tin phù hợp trong tài liệu đã được duyệt."
 
-    if not api_key:
-        raise ValueError("NVIDIA_API_KEY chưa được cấu hình.")
 
-    return ChatNVIDIA(
-        model=model,
-        api_key=api_key,
-        temperature=0.3,
-        max_tokens=1000,
+@dataclass(frozen=True)
+class AnswerCitation:
+    document_key: str
+    version_key: str
+    chunk_key: str
+    title: str
+    page_start: int | None
+    page_end: int | None
+    citation: str
+    # Metadata tài liệu phục vụ màn "Chi tiết tài liệu" trên client.
+    source_file: str
+    issued_date: date | None
+    issuing_authority: str | None
+    document_type: str | None
+
+
+@dataclass(frozen=True)
+class RagAnswer:
+    answer: str
+    citations: list[AnswerCitation]
+
+def build_answer_citations(results: list[RetrievalResult]) -> list[AnswerCitation]:
+    citations: list[AnswerCitation] = []
+    seen_sources: set[tuple[str, str, int | None, int | None]] = set()
+
+    for result in results:
+        source_key = (
+            result.document_key,
+            result.version_key,
+            result.page_start,
+            result.page_end,
+        )
+        if source_key in seen_sources:
+            continue
+
+        citations.append(
+            AnswerCitation(
+                document_key=result.document_key,
+                version_key=result.version_key,
+                chunk_key=result.chunk_key,
+                title=result.title,
+                page_start=result.page_start,
+                page_end=result.page_end,
+                citation=result.citation,
+                source_file=result.source_file,
+                issued_date=result.issued_date,
+                issuing_authority=result.issuing_authority,
+                document_type=result.document_type,
+            )
+        )
+        seen_sources.add(source_key)
+
+    return citations
+
+
+def generate_rag_answer(
+    question: str,
+    results: list[RetrievalResult],
+    *,
+    model: Any | None = None,
+    max_context_characters: int = 12_000,
+) -> RagAnswer:
+    """Generate an answer only from retrieval context and return trusted citations."""
+    context = build_retrieval_context(
+        results,
+        max_characters=max_context_characters,
     )
+    if not context:
+        return RagAnswer(answer=NO_CONTEXT_ANSWER, citations=[])
 
+    chat_model = model if model is not None else get_chat_model()
+    chain = RAG_ANSWER_PROMPT | chat_model | StrOutputParser()
+    answer = str(
+        chain.invoke(
+            {
+                "question": question.strip(),
+                "context": context,
+            }
+        )
+    ).strip()
 
-async def generate_answer(question: str, context: str) -> tuple[str, str]:
-    """Generate answer using LLM with retrieved context.
-
-    Args:
-        question: The user's question.
-        context: Retrieved context from documents.
-
-    Returns:
-        Tuple of (answer string, model name).
-    """
-    model = os.getenv("NVIDIA_LLM_MODEL", "meta/llama-3.1-8b-instruct")
-    client = get_llm_client()
-
-    messages = [
-        ("system", RAG_SYSTEM_PROMPT),
-        ("human", RAG_USER_TEMPLATE.format(
-            context=context,
-            question=question,
-        )),
-    ]
-
-    response = await client.ainvoke(messages)
-
-    return response.content, model
+    return RagAnswer(
+        answer=answer,
+        citations=build_answer_citations(results),
+    )

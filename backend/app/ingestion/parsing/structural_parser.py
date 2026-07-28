@@ -1,3 +1,5 @@
+# Phân tích Markdown thành các StructuralBlock.
+
 from dataclasses import dataclass, field
 import re
 

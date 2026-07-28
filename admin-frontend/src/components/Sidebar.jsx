@@ -1,11 +1,11 @@
 import RagLogo from './RagLogo.jsx'
-import { FolderOpen, Upload } from 'lucide-react'
+import { FolderOpen, Plus, Upload } from 'lucide-react'
 
-export default function Sidebar({ steps, active, onSelect, onReset }) {
+export default function Sidebar({ steps, active, onSelect, onReset, collapsed }) {
   const processingActive = steps.some((step) => step.key === active)
 
   return (
-    <aside className="sidebar" aria-label="Thanh điều hướng quản trị">
+    <aside id="admin-sidebar" className={`sidebar ${collapsed ? 'collapsed' : ''}`} aria-label="Thanh điều hướng quản trị">
       <header className="brand">
         <RagLogo className="brand-mark" />
         <span className="brand-copy">
@@ -22,6 +22,7 @@ export default function Sidebar({ steps, active, onSelect, onReset }) {
               type="button"
               className={`nav-item section-item ${processingActive ? 'active' : ''}`}
               aria-current={processingActive ? 'page' : undefined}
+              title={collapsed ? 'Xử lý tài liệu' : undefined}
               onClick={() => onSelect(processingActive ? active : 'upload')}
             >
               <span className="nav-icon" aria-hidden="true"><Upload size={16} /></span>
@@ -34,6 +35,7 @@ export default function Sidebar({ steps, active, onSelect, onReset }) {
               type="button"
               className={`nav-item section-item ${active.startsWith('documents') ? 'active' : ''}`}
               aria-current={active.startsWith('documents') ? 'page' : undefined}
+              title={collapsed ? 'Quản lý tài liệu' : undefined}
               onClick={() => onSelect('documents')}
             >
               <span className="nav-icon" aria-hidden="true"><FolderOpen size={16} /></span>
@@ -45,7 +47,8 @@ export default function Sidebar({ steps, active, onSelect, onReset }) {
       </nav>
 
       <button type="button" className="btn ghost small reset-action" onClick={onReset}>
-        Bắt đầu tài liệu mới
+        <Plus size={16} aria-hidden="true" />
+        <span>Bắt đầu tài liệu mới</span>
       </button>
     </aside>
   )

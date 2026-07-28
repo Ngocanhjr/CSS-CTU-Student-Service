@@ -1,3 +1,5 @@
+# Schema metadata tài liệu và phiên bản tài liệu.
+
 """
 schema cho document metadata
 """
@@ -104,13 +106,13 @@ class DocumentVersionMetadata(DocumentVersionStatusFields):
     # Validate publish rule
     @model_validator(mode="after")
     def validate_publish_rules(self) -> "DocumentVersionMetadata":
-        if self.rag_status != "published":
+        if self.rag_status != "indexed":
             return self
-        
+
         if self.ocr_status != "done":
-            raise ValueError("published document requires ocr_status done")
+            raise ValueError("indexed document requires ocr_status done")
         if self.review_status != "approved":
-            raise ValueError("published document requires review_status approved")
+            raise ValueError("indexed document requires review_status approved")
 
         return self
 

@@ -12,18 +12,11 @@ function CheckIcon() {
   )
 }
 
-export default function WorkflowProgress({ steps, active, done, onSelect, activeStepProgress = 0.4 }) {
+export default function WorkflowProgress({ steps, active, done, onSelect }) {
   const activeIndex = steps.findIndex((step) => step.key === active)
 
-  // Connector giữa bước index và index+1: tô 100% khi đã đi qua,
-  // tô một phần khi đang ở bước đó và bước chưa hoàn thành.
   function fillPercent(index) {
-    const next = steps[index + 1]
-    if (!next) return 0
-    if (done[next.key]) return 100
-    if (activeIndex > index) return 100
-    if (activeIndex === index) return done[steps[index].key] ? 100 : Math.round(Math.min(Math.max(activeStepProgress, 0), 1) * 100)
-    return done[steps[index].key] ? 100 : 0
+    return done[steps[index + 1]?.key] || activeIndex > index || done[steps[index].key] ? 100 : 0
   }
 
   const reachable = (step, index) => done[step.key] || (activeIndex >= 0 && index <= activeIndex) || index === 0

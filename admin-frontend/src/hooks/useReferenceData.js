@@ -5,7 +5,6 @@ export function useReferenceData() {
   const [documentTypes, setDocumentTypes] = useState([])
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -17,11 +16,8 @@ export function useReferenceData() {
         setDepartments(depts)
         setLoading(false)
       })
-      .catch((err) => {
-        setError(err.message)
-        setLoading(false)
-      })
+      .catch(() => setLoading(false))
   }, [])
 
-  return { documentTypes, departments, loading, error }
+  return { documentTypes, departments, loading }
 }

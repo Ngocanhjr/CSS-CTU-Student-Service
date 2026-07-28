@@ -92,19 +92,4 @@ export const api = {
   getDepartments() {
     return request('/api/v1/reference/departments')
   },
-
-  // Debug APIs
-  getChunksDebug(versionId) {
-    return request(`/api/v1/admin/chunks/${versionId}`)
-  },
-
-  getVectorsDebug(versionId) {
-    return request(`/api/v1/admin/vectors/${versionId}`)
-  },
-
-  searchTest(query, topK = 5, departmentId = null) {
-    const params = new URLSearchParams({ q: query, top_k: topK })
-    if (departmentId) params.append('department_id', departmentId)
-    return request(`/api/v1/admin/search-test?${params}`)
-  },
 }
