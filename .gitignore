@@ -53,3 +53,5 @@ backend/.cache/
 backend/answer.txt
 
 /backend/retrieval/docs/key.md
+
+.env copy
