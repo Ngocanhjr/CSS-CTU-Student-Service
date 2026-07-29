@@ -36,7 +36,7 @@ function EmptyStateIcon() {
   );
 }
 
-export default function DocumentsListPage({ onEdit, onUploadNew }) {
+export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, onUploadNew }) {
   const {
     documentTypes,
     departments,
@@ -220,7 +220,7 @@ export default function DocumentsListPage({ onEdit, onUploadNew }) {
         </h2>
         {results && results.length > 0 ? (
           <div className="table-scroll">
-            <table>
+            <table className="documents-table">
               <caption>Danh sách phiên bản tài liệu phù hợp bộ lọc</caption>
               <thead>
                 <tr>
@@ -238,7 +238,13 @@ export default function DocumentsListPage({ onEdit, onUploadNew }) {
                 </tr>
               </thead>
               <tbody>
-                {results.map((d) => (
+                {results.map((d) => {
+                  const canReview = ['not_reviewed', 'reviewing', 'need_fix'].includes(d.review_status)
+                    && d.rag_status === 'not_indexed'
+                  const canReviewChunks = d.review_status === 'approved'
+                    && d.rag_status === 'not_indexed'
+
+                  return (
                   <tr key={d.id}>
                     <td>
                       <strong>{d.title}</strong>
@@ -254,13 +260,13 @@ export default function DocumentsListPage({ onEdit, onUploadNew }) {
                       </span>
                       <StatusBadge status={d.validity_status} />
                     </td>
-                    <td>
+                    <td className="status-cell">
                       <StatusBadge status={d.ocr_status} />
                     </td>
-                    <td>
+                    <td className="status-cell">
                       <StatusBadge status={d.review_status} />
                     </td>
-                    <td>
+                    <td className="status-cell">
                       <StatusBadge status={d.rag_status} />
                     </td>
                     <td className="mono">
@@ -269,13 +275,32 @@ export default function DocumentsListPage({ onEdit, onUploadNew }) {
                       </time>
                     </td>
                     <td className="table-action">
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        onClick={() => onEdit(d.id)}
-                      >
-                        Sửa
-                      </button>
+                      {canReview ? (
+                        <button
+                          type="button"
+                          className="btn small"
+                          onClick={() => onReview(d.id)}
+                        >
+                          Review
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn ghost small"
+                          onClick={() => onEdit(d.id)}
+                        >
+                          Sửa
+                        </button>
+                      )}
+                      {canReviewChunks && (
+                        <button
+                          type="button"
+                          className="btn ghost small"
+                          onClick={() => onReviewChunks(d.id)}
+                        >
+                          Review chunks
+                        </button>
+                      )}
                       {(d.rag_status === "not_indexed" ||
                         d.rag_status === "failed") && (
                         <button
@@ -288,7 +313,8 @@ export default function DocumentsListPage({ onEdit, onUploadNew }) {
                       )}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

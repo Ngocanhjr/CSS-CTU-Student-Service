@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.session import get_session
 from app.schemas.rag import AnswerRequest, AnswerResponse, CitationResponse
-from app.services.rag_service import RagService
+from app.rag.service import RagService
 
 
 router = APIRouter(prefix="/api/v1/rag", tags=["rag"])

@@ -4,10 +4,19 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
 from qdrant_client import QdrantClient, models
 
 
-COLLECTION_NAME = "ctu_chunks_bge_m3"
+load_dotenv()
+
+QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333").strip()
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "").strip()
+
+COLLECTION_NAME = os.getenv(
+    "QDRANT_COLLECTION",
+    "ctu-student-service",
+)
 VECTOR_NAME = "embedding"
 VECTOR_SIZE = 1024
 
@@ -40,8 +49,8 @@ PAYLOAD_INDEXES = {
 
 def _client() -> QdrantClient:
     return QdrantClient(
-        url=os.getenv("QDRANT_URL", "http://localhost:6333"),
-        api_key=os.getenv("QDRANT_API_KEY") or None,
+        url=QDRANT_URL,
+        api_key=QDRANT_API_KEY or None,
     )
 
 
@@ -82,6 +91,10 @@ def _ensure_payload_indexes(client: QdrantClient) -> None:
 
 
 def main() -> None:
+    print(
+        f"Connecting to Qdrant: {QDRANT_URL} | "
+        f"collection={COLLECTION_NAME} | api_key={bool(QDRANT_API_KEY)}"
+    )
     client = _client()
 
     if client.collection_exists(COLLECTION_NAME):

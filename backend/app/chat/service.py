@@ -4,7 +4,7 @@ import time
 import uuid
 
 from app.retrieval.retriever import retrieve_relevant_chunks
-from app.llm.rag_chain import generate_answer
+from app.llm.rag_chain import generate_rag_answer
 from app.schemas.chat import ChatFilters
 
 
@@ -49,7 +49,7 @@ async def process_chat(
 
     # 3. Generate answer with LLM
     gen_start = time.perf_counter()
-    answer, model_name = await generate_answer(
+    answer, model_name = await generate_rag_answer(
         question=message,
         context=context,
     )

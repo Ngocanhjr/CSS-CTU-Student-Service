@@ -13,7 +13,8 @@ from app.databases.models.ingestion import IngestionJob
 from app.databases.repositories.chunks import get_version_chunks, replace_version_chunks
 from app.databases.session import AsyncSessionLocal
 from app.ingestion.chunking.chunker import ChunkingResult, chunk_markdown_document
-from app.ingestion.markdown_reader import read_markdown_document
+from app.ingestion.canonical_storage import read_canonical_markdown
+from app.ingestion.markdown_reader import parse_markdown_document
 from app.schemas.chunks import Chunk
 from app.schemas.ingestion.indexing import (
     ChunkPreviewItem,
@@ -61,9 +62,9 @@ def _preview_item(chunk: Chunk) -> ChunkPreviewItem:
 
 
 def _read_document(version: DocumentVersion):
-    from app.ingestion.canonical_storage import _resolve_canonical_path
-
-    return read_markdown_document(_resolve_canonical_path(version.canonical_markdown_path))
+    return parse_markdown_document(
+        read_canonical_markdown(version.canonical_markdown_path)
+    )
 
 
 async def build_chunk_preview(session: AsyncSession, *, document_version_id: int) -> ChunkPreviewResponse:

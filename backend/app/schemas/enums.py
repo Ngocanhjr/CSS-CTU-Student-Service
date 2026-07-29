@@ -65,13 +65,13 @@ ValidityStatus mô tả tình trạng hiệu lực pháp lý/nghiệp vụ của
 - unknown: đã kiểm tra nhưng chưa xác định được hiệu lực.
 """
 
-# ValidityStatus = Literal [
-#     "unchecked", 
-#     "valid", 
-#     "expired", 
-#     "replaced", 
-#     "unknown"
-# ]
+ValidityStatus = Literal[
+    "unchecked",
+    "valid",
+    "expired",
+    "replaced",
+    "unknown",
+]
 
 """
 RagStatus mô tả trạng thái của tài liệu trong pipeline RAG.

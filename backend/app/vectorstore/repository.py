@@ -103,7 +103,7 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
     # Dense retrieval always starts from the same eligibility domain as PostgreSQL.
     conditions = [
         FieldCondition(key="review_status", match=MatchValue(value="approved")),
-        FieldCondition(key="rag_status", match=MatchValue(value="indexed")),
+        FieldCondition(key="rag_status", match=MatchValue(value="published")),
         FieldCondition(key="audience_student", match=MatchValue(value=True)),
         FieldCondition(key="chunk_type", match=MatchValue(value="child")),
     ]
@@ -312,6 +312,35 @@ def delete_points_by_version(
                 ]
             )
         ),
+    )
+
+
+def set_version_rag_status(
+    client: QdrantClient,
+    *,
+    version_key: str,
+    rag_status: str,
+    collection_name: str = COLLECTION_NAME,
+) -> None:
+    if rag_status not in {"indexed", "published"}:
+        raise ValueError(f"Qdrant rag_status không hợp lệ: {rag_status}")
+    if not client.collection_exists(collection_name):
+        raise ValueError(f"Qdrant collection không tồn tại: {collection_name}")
+
+    client.set_payload(
+        collection_name=collection_name,
+        payload={"rag_status": rag_status},
+        points=FilterSelector(
+            filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="version_key",
+                        match=MatchValue(value=version_key),
+                    )
+                ]
+            )
+        ),
+        wait=True,
     )
 
 # 

@@ -10,7 +10,9 @@ export function useReferenceData() {
     audiences: [],
     ocr_statuses: [],
     review_statuses: [],
+    validity_statuses: [],
     rag_statuses: [],
+    asset_types: [],
   });
 
   useEffect(() => {

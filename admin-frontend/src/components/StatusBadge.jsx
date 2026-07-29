@@ -1,65 +1,20 @@
-const COLOR = {
-  // ocr_status
-  not_started: 'slate',
-  completed: 'green',
-  processing: 'blue',
-  need_review: 'amber',
-  failed: 'red',
-  done: 'green',
-  pending: 'slate',
-  running: 'blue',
-  // review_status
-  not_reviewed: 'slate',
-  reviewing: 'blue',
-  need_fix: 'amber',
-  approved: 'green',
-  rejected: 'red',
-  // rag_status
-  not_indexed: 'slate',
-  chunked: 'blue',
-  embedded: 'blue',
-  indexed: 'blue',
-  published: 'green',
-  deactivated: 'slate',
-  // validity_status
-  unchecked: 'slate',
-  valid: 'green',
-  expired: 'red',
-  replaced: 'amber',
-  unknown: 'slate',
-}
-
-const LABEL = {
-  not_started: 'Chưa bắt đầu',
-  completed: 'Hoàn tất',
-  processing: 'Đang xử lý',
-  need_review: 'Chờ duyệt',
-  failed: 'Thất bại',
-  done: 'Hoàn tất',
-  pending: 'Đang chờ',
-  running: 'Đang chạy',
-  not_reviewed: 'Chưa duyệt',
-  reviewing: 'Đang duyệt',
-  need_fix: 'Cần sửa',
-  approved: 'Đã duyệt',
-  rejected: 'Từ chối',
-  not_indexed: 'Chưa index',
-  chunked: 'Đã chunk',
-  embedded: 'Đã embed',
-  indexed: 'Đã index',
-  published: 'Đã xuất bản',
-  deactivated: 'Ngừng dùng',
-  unchecked: 'Chưa kiểm tra',
-  valid: 'Còn hiệu lực',
-  expired: 'Hết hiệu lực',
-  replaced: 'Đã bị thay thế',
-  unknown: 'Không rõ',
+const STATUS = {
+  not_started: ['slate', 'Chưa bắt đầu'], completed: ['green', 'Hoàn tất'],
+  processing: ['blue', 'Đang xử lý'], need_review: ['amber', 'Chờ duyệt'],
+  failed: ['red', 'Thất bại'], done: ['green', 'Hoàn tất'],
+  pending: ['slate', 'Đang chờ'], running: ['blue', 'Đang chạy'],
+  not_reviewed: ['slate', 'Chưa duyệt'], reviewing: ['blue', 'Đang duyệt'],
+  need_fix: ['amber', 'Cần sửa'], approved: ['green', 'Đã duyệt'],
+  rejected: ['red', 'Từ chối'], not_indexed: ['slate', 'Chưa index'],
+  chunked: ['blue', 'Đã chunk'], embedded: ['blue', 'Đã embed'],
+  indexed: ['blue', 'Đã index'], published: ['green', 'Đã xuất bản'],
+  deactivated: ['slate', 'Ngừng dùng'], unchecked: ['slate', 'Chưa kiểm tra'],
+  valid: ['green', 'Còn hiệu lực'], expired: ['red', 'Hết hiệu lực'],
+  replaced: ['amber', 'Đã bị thay thế'], unknown: ['slate', 'Không rõ'],
 }
 
 export default function StatusBadge({ status }) {
   if (!status) return null
-  const color = COLOR[status] || 'slate'
-  return (
-    <span className={`badge ${color}`} role="status">{LABEL[status] || status}</span>
-  )
+  const [color, label] = STATUS[status] || ['slate', status]
+  return <span className={`badge ${color}`} role="status">{label}</span>
 }

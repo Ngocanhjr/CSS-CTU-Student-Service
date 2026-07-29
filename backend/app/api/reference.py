@@ -15,6 +15,8 @@ from app.schemas.enums import (
     OcrStatus,
     RagStatus,
     ReviewStatus,
+    ValidityStatus,
+    AssetType,
 )
 
 router = APIRouter(prefix="/reference", tags=["reference"])
@@ -46,5 +48,7 @@ async def list_enum_options() -> EnumOptionsResponse:
         audiences=list(get_args(Audience)),
         ocr_statuses=list(get_args(OcrStatus)),
         review_statuses=list(get_args(ReviewStatus)),
+        validity_statuses=list(get_args(ValidityStatus)),
         rag_statuses=list(get_args(RagStatus)),
+        asset_types=list(get_args(AssetType)),
     )

@@ -1,5 +1,13 @@
 from app.schemas.base import StrictSchema
-from app.schemas.enums import Audience, Domain, OcrStatus, RagStatus, ReviewStatus
+from app.schemas.enums import (
+    AssetType,
+    Audience,
+    Domain,
+    OcrStatus,
+    RagStatus,
+    ReviewStatus,
+    ValidityStatus,
+)
 
 class DocumentTypeResponse(StrictSchema):
     id: int
@@ -19,7 +27,9 @@ class EnumOptionsResponse(StrictSchema):
     audiences: list[Audience]
     ocr_statuses: list[OcrStatus]
     review_statuses: list[ReviewStatus]
+    validity_statuses: list[ValidityStatus]
     rag_statuses: list[RagStatus]
+    asset_types: list[AssetType]
 
 
 #ChunkType, EmbeddingStatus, QdrantStatus

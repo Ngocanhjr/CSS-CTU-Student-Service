@@ -12,9 +12,11 @@ from app.documents.service import (
     publish_document_version,
     unpublish_document_version,
     update_document_version,
+    update_document_version_assets,
 )
 from app.schemas.documents_management import (
     DeindexResponse,
+    DocumentAssetsUpdateRequest,
     DocumentVersionDetail,
     DocumentVersionSummary,
     DocumentVersionUpdateRequest,
@@ -78,6 +80,27 @@ async def update_version(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+@router.put(
+    "/{document_version_id}/assets",
+    response_model=DocumentVersionDetail,
+)
+async def update_version_assets(
+    document_version_id: int,
+    payload: DocumentAssetsUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> DocumentVersionDetail:
+    try:
+        return await update_document_version_assets(
+            session,
+            document_version_id=document_version_id,
+            payload=payload,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.delete(
     "/{document_version_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -110,6 +133,8 @@ async def publish_version(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post(
@@ -127,6 +152,8 @@ async def unpublish_version(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post(

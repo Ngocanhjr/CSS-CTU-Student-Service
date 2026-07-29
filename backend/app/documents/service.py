@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Sequence
 from pathlib import Path
@@ -10,6 +11,8 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.databases.asset_repository import replace_document_assets
+from app.databases.models.assets import DocumentAsset
 from app.databases.models.documents import (
     Department,
     Document,
@@ -22,11 +25,13 @@ from app.ingestion.canonical_storage import read_canonical_markdown
 from app.ingestion.markdown_reader import split_frontmatter
 from app.ingestion.review_service import review_canonical_document
 from app.schemas.documents_management import (
+    DocumentAssetsUpdateRequest,
     DocumentVersionDetail,
     DocumentVersionSummary,
     DocumentVersionUpdateRequest,
     DocumentVersionUpdateResponse,
 )
+from app.schemas.assets import LinkedAssetResponse
 
 logger = logging.getLogger(__name__)
 
@@ -122,9 +127,16 @@ async def get_document_version(
     statement = (
         select(DocumentVersion)
         .options(
-            selectinload(DocumentVersion.document),
-            selectinload(DocumentVersion.recipients),
+            selectinload(DocumentVersion.document).selectinload(
+                Document.document_type
+            ),
+            selectinload(DocumentVersion.recipients).selectinload(
+                DocumentRecipient.department
+            ),
             selectinload(DocumentVersion.ingestion_jobs),
+            selectinload(DocumentVersion.asset_links).selectinload(
+                DocumentAsset.asset
+            ),
         )
         .where(DocumentVersion.id == document_version_id)
     )
@@ -139,19 +151,68 @@ async def get_document_version(
     except FileNotFoundError:
         markdown = ""
 
+    assets = [
+        LinkedAssetResponse(
+            asset_key=link.asset.asset_key,
+            title=link.asset.title,
+            url=link.asset.url,
+            asset_type=link.asset.asset_type,
+            relation_type=link.relation_type,
+            display_order=link.display_order,
+        )
+        for link in sorted(
+            version.asset_links,
+            key=lambda item: item.display_order,
+        )
+    ]
+
     return DocumentVersionDetail(
         **summary.model_dump(),
+        document_type_code=version.document.document_type.code,
         canonical_markdown=markdown,
         canonical_markdown_path=version.canonical_markdown_path,
         source_path=version.source_path,
         source_url=version.source_url,
         checksum=version.checksum,
+        responsible_department=[
+            recipient.department.code for recipient in version.recipients
+        ],
+        assets=assets,
         last_job_id=job.id if job else None,
         last_job_status=job.status if job else None,
         last_job_step=job.current_step if job else None,
         last_job_error=job.error_message if job else None,
         last_job_processed_chunks=job.processed_chunks if job else None,
         last_job_total_chunks=job.total_chunks if job else None,
+    )
+
+
+async def update_document_version_assets(
+    session: AsyncSession,
+    *,
+    document_version_id: int,
+    payload: DocumentAssetsUpdateRequest,
+) -> DocumentVersionDetail:
+    async with session.begin():
+        version = await session.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.id == document_version_id)
+            .with_for_update()
+        )
+        if version is None:
+            raise LookupError(
+                f"Không tìm thấy document version: {document_version_id}"
+            )
+
+        await replace_document_assets(
+            session,
+            document_version_id=version.id,
+            assets=payload.assets,
+        )
+
+    return await get_document_version(
+        session,
+        document_version_id=document_version_id,
     )
 
 
@@ -288,7 +349,9 @@ async def publish_document_version(
     from datetime import datetime, timezone
 
     result = await session.execute(
-        select(DocumentVersion).where(DocumentVersion.id == document_version_id)
+        select(DocumentVersion)
+        .where(DocumentVersion.id == document_version_id)
+        .with_for_update()
     )
     version = result.scalar_one_or_none()
 
@@ -303,10 +366,35 @@ async def publish_document_version(
     now = datetime.now(timezone.utc)
     version.rag_status = "published"
     # Store published_at in extra_metadata
-    extra = version.extra_metadata or {}
+    extra = dict(version.extra_metadata or {})
     extra["published_at"] = now.isoformat()
     version.extra_metadata = extra
     await session.commit()
+
+    try:
+        from app.vectorstore.qdrant_client import get_qdrant_client
+        from app.vectorstore.repository import set_version_rag_status
+
+        await asyncio.to_thread(
+            set_version_rag_status,
+            get_qdrant_client(),
+            version_key=version.version_key,
+            rag_status="published",
+        )
+    except Exception as exc:
+        await session.rollback()
+        version = await session.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.id == document_version_id)
+            .with_for_update()
+        )
+        if version is not None and version.rag_status == "published":
+            version.rag_status = "indexed"
+            extra = dict(version.extra_metadata or {})
+            extra.pop("published_at", None)
+            version.extra_metadata = extra
+            await session.commit()
+        raise RuntimeError(f"Không cập nhật được trạng thái Qdrant: {exc}") from exc
 
     return {
         "document_version_id": document_version_id,
@@ -323,7 +411,9 @@ async def unpublish_document_version(
     from datetime import datetime, timezone
 
     result = await session.execute(
-        select(DocumentVersion).where(DocumentVersion.id == document_version_id)
+        select(DocumentVersion)
+        .where(DocumentVersion.id == document_version_id)
+        .with_for_update()
     )
     version = result.scalar_one_or_none()
 
@@ -336,10 +426,35 @@ async def unpublish_document_version(
     now = datetime.now(timezone.utc)
     version.rag_status = "indexed"
     # Store unpublished_at in extra_metadata
-    extra = version.extra_metadata or {}
+    extra = dict(version.extra_metadata or {})
     extra["unpublished_at"] = now.isoformat()
     version.extra_metadata = extra
     await session.commit()
+
+    try:
+        from app.vectorstore.qdrant_client import get_qdrant_client
+        from app.vectorstore.repository import set_version_rag_status
+
+        await asyncio.to_thread(
+            set_version_rag_status,
+            get_qdrant_client(),
+            version_key=version.version_key,
+            rag_status="indexed",
+        )
+    except Exception as exc:
+        await session.rollback()
+        version = await session.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.id == document_version_id)
+            .with_for_update()
+        )
+        if version is not None and version.rag_status == "indexed":
+            version.rag_status = "published"
+            extra = dict(version.extra_metadata or {})
+            extra.pop("unpublished_at", None)
+            version.extra_metadata = extra
+            await session.commit()
+        raise RuntimeError(f"Không cập nhật được trạng thái Qdrant: {exc}") from exc
 
     return {
         "document_version_id": document_version_id,

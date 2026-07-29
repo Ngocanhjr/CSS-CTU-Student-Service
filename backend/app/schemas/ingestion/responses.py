@@ -1,7 +1,7 @@
 from app.schemas.base import StrictSchema
 from app.schemas.documents import DocumentMetadata
 from app.schemas.enums import RagStatus, ReviewStatus
-
+from typing import Any
 
 class CanonicalUploadResponse(StrictSchema):
     document_id: int
@@ -17,3 +17,7 @@ class ReviewCanonicalResponse(StrictSchema):
     rag_status: RagStatus
     markdown: str
     metadata: DocumentMetadata
+    
+
+class MarkdownMetadataPreviewResponse(StrictSchema):
+    metadata: dict[str, Any]

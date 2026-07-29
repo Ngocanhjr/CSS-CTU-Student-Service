@@ -7,6 +7,12 @@
 > - Backend structure: `chatbot/.docs/BACKEND_STRUCTURE.md`
 
 ---
+Test connection cloud qdrant
+python -c "from dotenv import load_dotenv; load_dotenv(); from app.vectorstore.qdrant_client import get_qdrant_client; c=get_qdrant_client(); print([x.name for x in c.get_collections().collections])"
+---
+
+
+---
 
 ## Docker / PostgreSQL
 

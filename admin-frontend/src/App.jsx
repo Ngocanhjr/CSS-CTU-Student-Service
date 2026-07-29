@@ -9,6 +9,10 @@ import DocumentEditPage from './documents/DocumentEditPage.jsx'
 import WorkflowProgress from './components/WorkflowProgress.jsx'
 import RagLogo from './components/RagLogo.jsx'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import { api } from './api/client.js'
+import { notify } from './lib/notify.js'
 
 const STEPS = [
   { key: 'upload', label: 'Tải Markdown' },
@@ -23,6 +27,31 @@ const emptyPipeline = {
   chunkPreview: null,
   chunkApproved: false,
   ingest: null,
+}
+
+function toPipelineMetadata(document) {
+  return {
+    document_key: document.document_key,
+    version_key: document.version_key,
+    title: document.title,
+    document_type: document.document_type_code,
+    domain: document.domain || 'unknown',
+    audience: document.audience || [],
+    responsible_department: document.responsible_department || [],
+    code: document.code,
+    issued_date: document.issued_date,
+    effective_date: document.effective_date,
+    expiry_date: document.expiry_date,
+    validity_status: document.validity_status,
+    source_url: document.source_url || '',
+    language: document.language,
+    file_type: document.file_type,
+    checksum: document.checksum,
+    source_path: document.source_path,
+    ocr_status: document.ocr_status,
+    review_status: document.review_status,
+    rag_status: document.rag_status,
+  }
 }
 
 export default function App() {
@@ -44,7 +73,16 @@ export default function App() {
 
   function reset() {
     setPipeline(emptyPipeline)
+    setEditingVersionId(null)
     setActive('upload')
+  }
+
+  function selectSection(section) {
+    if (section === 'documents') {
+      setPipeline(emptyPipeline)
+      setEditingVersionId(null)
+    }
+    setActive(section)
   }
 
   const shared = { pipeline, update, goTo: setActive }
@@ -55,26 +93,16 @@ export default function App() {
   }
 
   function continueIndexing(document) {
-    const metadata = {
-      document_key: document.document_key,
-      version_key: document.version_key,
-      title: document.title,
-      document_type: 'unknown',
-      domain: document.domain || '',
-      audience: document.audience || [],
-      responsible_department: [],
-      checksum: document.checksum,
-      ocr_status: document.ocr_status,
-      review_status: document.review_status,
-      rag_status: document.rag_status,
-    }
+    const metadata = toPipelineMetadata(document)
+    const assets = document.assets || []
     setPipeline((current) => ({
       ...current,
       upload: {
         document_id: document.document_id,
         document_version_id: document.id,
-        ingestion_job_id: null,
+        ingestion_job_id: document.last_job_id,
         markdown: document.canonical_markdown,
+        assets,
         metadata,
       },
       review: {
@@ -82,6 +110,7 @@ export default function App() {
         review_status: document.review_status,
         rag_status: document.rag_status,
         markdown: document.canonical_markdown,
+        assets,
         metadata,
       },
       chunkPreview: null,
@@ -91,6 +120,48 @@ export default function App() {
     setActive('chunks')
   }
 
+  async function resumeReview(versionId) {
+    try {
+      const document = await api.getDocument(versionId)
+      if (document.rag_status !== 'not_indexed') {
+        notify.warning('Version đã có dữ liệu RAG; không thể mở lại Review.')
+        return
+      }
+
+      setPipeline((current) => ({
+        ...current,
+        upload: {
+          document_id: document.document_id,
+          document_version_id: document.id,
+          ingestion_job_id: document.last_job_id,
+          markdown: document.canonical_markdown,
+          assets: document.assets || [],
+          metadata: toPipelineMetadata(document),
+        },
+        review: null,
+        chunkPreview: null,
+        chunkApproved: false,
+        ingest: null,
+      }))
+      setActive('review')
+    } catch (error) {
+      notify.error(error.message || 'Không thể mở lại Review.')
+    }
+  }
+
+  async function resumeChunkReview(versionId) {
+    try {
+      const document = await api.getDocument(versionId)
+      if (document.review_status !== 'approved' || document.rag_status !== 'not_indexed') {
+        notify.warning('Chỉ có thể review chunks cho version đã duyệt và chưa index.')
+        return
+      }
+      continueIndexing(document)
+    } catch (error) {
+      notify.error(error.message || 'Không thể mở Review chunks.')
+    }
+  }
+
   return (
     <article className="app-frame">
       <a href="#main-content" className="skip-link">Chuyển đến nội dung chính</a>
@@ -98,7 +169,7 @@ export default function App() {
         <Sidebar
           steps={STEPS}
           active={active}
-          onSelect={setActive}
+          onSelect={selectSection}
           onReset={reset}
           collapsed={sidebarCollapsed}
         />
@@ -122,7 +193,7 @@ export default function App() {
           {active === 'review' && <ReviewStep {...shared} />}
           {active === 'chunks' && <ChunkReviewStep {...shared} />}
           {active === 'ingest' && <IngestStep {...shared} />}
-          {active === 'documents' && <DocumentsListPage onEdit={openEdit} onUploadNew={reset} />}
+          {active === 'documents' && <DocumentsListPage onEdit={openEdit} onReview={resumeReview} onReviewChunks={resumeChunkReview} onUploadNew={reset} />}
           {active === 'documents-edit' && (
             <DocumentEditPage
               documentId={editingVersionId}
@@ -148,6 +219,7 @@ export default function App() {
         </nav>
         <small className="site-footer-copyright">© 2026 Trường Đại học Cần Thơ</small>
       </footer>
+      <ToastContainer position="top-center" newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="light" />
     </article>
   )
 }

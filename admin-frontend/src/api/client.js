@@ -28,10 +28,22 @@ export const api = {
     return request("/api/v1/health/database");
   },
 
-  uploadCanonicalMarkdown(file) {
+  uploadCanonicalMarkdown(file, sourceFile, sourceDepartmentCode, metadata) {
     const body = new FormData();
     body.append("file", file);
+    body.append("source_department_code", sourceDepartmentCode);
+    body.append("metadata_json", JSON.stringify(metadata));
+    if (sourceFile) body.append("source_file", sourceFile);
     return request("/api/v1/admin/canonical-markdown", {
+      method: "POST",
+      body,
+    });
+  },
+
+  previewMarkdownMetadata(file) {
+    const body = new FormData();
+    body.append("file", file);
+    return request("/api/v1/admin/canonical-markdown/metadata-preview", {
       method: "POST",
       body,
     });
@@ -47,11 +59,11 @@ export const api = {
     return request(`/api/v1/admin/ingestion-jobs/${jobId}`);
   },
 
-  reviewCanonicalMarkdown(versionId, canonicalMarkdown) {
+  reviewCanonicalMarkdown(versionId, canonicalMarkdown, assets) {
     return request(`/api/v1/admin/canonical-markdown/${versionId}/review`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ canonical_markdown: canonicalMarkdown }),
+      body: JSON.stringify({ canonical_markdown: canonicalMarkdown, assets }),
     });
   },
 
@@ -80,6 +92,14 @@ export const api = {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    });
+  },
+
+  updateDocumentAssets(versionId, assets) {
+    return request(`/api/v1/versions/${versionId}/assets`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assets }),
     });
   },
 

@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
+import AssetEditor from "../components/AssetEditor.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import { useReferenceData } from "../hooks/useReferenceData.js";
+import { notify } from "../lib/notify.js";
 
-const VALIDITY_STATUSES = [
-  "unchecked",
-  "valid",
-  "expired",
-  "replaced",
-  "unknown",
-];
+const editableAssets = (items = []) => items.map(({ title, url, asset_type }) => ({
+  title,
+  url,
+  asset_type,
+}));
 
 function toForm(doc) {
   return {
@@ -39,10 +39,11 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   const [doc, setDoc] = useState(null);
   const [form, setForm] = useState(null);
   const [markdown, setMarkdown] = useState("");
+  const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [assetBusy, setAssetBusy] = useState(false);
   const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +55,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
         setDoc(d);
         setForm(d ? toForm(d) : null);
         setMarkdown(d ? d.canonical_markdown : "");
+        setAssets(editableAssets(d?.assets));
         setLoading(false);
       })
       .catch(() => {
@@ -109,10 +111,23 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
     }));
   }
 
+  async function saveAssets() {
+    setAssetBusy(true);
+    try {
+      const updated = await api.updateDocumentAssets(documentId, assets);
+      setDoc(updated);
+      setAssets(editableAssets(updated.assets));
+      notify.success("Đã cập nhật asset.");
+    } catch (err) {
+      notify.error(err.message);
+    } finally {
+      setAssetBusy(false);
+    }
+  }
+
   async function onSave() {
     setBusy(true);
     setResult(null);
-    setError("");
     try {
       const res = await api.updateDocument(documentId, {
         metadata: form,
@@ -122,39 +137,27 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
       setForm(toForm(res.document));
       setMarkdown(res.document.canonical_markdown);
       setResult(res);
+      notify.success("Đã lưu thay đổi.");
       return res;
     } catch (err) {
-      setError(err.message);
+      notify.error(err.message);
       return null;
     } finally {
       setBusy(false);
     }
   }
 
-  async function saveAndContinue() {
-    try {
-      if (result?.updated) {
-        onContinue(result.document);
-        return;
-      }
-      const saved = await onSave();
-      if (saved) onContinue(saved.document);
-    } catch (err) {
-      setError(err.message || "Không thể mở Chunk preview");
-    }
-  }
-
   async function handlePublish() {
     setBusy(true);
-    setError("");
     try {
       await api.publishDocument(documentId);
       const updated = await api.getDocument(documentId);
       setDoc(updated);
       setForm(toForm(updated));
       setResult({ updated: true, message: "Đã publish thành công" });
+      notify.success("Đã publish tài liệu.");
     } catch (err) {
-      setError(err.message);
+      notify.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -163,15 +166,15 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   async function handleUnpublish() {
     if (!confirm("Unpublish sẽ ẩn tài liệu khỏi chatbot. Tiếp tục?")) return;
     setBusy(true);
-    setError("");
     try {
       await api.unpublishDocument(documentId);
       const updated = await api.getDocument(documentId);
       setDoc(updated);
       setForm(toForm(updated));
       setResult({ updated: true, message: "Đã unpublish" });
+      notify.info("Đã unpublish tài liệu.");
     } catch (err) {
-      setError(err.message);
+      notify.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -180,7 +183,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   async function handleDeindex() {
     if (!confirm("Deindex sẽ xóa tất cả chunks và vectors. Tiếp tục?")) return;
     setBusy(true);
-    setError("");
     try {
       const res = await api.deindexDocument(documentId);
       const updated = await api.getDocument(documentId);
@@ -191,8 +193,9 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
         updated: true,
         message: `Đã xóa ${res.chunks_deleted} chunks và ${res.vectors_deleted} vectors`,
       });
+      notify.success("Đã deindex tài liệu.");
     } catch (err) {
-      setError(err.message);
+      notify.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -200,6 +203,10 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
 
   const valid = form.title.trim() && form.document_type_id;
   const editable = doc.rag_status === "not_indexed";
+  const assetsReady = assets.every((asset) => (
+    asset.title.trim() && asset.url.trim() && asset.asset_type
+  ));
+  const assetsChanged = JSON.stringify(assets) !== JSON.stringify(editableAssets(doc.assets));
 
   return (
     <>
@@ -233,7 +240,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
                 value={form.validity_status}
                 onChange={(e) => set("validity_status", e.target.value)}
               >
-                {VALIDITY_STATUSES.map((s) => (
+                {enumOptions.validity_statuses.map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
@@ -300,14 +307,14 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           <fieldset className="form-grid">
             <legend className="sr-only">Thông tin phân loại tài liệu</legend>
             <label className="field">
-              <span>Tiêu đề *</span>
+              <span>Tiêu đề <b aria-hidden="true">*</b></span>
               <input
                 value={form.title}
                 onChange={(e) => set("title", e.target.value)}
               />
             </label>
             <label className="field">
-              <span>Loại tài liệu *</span>
+              <span>Loại tài liệu <b aria-hidden="true">*</b></span>
               <select
                 value={form.document_type_id}
                 onChange={(e) =>
@@ -440,36 +447,26 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           />
           <p className="hint">
             Lưu thay đổi cập nhật canonical Markdown và metadata trong
-            PostgreSQL. Sau đó chuyển qua Review → Chunks → Index để tạo chunk,
-            embedding và upsert Qdrant.
+            PostgreSQL. Review, duyệt và tạo chunks thực hiện trong workflow
+            ingestion.
           </p>
         </section>
 
-        <section
-          className="card workflow-card"
-          aria-labelledby="index-workflow-heading"
-        >
-          <h2 id="index-workflow-heading">Tiếp tục indexing</h2>
-          <p className="hint">
-            Lưu xong sẽ chuyển tài liệu sang Chunk preview. Sau khi duyệt
-            preview, bước Index sẽ lưu PostgreSQL chunks, tạo embedding và
-            upsert Qdrant.
-          </p>
-          <button
-            type="button"
-            className="btn"
-            disabled={!valid || busy || !editable}
-            onClick={(event) => {
-              event.preventDefault();
-              void saveAndContinue();
-            }}
+        <section className="card" aria-labelledby="document-assets-heading">
+          <h2 id="document-assets-heading">Asset liên kết</h2>
+          <p className="hint">Asset không nằm trong chunk/vector nên có thể cập nhật mà không cần deindex.</p>
+          <AssetEditor
+            assets={assets}
+            assetTypes={enumOptions.asset_types || []}
+            disabled={refLoading || assetBusy}
+            idPrefix="edit-asset"
+            legend="Danh sách asset"
+            onChange={setAssets}
           >
-            {busy
-              ? "Đang lưu…"
-              : result?.updated
-                ? "Mở Chunk preview →"
-                : "Lưu và mở Chunk preview →"}
-          </button>
+            <button type="button" className="btn small" onClick={saveAssets} disabled={assetBusy || !assetsReady || !assetsChanged}>
+              {assetBusy ? "Đang lưu…" : "Lưu asset"}
+            </button>
+          </AssetEditor>
         </section>
 
         {result && !result.updated && (
@@ -483,11 +480,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
             {new Date(result.document.updated_at).toLocaleString("vi-VN")}.
           </p>
         )}
-        {error && (
-          <p className="banner warn" role="alert">
-            {error}
-          </p>
-        )}
         <footer className="foot-nav">
           <button type="button" className="btn ghost" onClick={onBack}>
             ← Quay lại danh sách
@@ -499,6 +491,11 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           >
             {busy ? "Đang lưu…" : "Lưu thay đổi"}
           </button>
+          {doc.review_status === "approved" && doc.rag_status === "not_indexed" && (
+            <button type="button" className="btn ghost" onClick={() => onContinue(doc)} disabled={busy}>
+              Review chunks →
+            </button>
+          )}
         </footer>
       </form>
     </>
