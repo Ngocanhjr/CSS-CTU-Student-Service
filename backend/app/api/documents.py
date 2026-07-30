@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.session import get_session
@@ -48,7 +48,10 @@ async def list_versions(
     )
 
 
-@router.get("/{document_version_id}", response_model=DocumentVersionDetail)
+@router.get(
+    "/{document_version_id}",
+    response_model=DocumentVersionDetail,
+)
 async def get_version(
     document_version_id: int,
     session: AsyncSession = Depends(get_session),
@@ -59,10 +62,16 @@ async def get_version(
             document_version_id=document_version_id,
         )
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
 
 
-@router.put("/{document_version_id}", response_model=DocumentVersionUpdateResponse)
+@router.put(
+    "/{document_version_id}",
+    response_model=DocumentVersionUpdateResponse,
+)
 async def update_version(
     document_version_id: int,
     payload: DocumentVersionUpdateRequest,
@@ -75,9 +84,15 @@ async def update_version(
             payload=payload,
         )
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
 
 @router.put(
@@ -96,26 +111,45 @@ async def update_version_assets(
             payload=payload,
         )
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
 
 @router.delete(
     "/{document_version_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
 )
 async def delete_version(
     document_version_id: int,
     session: AsyncSession = Depends(get_session),
-) -> None:
-    """Delete a document version if not indexed."""
+) -> Response:
+    """Delete a document version if it has not been indexed."""
     try:
-        await delete_document_version(session, document_version_id)
+        await delete_document_version(
+            session,
+            document_version_id,
+        )
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(
@@ -126,15 +160,27 @@ async def publish_version(
     document_version_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> PublishResponse:
-    """Publish a document version to make it available in RAG chatbot."""
+    """Publish a document version to make it available in the RAG chatbot."""
     try:
-        return await publish_document_version(session, document_version_id)
+        return await publish_document_version(
+            session,
+            document_version_id,
+        )
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(
@@ -145,15 +191,27 @@ async def unpublish_version(
     document_version_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> UnpublishResponse:
-    """Unpublish a document version to hide it from RAG chatbot."""
+    """Unpublish a document version to hide it from the RAG chatbot."""
     try:
-        return await unpublish_document_version(session, document_version_id)
+        return await unpublish_document_version(
+            session,
+            document_version_id,
+        )
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(
@@ -166,8 +224,17 @@ async def deindex_version(
 ) -> DeindexResponse:
     """Remove chunks and vectors for a document version to allow editing."""
     try:
-        return await deindex_document_version(session, document_version_id)
+        return await deindex_document_version(
+            session,
+            document_version_id,
+        )
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
