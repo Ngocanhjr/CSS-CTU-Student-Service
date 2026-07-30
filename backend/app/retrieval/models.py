@@ -95,3 +95,7 @@ class RetrievalResult:
     issued_date: date | None = None
     issuing_authority: str | None = None
     document_type: str | None = None
+
+    # Đường dẫn object trên R2 để client mở file gốc hoặc bản OCR.
+    source_path: str = ""
+    canonical_markdown_path: str = ""

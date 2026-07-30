@@ -2,8 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.session import get_session
-from app.schemas.rag import AnswerRequest, AnswerResponse, CitationResponse
 from app.rag.service import RagService
+from app.schemas.rag import (
+    AnswerRequest,
+    AnswerResponse,
+    CitationResponse,
+)
 
 
 router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
@@ -20,6 +24,7 @@ async def answer_question(
         question=request.question,
         top_k=request.top_k,
     )
+
     if not should_search:
         return AnswerResponse(
             answer=direct_answer,
@@ -28,6 +33,7 @@ async def answer_question(
         )
 
     assert rag_answer is not None
+
     return AnswerResponse(
         answer=rag_answer.answer,
         citations=[
@@ -43,6 +49,13 @@ async def answer_question(
                 issued_date=citation.issued_date,
                 issuing_authority=citation.issuing_authority,
                 document_type=citation.document_type,
+
+                # Thêm 3 trường nguồn tài liệu.
+                source_url=citation.source_url,
+                source_path=citation.source_path,
+                canonical_markdown_path=(
+                    citation.canonical_markdown_path
+                ),
             )
             for citation in rag_answer.citations
         ],

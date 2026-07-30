@@ -11,9 +11,18 @@ from botocore.exceptions import ClientError
 MAX_MARKDOWN_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_BYTES = 50 * 1024 * 1024
 
+DEFAULT_PREVIEW_EXPIRES_MINUTES = 5
 
-def make_canonical_relative_path(version_key: str, department_code: str) -> str:
-    return f"canonical/md/{department_code.lower()}/{version_key}.md"
+
+def make_canonical_relative_path(
+    version_key: str,
+    department_code: str,
+) -> str:
+    return (
+        f"canonical/md/"
+        f"{department_code.lower()}/"
+        f"{version_key}.md"
+    )
 
 
 def make_source_relative_path(
@@ -22,7 +31,13 @@ def make_source_relative_path(
     extension: str,
 ) -> str:
     source_type = extension.lstrip(".").lower()
-    normalized_extension = ".md" if source_type == "markdown" else f".{source_type}"
+
+    normalized_extension = (
+        ".md"
+        if source_type == "markdown"
+        else f".{source_type}"
+    )
+
     if source_type == "markdown":
         source_type = "md"
 
@@ -35,8 +50,10 @@ def make_source_relative_path(
 
 def _bucket() -> str:
     bucket = os.getenv("R2_BUCKET")
+
     if not bucket:
         raise RuntimeError("R2_BUCKET is not set")
+
     return bucket
 
 
@@ -63,15 +80,30 @@ def _client():
 
 def _object_exists(key: str) -> bool:
     try:
-        _client().head_object(Bucket=_bucket(), Key=key)
+        _client().head_object(
+            Bucket=_bucket(),
+            Key=key,
+        )
         return True
+
     except ClientError as exc:
-        if exc.response["Error"]["Code"] in {"404", "NoSuchKey", "NotFound"}:
+        error_code = exc.response["Error"]["Code"]
+
+        if error_code in {
+            "404",
+            "NoSuchKey",
+            "NotFound",
+        }:
             return False
+
         raise
 
 
-def _put_object(key: str, content: bytes, content_type: str) -> None:
+def _put_object(
+    key: str,
+    content: bytes,
+    content_type: str,
+) -> None:
     _client().put_object(
         Bucket=_bucket(),
         Key=key,
@@ -80,9 +112,14 @@ def _put_object(key: str, content: bytes, content_type: str) -> None:
     )
 
 
-def create_canonical_markdown(relative_path: str, content: str) -> None:
+def create_canonical_markdown(
+    relative_path: str,
+    content: str,
+) -> None:
     if _object_exists(relative_path):
-        raise FileExistsError("Canonical Markdown đã tồn tại trên R2")
+        raise FileExistsError(
+            "Canonical Markdown đã tồn tại trên R2"
+        )
 
     _put_object(
         relative_path,
@@ -91,21 +128,36 @@ def create_canonical_markdown(relative_path: str, content: str) -> None:
     )
 
 
-def read_canonical_markdown(relative_path: str) -> str:
+def read_canonical_markdown(
+    relative_path: str,
+) -> str:
     try:
         response = _client().get_object(
             Bucket=_bucket(),
             Key=relative_path,
         )
+
     except ClientError as exc:
-        if exc.response["Error"]["Code"] in {"404", "NoSuchKey", "NotFound"}:
-            raise FileNotFoundError(relative_path) from exc
+        error_code = exc.response["Error"]["Code"]
+
+        if error_code in {
+            "404",
+            "NoSuchKey",
+            "NotFound",
+        }:
+            raise FileNotFoundError(
+                relative_path
+            ) from exc
+
         raise
 
     return response["Body"].read().decode("utf-8")
 
 
-def replace_canonical_markdown(relative_path: str, content: str) -> None:
+def replace_canonical_markdown(
+    relative_path: str,
+    content: str,
+) -> None:
     _put_object(
         relative_path,
         content.encode("utf-8"),
@@ -113,8 +165,13 @@ def replace_canonical_markdown(relative_path: str, content: str) -> None:
     )
 
 
-def delete_canonical_markdown(relative_path: str) -> None:
-    _client().delete_object(Bucket=_bucket(), Key=relative_path)
+def delete_canonical_markdown(
+    relative_path: str,
+) -> None:
+    _client().delete_object(
+        Bucket=_bucket(),
+        Key=relative_path,
+    )
 
 
 def create_source_file(
@@ -123,22 +180,80 @@ def create_source_file(
     content_type: str,
 ) -> None:
     if _object_exists(relative_path):
-        raise FileExistsError("File nguồn đã tồn tại trên R2")
+        raise FileExistsError(
+            "File nguồn đã tồn tại trên R2"
+        )
 
-    _put_object(relative_path, content, content_type)
+    _put_object(
+        relative_path,
+        content,
+        content_type,
+    )
 
 
-def delete_source_file(relative_path: str) -> None:
-    _client().delete_object(Bucket=_bucket(), Key=relative_path)
+def delete_source_file(
+    relative_path: str,
+) -> None:
+    _client().delete_object(
+        Bucket=_bucket(),
+        Key=relative_path,
+    )
 
 
-def get_source_preview_url(relative_path: str) -> str:
+def get_object_preview_url(
+    relative_path: str,
+    *,
+    expires_minutes: int = DEFAULT_PREVIEW_EXPIRES_MINUTES,
+) -> str:
+    """Tạo URL tạm thời để xem object trên R2."""
+
+    if not relative_path:
+        raise ValueError("Đường dẫn object R2 không được để trống")
+
+    if expires_minutes < 1:
+        raise ValueError(
+            "Thời gian hết hạn phải lớn hơn hoặc bằng 1 phút"
+        )
+
+    if not _object_exists(relative_path):
+        raise FileNotFoundError(relative_path)
+
     return _client().generate_presigned_url(
-        "get_object",
+        ClientMethod="get_object",
         Params={
             "Bucket": _bucket(),
             "Key": relative_path,
             "ResponseContentDisposition": "inline",
         },
-        ExpiresIn=int(timedelta(minutes=5).total_seconds()),
+        ExpiresIn=int(
+            timedelta(
+                minutes=expires_minutes
+            ).total_seconds()
+        ),
+    )
+
+
+def get_source_preview_url(
+    relative_path: str,
+    *,
+    expires_minutes: int = DEFAULT_PREVIEW_EXPIRES_MINUTES,
+) -> str:
+    """Tạo URL xem PDF hoặc file nguồn gốc."""
+
+    return get_object_preview_url(
+        relative_path,
+        expires_minutes=expires_minutes,
+    )
+
+
+def get_canonical_markdown_preview_url(
+    relative_path: str,
+    *,
+    expires_minutes: int = DEFAULT_PREVIEW_EXPIRES_MINUTES,
+) -> str:
+    """Tạo URL xem file Markdown OCR."""
+
+    return get_object_preview_url(
+        relative_path,
+        expires_minutes=expires_minutes,
     )
