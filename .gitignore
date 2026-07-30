@@ -59,3 +59,4 @@ backend/answer.txt
 .env copy
 /storage/
 .cache/
+.tmp

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
@@ -28,6 +28,8 @@ export default function IngestStep({ pipeline, update, goTo }) {
   const ingest = pipeline.ingest
   const [job, setJob] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const completedJobRef = useRef(null)
 
   if (!upload) {
     return (
@@ -55,6 +57,21 @@ export default function IngestStep({ pipeline, update, goTo }) {
     }
   }
 
+  async function onPublish() {
+    setPublishing(true)
+    try {
+      const result = await api.publishDocument(upload.document_version_id)
+      const next = { ...(job || ingest), rag_status: result.rag_status }
+      setJob(next)
+      update('ingest', next)
+      notify.success('Đã xuất bản tài liệu. Chatbot có thể sử dụng tài liệu này.')
+    } catch (err) {
+      notify.error(err.message)
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   useEffect(() => {
     if (!job?.ingestion_job_id || !['pending', 'processing'].includes(job.job_status)) return undefined
     let cancelled = false
@@ -64,7 +81,13 @@ export default function IngestStep({ pipeline, update, goTo }) {
         const next = await api.getIndexingJob(job.ingestion_job_id)
         if (cancelled) return
         setJob(next)
-        if (!['pending', 'processing'].includes(next.job_status)) update('ingest', next)
+        if (!['pending', 'processing'].includes(next.job_status)) {
+          update('ingest', next)
+          if (next.job_status === 'completed' && completedJobRef.current !== next.ingestion_job_id) {
+            completedJobRef.current = next.ingestion_job_id
+            notify.success('Indexing hoàn tất. Hãy kiểm tra kết quả rồi xuất bản tài liệu.')
+          }
+        }
       } catch (err) {
         if (!cancelled && !reportedPollError) {
           reportedPollError = true
@@ -100,9 +123,18 @@ export default function IngestStep({ pipeline, update, goTo }) {
       />
 
       {alreadyIndexed && (
-        <p className="banner" role="status">
-          Tài liệu đã index thành công. Không cần chạy lại nếu nội dung không thay đổi.
-        </p>
+        <aside className="banner" role="status">
+          {ragStatus === 'published'
+            ? 'Tài liệu đã xuất bản và sẵn sàng cho chatbot.'
+            : 'Tài liệu đã index thành công. Hãy kiểm tra kết quả trước khi xuất bản.'}
+          {ragStatus === 'indexed' && (
+            <p>
+              <button type="button" className="btn small" disabled={publishing} onClick={onPublish}>
+                {publishing ? 'Đang xuất bản…' : 'Xuất bản tài liệu'}
+              </button>
+            </p>
+          )}
+        </aside>
       )}
 
       <aside className={canIngest ? 'banner' : 'banner warn'}>
@@ -121,6 +153,7 @@ export default function IngestStep({ pipeline, update, goTo }) {
           <dt>version_key</dt><dd className="mono">{metadata.version_key}</dd>
           <dt>Tiêu đề</dt><dd>{metadata.title}</dd>
           <dt>Phòng ban phụ trách</dt><dd>{metadata.responsible_department?.join(', ') || '—'}</dd>
+          <dt>Ghi chú</dt><dd>{metadata.notes || '—'}</dd>
           <dt>ocr_status</dt><dd><StatusBadge status={metadata.ocr_status || 'not_started'} /></dd>
           <dt>review_status</dt><dd><StatusBadge status={metadata.review_status || 'not_reviewed'} /></dd>
           <dt>rag_status</dt><dd><StatusBadge status={ragStatus} /></dd>

@@ -3,8 +3,10 @@ import { api } from "../api/client.js";
 import AssetEditor from "../components/AssetEditor.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import LineNumberedTextarea from "../components/LineNumberedTextarea.jsx";
 import { useReferenceData } from "../hooks/useReferenceData.js";
 import { notify } from "../lib/notify.js";
+import { Trash2 } from "lucide-react";
 
 const editableAssets = (items = []) => items.map(({ title, url, asset_type }) => ({
   title,
@@ -16,7 +18,7 @@ function toForm(doc) {
   return {
     title: doc.title,
     document_type_id: doc.document_type_id,
-    department_id: doc.department_id,
+    responsible_department: [...(doc.responsible_department || [])],
     domain: doc.domain,
     audience: [...doc.audience],
     code: doc.code,
@@ -111,6 +113,32 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
     }));
   }
 
+  function setResponsibleDepartment(index, value) {
+    setResult(null);
+    setForm((current) => ({
+      ...current,
+      responsible_department: current.responsible_department.map((item, currentIndex) => (
+        currentIndex === index ? value : item
+      )),
+    }));
+  }
+
+  function addResponsibleDepartment() {
+    setResult(null);
+    setForm((current) => ({
+      ...current,
+      responsible_department: [...current.responsible_department, ""],
+    }));
+  }
+
+  function removeResponsibleDepartment(index) {
+    setResult(null);
+    setForm((current) => ({
+      ...current,
+      responsible_department: current.responsible_department.filter((_, currentIndex) => currentIndex !== index),
+    }));
+  }
+
   async function saveAssets() {
     setAssetBusy(true);
     try {
@@ -201,7 +229,10 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
     }
   }
 
-  const valid = form.title.trim() && form.document_type_id;
+  const valid = form.title.trim()
+    && form.document_type_id
+    && form.responsible_department.length
+    && form.responsible_department.every(Boolean);
   const editable = doc.rag_status === "not_indexed";
   const assetsReady = assets.every((asset) => (
     asset.title.trim() && asset.url.trim() && asset.asset_type
@@ -332,19 +363,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           <fieldset className="form-grid">
             <legend className="sr-only">Đơn vị và lĩnh vực tài liệu</legend>
             <label className="field">
-              <span>Phòng ban</span>
-              <select
-                value={form.department_id}
-                onChange={(e) => set("department_id", Number(e.target.value))}
-              >
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} ({d.code})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
               <span>Domain</span>
               <select
                 value={form.domain}
@@ -376,6 +394,24 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
                 </li>
               ))}
             </menu>
+          </fieldset>
+          <fieldset className="responsible-departments review-metadata-section">
+            <legend>Phòng ban phụ trách <b aria-hidden="true">*</b></legend>
+            {form.responsible_department.map((selectedCode, index) => (
+              <div className="responsible-department-row" key={`${index}-${selectedCode}`}>
+                <label className="field" htmlFor={`edit-responsible-department-${index}`}>
+                  <span className="sr-only">Phòng ban phụ trách {index + 1}</span>
+                  <select id={`edit-responsible-department-${index}`} value={selectedCode} onChange={(event) => setResponsibleDepartment(index, event.target.value)} required>
+                    <option value="">— Chọn phòng ban —</option>
+                    {departments.filter((department) => department.is_active && (department.code === selectedCode || !form.responsible_department.includes(department.code))).map((department) => (
+                      <option key={department.code} value={department.code}>{department.code} — {department.name}</option>
+                    ))}
+                  </select>
+                </label>
+                {form.responsible_department.length > 1 && <button type="button" className="btn ghost small danger-icon" onClick={() => removeResponsibleDepartment(index)} aria-label={`Bỏ phòng ban phụ trách ${index + 1}`} title="Bỏ phòng ban"><Trash2 aria-hidden="true" /></button>}
+              </div>
+            ))}
+            <button type="button" className="btn ghost small" onClick={addResponsibleDepartment} disabled={form.responsible_department.some((item) => !item)}>+ Thêm phòng ban</button>
           </fieldset>
         </section>
 
@@ -436,7 +472,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           <label className="field" htmlFor="document-markdown">
             Canonical Markdown và YAML frontmatter
           </label>
-          <textarea
+          <LineNumberedTextarea
             id="document-markdown"
             className="markdown-editor"
             value={markdown}

@@ -16,6 +16,7 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
   const errors = preview?.errors || []
   const warnings = preview?.warnings || []
   const [busy, setBusy] = useState(false)
+  const canonicalMarkdown = upload?.markdown || pipeline.review?.markdown || ''
 
   if (!pipeline.review) {
     return (
@@ -47,6 +48,15 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
     goTo('ingest')
   }
 
+  function openCanonical(event) {
+    event.preventDefault()
+    const url = URL.createObjectURL(new Blob([canonicalMarkdown], { type: 'text/plain;charset=utf-8' }))
+    const opened = window.open(url, '_blank')
+    if (opened) opened.opener = null
+    else notify.error('Trình duyệt đã chặn tab xem canonical Markdown.')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  }
+
   return (
     <>
       <PageHeader
@@ -70,7 +80,12 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
       {preview && (
         <>
           <section className="card" aria-labelledby="preview-summary-heading">
-            <h2 id="preview-summary-heading">Tổng quan</h2>
+            <header className="card-heading-row">
+              <h2 id="preview-summary-heading">Tổng quan</h2>
+              <a className="btn ghost small" href="#canonical-markdown" onClick={openCanonical}>
+                Mở canonical Markdown ↗
+              </a>
+            </header>
             <dl className="kv">
               <dt>parent_chunks</dt><dd>{preview.parent_chunks}</dd>
               <dt>child_chunks</dt><dd>{preview.child_chunks}</dd>
@@ -78,7 +93,6 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
               <dt>warnings</dt><dd>{warnings.length}</dd>
               <dt>errors</dt><dd>{errors.length}</dd>
             </dl>
-
             {errors.length > 0 && (
               <aside className="banner warn" role="alert">
                 <strong>Lỗi phải sửa trước khi index</strong>

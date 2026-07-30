@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -14,14 +13,17 @@ from sqlalchemy.orm import selectinload
 from app.databases.asset_repository import replace_document_assets
 from app.databases.models.assets import DocumentAsset
 from app.databases.models.documents import (
-    Department,
     Document,
     DocumentRecipient,
     DocumentType,
     DocumentVersion,
 )
 from app.databases.models.ingestion import IngestionJob
-from app.ingestion.canonical_storage import read_canonical_markdown
+from app.ingestion.canonical_storage import (
+    delete_canonical_markdown,
+    delete_source_file,
+    read_canonical_markdown,
+)
 from app.ingestion.markdown_reader import split_frontmatter
 from app.ingestion.review_service import review_canonical_document
 from app.schemas.documents_management import (
@@ -165,6 +167,9 @@ async def get_document_version(
             key=lambda item: item.display_order,
         )
     ]
+    responsible_departments = [
+        recipient.department.code for recipient in version.recipients
+    ] or list(_extra(version, "responsible_department", []))
 
     return DocumentVersionDetail(
         **summary.model_dump(),
@@ -174,9 +179,15 @@ async def get_document_version(
         source_path=version.source_path,
         source_url=version.source_url,
         checksum=version.checksum,
-        responsible_department=[
-            recipient.department.code for recipient in version.recipients
-        ],
+        responsible_department=responsible_departments,
+        issuing_authority=version.issuing_authority,
+        signer_name=version.signer_name,
+        is_latest=version.is_latest,
+        language=version.language,
+        accessed_date=_iso(version.accessed_date),
+        parser=_extra(version, "parser"),
+        ocr_engine=_extra(version, "ocr_engine"),
+        notes=_extra(version, "notes", ""),
         assets=assets,
         last_job_id=job.id if job else None,
         last_job_status=job.status if job else None,
@@ -246,16 +257,7 @@ async def update_document_version(
             raise ValueError("Document type không tồn tại hoặc đã bị khóa")
         frontmatter["document_type"] = document_type.code
 
-    if metadata.department_id is not None:
-        department = await session.scalar(
-            select(Department).where(
-                Department.id == metadata.department_id,
-                Department.is_active.is_(True),
-            )
-        )
-        if department is None:
-            raise ValueError("Department không tồn tại hoặc đã bị khóa")
-        frontmatter["responsible_department"] = [department.code]
+    frontmatter["responsible_department"] = metadata.responsible_department
 
     frontmatter.update(
         {
@@ -300,7 +302,7 @@ async def delete_document_version(
     session: AsyncSession,
     document_version_id: int,
 ) -> None:
-    """Delete a document version if not indexed."""
+    """Delete a document version and remove its parent when it becomes empty."""
 
     # 1. Fetch version
     result = await session.execute(
@@ -318,6 +320,31 @@ async def delete_document_version(
             "Deindex first."
         )
 
+    canonical_path = version.canonical_markdown_path
+    source_path = version.source_path
+    await session.rollback()
+
+    # R2 is external I/O; finish the read transaction before deleting objects.
+    if canonical_path:
+        await asyncio.to_thread(delete_canonical_markdown, canonical_path)
+    if source_path:
+        await asyncio.to_thread(delete_source_file, source_path)
+
+    version = await session.scalar(
+        select(DocumentVersion).where(DocumentVersion.id == document_version_id)
+    )
+    if version is None:
+        return
+
+    has_other_versions = await session.scalar(
+        select(DocumentVersion.id)
+        .where(
+            DocumentVersion.document_id == version.document_id,
+            DocumentVersion.id != document_version_id,
+        )
+        .limit(1)
+    )
+
     # 3. Delete related ingestion jobs
     await session.execute(
         delete(IngestionJob).where(
@@ -325,19 +352,12 @@ async def delete_document_version(
         )
     )
 
-    # 4. Delete canonical markdown file
-    if version.canonical_markdown_path:
-        md_path = Path(version.canonical_markdown_path)
-        if md_path.exists():
-            md_path.unlink()
-        else:
-            logger.warning(
-                "Canonical markdown file not found: %s",
-                version.canonical_markdown_path,
-            )
-
-    # 5. Delete version record
+    # 4. Delete version record
+    document_id = version.document_id
     await session.delete(version)
+    await session.flush()
+    if has_other_versions is None:
+        await session.execute(delete(Document).where(Document.id == document_id))
     await session.commit()
 
 

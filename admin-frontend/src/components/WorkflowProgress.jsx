@@ -12,7 +12,7 @@ function CheckIcon() {
   )
 }
 
-export default function WorkflowProgress({ steps, active, done, onSelect }) {
+export default function WorkflowProgress({ steps, active, done, locked = false, onSelect }) {
   const activeIndex = steps.findIndex((step) => step.key === active)
 
   function fillPercent(index) {
@@ -31,6 +31,7 @@ export default function WorkflowProgress({ steps, active, done, onSelect }) {
           const isDone = !!done[step.key]
           const isActive = active === step.key
           const isLast = index === steps.length - 1
+          const isLocked = locked && !isActive
 
           return (
             <li key={step.key} className={isDone ? 'done' : ''}>
@@ -38,7 +39,8 @@ export default function WorkflowProgress({ steps, active, done, onSelect }) {
                 type="button"
                 className={isActive ? 'active' : ''}
                 aria-current={isActive ? 'step' : undefined}
-                disabled={!reachable(step, index)}
+                disabled={isLocked || !reachable(step, index)}
+                title={isLocked ? 'Đã khóa sau khi index' : undefined}
                 onClick={() => onSelect(step.key)}
               >
                 <span className="step-indicator" aria-hidden="true">

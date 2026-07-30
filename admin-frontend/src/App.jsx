@@ -45,6 +45,13 @@ function toPipelineMetadata(document) {
     validity_status: document.validity_status,
     source_url: document.source_url || '',
     language: document.language,
+    issuing_authority: document.issuing_authority,
+    signer_name: document.signer_name,
+    is_latest: document.is_latest,
+    accessed_date: document.accessed_date,
+    parser: document.parser,
+    ocr_engine: document.ocr_engine,
+    notes: document.notes || '',
     file_type: document.file_type,
     checksum: document.checksum,
     source_path: document.source_path,
@@ -66,6 +73,9 @@ export default function App() {
     chunks: pipeline.chunkApproved,
     ingest: !!pipeline.ingest,
   }
+  const workflowLocked = ['indexed', 'published'].includes(
+    pipeline.ingest?.rag_status || pipeline.upload?.metadata?.rag_status,
+  )
 
   function update(key, value) {
     setPipeline((p) => ({ ...p, [key]: value }))
@@ -85,7 +95,15 @@ export default function App() {
     setActive(section)
   }
 
-  const shared = { pipeline, update, goTo: setActive }
+  function goToWorkflow(step) {
+    if (workflowLocked && step !== 'ingest') {
+      notify.warning('Tài liệu đã index; không thể quay lại các bước trước. Hãy deindex nếu cần sửa.')
+      return
+    }
+    setActive(step)
+  }
+
+  const shared = { pipeline, update, goTo: goToWorkflow }
 
   function openEdit(versionId) {
     setEditingVersionId(versionId)
@@ -186,7 +204,7 @@ export default function App() {
             >
               {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
-            <WorkflowProgress steps={STEPS} active={active} done={done} onSelect={setActive} />
+            <WorkflowProgress steps={STEPS} active={active} done={done} locked={workflowLocked} onSelect={goToWorkflow} />
           </header>
           <section className="workspace-content" id="main-content" aria-label="Nội dung quản trị">
           {active === 'upload' && <UploadStep {...shared} />}
