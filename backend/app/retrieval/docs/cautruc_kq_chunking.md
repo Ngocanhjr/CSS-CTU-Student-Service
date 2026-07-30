@@ -177,7 +177,7 @@ Khởi động venv:
 
 **`.\.venv\Scripts\Activate.ps1`**
 
-**python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload**
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 Nếu lỗi uvicorn thì do transformers yêu cầu >= 2.4, cần nâng cấp pytorch:
 

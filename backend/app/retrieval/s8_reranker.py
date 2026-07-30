@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import replace
-import json
 import os
-import re
 from typing import Protocol
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+
+import httpx
+from dotenv import find_dotenv, load_dotenv
 
 from app.retrieval.models import RetrievalResult
 
-#Là interface/quy ước chung: mọi reranker phải có hàm rerank(query, results) và trả về danh sách
+
+# Đọc biến môi trường từ file .env của dự án.
+load_dotenv(find_dotenv())
+
+
 class Reranker(Protocol):
-    """Rank hydrated candidates by their relevance to a user query."""
+    """Quy ước chung cho các lớp reranker."""
 
     def rerank(
         self,
@@ -21,9 +24,9 @@ class Reranker(Protocol):
     ) -> list[RetrievalResult]:
         ...
 
-#Không xếp hạng lại, trả nguyên kết quả. Dùng cho test hoặc khi không có model reranker.
+
 class IdentityReranker:
-    """Leave candidates unchanged; useful for tests and controlled fallbacks."""
+    """Không xếp hạng lại; chủ yếu dùng trong unit test."""
 
     def rerank(
         self,
@@ -33,199 +36,302 @@ class IdentityReranker:
         del query
         return results
 
-#Xếp hạng lại theo từ khóa. Nó so sánh các từ quan trọng trong câu hỏi với content và title của chunk.
-class LexicalReranker:
-    """Dependency-free reranker for the MVP before a cross-encoder is added.
 
-    It prioritizes query-term coverage in the chunk, then applies small boosts
-    for matches in the title and for an exact normalized query phrase.  The
-    original order is retained when candidates receive the same score.
+class JinaReranker:
+    """Xếp hạng lại kết quả retrieval bằng Jina Reranker API.
+
+    Jina nhận câu hỏi và danh sách tài liệu, sau đó trả về thứ tự
+    tài liệu theo mức độ liên quan.
+
+    Toàn bộ dữ liệu của RetrievalResult được giữ nguyên.
+    Chỉ trường score được thay bằng relevance_score của Jina.
     """
-    #các từ ít mang nghĩa tìm kiếm -> bỏ qua để tính điểm chính xác hơn
-    _STOP_WORDS = frozenset(
-        {
-            "a",
-            "an",
-            "and",
-            "cho",
-            "của",
-            "các",
-            "cần",
-            "có",
-            "để",
-            "gì",
-            "khi",
-            "là",
-            "một",
-            "nào",
-            "những",
-            "ở",
-            "the",
-            "thì",
-            "và",
-            "về",
-            "với",
-        }
-    )
 
-    #Chuẩn hóa text thành tập từ khóa: chuyển chữ thường, tách từ, bỏ từ ngắn và stop words.#
-    @classmethod
-    def _tokens(cls, text: str) -> set[str]:
-        return {
-            token
-            for token in re.findall(r"\w+", text.casefold())
-            if len(token) > 1 and token not in cls._STOP_WORDS
-        }
-
-    def rerank(
-        self,
-        query: str,
-        results: list[RetrievalResult],
-    ) -> list[RetrievalResult]:
-        query_tokens = self._tokens(query)
-        if not query_tokens or len(results) < 2:
-            return results
-
-        #chuẩn hóa câu hỏi thành tập từ khóa quan trọng
-        normalized_query = " ".join(query.casefold().split())
-        reranked: list[tuple[float, int, RetrievalResult]] = []
-
-        #duyệt từng chunk để tính điểm liên quan
-        for position, result in enumerate(results):
-            #Chuẩn hóa content và title của chunk thành tập từ khóa
-            content_tokens = self._tokens(result.content)
-            title_tokens = self._tokens(result.title)
-            
-            #đếm số từ khóa của câu hỏi trong content và title
-            content_overlap = len(query_tokens & content_tokens)
-            title_overlap = len(query_tokens & title_tokens)
-            
-            #mật độ từ khóa trong chunk, 
-            coverage = content_overlap / len(query_tokens)
-            
-            #tỷ lệ từ khóa trong content, nhiều từ -> điểm cao
-            density = content_overlap / max(len(content_tokens), 1)
-            
-            #tỷ lệ từ khóa trong title
-            title_coverage = title_overlap / len(query_tokens)
-            normalized_content = " ".join(result.content.casefold().split())
-            
-            #nếu câu hỏi xuất hiện nguyên cụm trong content thì cộng 0.2
-            phrase_bonus = 0.2 if normalized_query in normalized_content else 0.0
-            
-            #độ phủ từ khóa trong content
-            relevance_score = (
-                coverage
-                + (0.25 * density)
-                + (0.3 * title_coverage)
-                + phrase_bonus
-            )
-
-            reranked.append(
-                (
-                    #Giữ nguyên toàn bộ dữ liệu của chunk, chỉ thay score bằng điểm rerank mới.
-                    relevance_score,
-                    position,
-                    replace(result, score=relevance_score),
-                )
-            )
-        #sắp xếp chunk theo điểm từ cao xuống thấp
-        reranked.sort(key=lambda item: (-item[0], item[1]))
-        return [result for _, _, result in reranked]
-
-
-#Xếp hạng lại bằng cross-encoder chạy trên Text Embeddings Inference (BAAI/bge-reranker-v2-m3).
-#Gọi endpoint /rerank của container TEI thứ 2, model chấm trực tiếp cặp (query, chunk).
-class CrossEncoderReranker:
-    """HTTP client tối thiểu cho reranker cross-encoder chạy trên TEI.
-
-    TEI expose endpoint ``/rerank`` nhận ``{"query", "texts"}`` và trả về danh
-    sách ``{"index", "score"}`` đã sắp xếp giảm dần theo độ liên quan.  Ta ánh xạ
-    score đó ngược lại từng ``RetrievalResult`` và giữ nguyên toàn bộ metadata.
-    """
+    DEFAULT_ENDPOINT = "https://api.jina.ai/v1/rerank"
 
     def __init__(
         self,
         *,
-        base_url: str,
         api_key: str,
+        model: str = "jina-reranker-v3",
+        endpoint: str = DEFAULT_ENDPOINT,
         timeout: float = 120.0,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
-        self.timeout = timeout
+        api_key = api_key.strip()
+        model = model.strip()
+        endpoint = endpoint.strip().rstrip("/")
 
-    def _score(self, query: str, texts: list[str]) -> list[float]:
-        request = Request(
-            f"{self.base_url}/rerank",
-            data=json.dumps(
-                {"query": query, "texts": texts}
-            ).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-
-        try:
-            with urlopen(request, timeout=self.timeout) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(
-                f"TEI reranker trả HTTP {exc.code}: {detail}"
-            ) from exc
-        except URLError as exc:
-            raise RuntimeError(
-                f"Không kết nối được TEI reranker: {exc.reason}"
-            ) from exc
-
-        #TEI trả list[{"index", "score"}] đã sắp xếp; ta khôi phục theo index gốc.
-        if not isinstance(payload, list) or len(payload) != len(texts):
-            raise RuntimeError(
-                "TEI reranker trả response không đúng contract."
+        if not api_key:
+            raise ValueError(
+                "Jina API key không được để trống."
             )
 
-        scores = [0.0] * len(texts)
-        for entry in payload:
-            index = entry["index"]
-            scores[index] = float(entry["score"])
-        return scores
+        if not model:
+            raise ValueError(
+                "Tên model Jina không được để trống."
+            )
+
+        if not endpoint:
+            raise ValueError(
+                "Jina endpoint không được để trống."
+            )
+
+        if timeout <= 0:
+            raise ValueError(
+                "JINA_RERANK_TIMEOUT phải lớn hơn 0."
+            )
+
+        self.api_key = api_key
+        self.model = model
+        self.endpoint = endpoint
+        self.timeout = timeout
+
+    @staticmethod
+    def _build_document(
+        result: RetrievalResult,
+    ) -> str:
+        """Ghép tiêu đề và nội dung thành document gửi cho Jina."""
+
+        title = (result.title or "").strip()
+        content = (result.content or "").strip()
+
+        if not title and not content:
+            raise ValueError(
+                "RetrievalResult phải có title hoặc content."
+            )
+
+        if title and content:
+            return (
+                f"Tiêu đề: {title}\n"
+                f"Nội dung: {content}"
+            )
+
+        return title or content
+
+    def _rank(
+        self,
+        query: str,
+        documents: list[str],
+    ) -> list[tuple[int, float]]:
+        """Gọi Jina API và trả về danh sách (index, score)."""
+
+        request_body = {
+            "model": self.model,
+            "query": query,
+            "documents": documents,
+
+            # Yêu cầu Jina trả về toàn bộ documents đã xếp hạng.
+            "top_n": len(documents),
+
+            # Không cần trả lại nội dung vì ứng dụng ánh xạ bằng index.
+            "return_documents": False,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        try:
+            with httpx.Client(
+                timeout=self.timeout,
+                follow_redirects=True,
+                trust_env=False,
+                http2=False,
+            ) as client:
+                response = client.post(
+                    self.endpoint,
+                    headers=headers,
+                    json=request_body,
+                )
+
+                response.raise_for_status()
+                payload = response.json()
+
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(
+                f"Jina Reranker trả HTTP "
+                f"{exc.response.status_code}: "
+                f"{exc.response.text}"
+            ) from exc
+
+        except httpx.TimeoutException as exc:
+            raise RuntimeError(
+                "Jina Reranker phản hồi quá thời gian."
+            ) from exc
+
+        except httpx.RequestError as exc:
+            raise RuntimeError(
+                f"Không kết nối được Jina Reranker: {exc}"
+            ) from exc
+
+        except ValueError as exc:
+            raise RuntimeError(
+                "Jina Reranker trả response "
+                "không phải JSON hợp lệ."
+            ) from exc
+
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                "Jina Reranker trả response "
+                "không đúng định dạng object."
+            )
+
+        entries = payload.get("results")
+
+        if not isinstance(entries, list):
+            raise RuntimeError(
+                "Response Jina không có trường "
+                "'results' hợp lệ."
+            )
+
+        if len(entries) != len(documents):
+            raise RuntimeError(
+                "Số kết quả Jina trả về không khớp "
+                "số documents đầu vào. "
+                f"Đầu vào: {len(documents)}, "
+                f"đầu ra: {len(entries)}."
+            )
+
+        rankings: list[tuple[int, float]] = []
+        seen_indexes: set[int] = set()
+
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise RuntimeError(
+                    "Một phần tử trong Jina results "
+                    "không đúng định dạng object."
+                )
+
+            index = entry.get("index")
+            relevance_score = entry.get(
+                "relevance_score"
+            )
+
+            if (
+                not isinstance(index, int)
+                or isinstance(index, bool)
+            ):
+                raise RuntimeError(
+                    "Jina result thiếu index hợp lệ."
+                )
+
+            if index < 0 or index >= len(documents):
+                raise RuntimeError(
+                    f"Jina trả index ngoài phạm vi: {index}."
+                )
+
+            if index in seen_indexes:
+                raise RuntimeError(
+                    f"Jina trả index trùng lặp: {index}."
+                )
+
+            if (
+                not isinstance(
+                    relevance_score,
+                    (int, float),
+                )
+                or isinstance(relevance_score, bool)
+            ):
+                raise RuntimeError(
+                    f"Jina result tại index {index} "
+                    "thiếu relevance_score hợp lệ."
+                )
+
+            seen_indexes.add(index)
+
+            rankings.append(
+                (
+                    index,
+                    float(relevance_score),
+                )
+            )
+
+        # Bảo đảm kết quả được sắp xếp theo điểm giảm dần.
+        # Nếu bằng điểm thì giữ ưu tiên theo index ban đầu.
+        rankings.sort(
+            key=lambda item: (
+                -item[1],
+                item[0],
+            )
+        )
+
+        return rankings
 
     def rerank(
         self,
         query: str,
         results: list[RetrievalResult],
     ) -> list[RetrievalResult]:
-        if not query.strip() or len(results) < 2:
+        """Xếp hạng lại danh sách RetrievalResult."""
+
+        normalized_query = query.strip()
+
+        if not normalized_query:
             return results
 
-        scores = self._score(query, [result.content for result in results])
+        if len(results) < 2:
+            return results
 
-        reranked: list[tuple[float, int, RetrievalResult]] = [
-            (
-                score,
-                position,
-                replace(result, score=score),
-            )
-            for position, (result, score) in enumerate(zip(results, scores))
+        documents = [
+            self._build_document(result)
+            for result in results
         ]
-        #điểm cao xuống thấp; giữ thứ tự gốc khi bằng điểm
-        reranked.sort(key=lambda item: (-item[0], item[1]))
-        return [result for _, _, result in reranked]
+
+        rankings = self._rank(
+            query=normalized_query,
+            documents=documents,
+        )
+
+        return [
+            replace(
+                results[index],
+                score=relevance_score,
+            )
+            for index, relevance_score in rankings
+        ]
 
 
 def get_reranker() -> Reranker:
-    """Tạo reranker cross-encoder từ cấu hình môi trường.
+    """Khởi tạo JinaReranker từ biến môi trường."""
 
-    Fallback về :class:`LexicalReranker` khi TEI reranker chưa được cấu hình,
-    giúp môi trường dev/test không bắt buộc phải chạy container thứ 2.
-    """
-    base_url = os.getenv("TEI_RERANKER_BASE_URL")
-    api_key = os.getenv("TEI_RERANKER_API_KEY")
+    api_key = os.getenv(
+        "JINA_API_KEY",
+        "",
+    ).strip()
 
-    if not base_url or not api_key:
-        return LexicalReranker()
+    if not api_key:
+        raise RuntimeError(
+            "Chưa cấu hình JINA_API_KEY "
+            "trong file .env."
+        )
 
-    return CrossEncoderReranker(base_url=base_url, api_key=api_key)
+    model = os.getenv(
+        "JINA_RERANK_MODEL",
+        "jina-reranker-v3",
+    ).strip()
+
+    endpoint = os.getenv(
+        "JINA_RERANK_URL",
+        JinaReranker.DEFAULT_ENDPOINT,
+    ).strip()
+
+    timeout_text = os.getenv(
+        "JINA_RERANK_TIMEOUT",
+        "120",
+    ).strip()
+
+    try:
+        timeout = float(timeout_text)
+    except ValueError as exc:
+        raise ValueError(
+            "JINA_RERANK_TIMEOUT phải là một số."
+        ) from exc
+
+    return JinaReranker(
+        api_key=api_key,
+        model=model,
+        endpoint=endpoint,
+        timeout=timeout,
+    )
