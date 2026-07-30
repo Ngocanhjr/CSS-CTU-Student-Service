@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
+import { notify } from '../lib/notify.js'
 
 const STAGES = [
   { key: 'chunked', label: 'Chunk parent/child', detail: 'Tạo cấu trúc parent và child chunk.' },
@@ -13,12 +14,20 @@ const STAGES = [
 
 const RAG_ORDER = ['not_indexed', 'chunked', 'embedded', 'indexed', 'published']
 
+const STEP_LABELS = {
+  persist_chunks: 'Đang lưu chunks vào PostgreSQL',
+  embedding: 'Đang tạo embedding',
+  qdrant_upsert: 'Đang lưu vectors vào Qdrant',
+  completed: 'Hoàn tất indexing',
+  failed: 'Indexing thất bại',
+}
+
 export default function IngestStep({ pipeline, update, goTo }) {
   const upload = pipeline.upload
   const metadata = upload?.metadata
   const ingest = pipeline.ingest
+  const [job, setJob] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
 
   if (!upload) {
     return (
@@ -34,18 +43,48 @@ export default function IngestStep({ pipeline, update, goTo }) {
 
   async function onRun() {
     setBusy(true)
-    setError('')
     try {
       const res = await api.indexDocumentVersion(upload.document_version_id)
+      setJob(res)
       update('ingest', res)
+      notify.info('Đã tạo job indexing.')
     } catch (err) {
-      setError(err.message)
+      notify.error(err.message)
     } finally {
       setBusy(false)
     }
   }
 
-  const ragStatus = ingest?.rag_status || metadata.rag_status || 'not_indexed'
+  useEffect(() => {
+    if (!job?.ingestion_job_id || !['pending', 'processing'].includes(job.job_status)) return undefined
+    let cancelled = false
+    let reportedPollError = false
+    const poll = async () => {
+      try {
+        const next = await api.getIndexingJob(job.ingestion_job_id)
+        if (cancelled) return
+        setJob(next)
+        if (!['pending', 'processing'].includes(next.job_status)) update('ingest', next)
+      } catch (err) {
+        if (!cancelled && !reportedPollError) {
+          reportedPollError = true
+          notify.error(err.message)
+        }
+      }
+    }
+    const timer = setInterval(poll, 1000)
+    void poll()
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [job?.ingestion_job_id, job?.job_status, update])
+
+  const progress = job || ingest
+  const ragStatus = progress?.rag_status || metadata.rag_status || 'not_indexed'
+  const indexing = progress?.job_status === 'processing'
+  const totalChunks = progress?.total_chunks || 0
+  const processedChunks = Math.min(progress?.processed_chunks || 0, totalChunks)
+  const remainingChunks = Math.max(progress?.remaining_chunks ?? totalChunks - processedChunks, 0)
+  const progressPercent = totalChunks ? Math.round((processedChunks / totalChunks) * 100) : 0
+  const progressLabel = STEP_LABELS[progress?.current_step] || 'Đang chuẩn bị indexing'
   const alreadyIndexed = ['indexed', 'published'].includes(ragStatus)
   const canIngest = metadata?.ocr_status === 'done'
     && metadata?.review_status === 'approved'
@@ -59,8 +98,6 @@ export default function IngestStep({ pipeline, update, goTo }) {
         title="Index document"
         description="Chunk → PostgreSQL → embedding → Qdrant. Publish là bước riêng sau validation."
       />
-
-      {error && <p className="banner warn" role="alert">{error}</p>}
 
       {alreadyIndexed && (
         <p className="banner" role="status">
@@ -88,9 +125,11 @@ export default function IngestStep({ pipeline, update, goTo }) {
           <dt>review_status</dt><dd><StatusBadge status={metadata.review_status || 'not_reviewed'} /></dd>
           <dt>rag_status</dt><dd><StatusBadge status={ragStatus} /></dd>
         </dl>
-        <button type="button" className="btn" disabled={busy || !canIngest} onClick={onRun}>
+        <button type="button" className="btn" disabled={busy || indexing || !canIngest} onClick={onRun}>
           {busy
-            ? 'Đang index…'
+            ? 'Đang tạo job…'
+            : indexing
+              ? 'Đang index…'
             : alreadyIndexed
               ? 'Đã index — không cần chạy lại'
               : ragStatus === 'failed'
@@ -100,6 +139,27 @@ export default function IngestStep({ pipeline, update, goTo }) {
                   : 'Tiếp tục index'}
         </button>
       </section>
+
+      {progress?.ingestion_job_id && (
+        <section className="card index-progress-card" aria-labelledby="index-progress-heading" aria-live="polite">
+          <header className="index-progress-header">
+            <section>
+              <h2 id="index-progress-heading">Tiến trình indexing</h2>
+              <p className="index-progress-step">{progressLabel}</p>
+            </section>
+            <StatusBadge status={progress.job_status} />
+          </header>
+          <section className="index-progress-summary" aria-label={`Đã xử lý ${processedChunks} trên ${totalChunks} child chunks`}>
+            <strong>{processedChunks} / {totalChunks} child chunks</strong>
+            <strong className="index-progress-percent">{progressPercent}%</strong>
+          </section>
+          <progress className="index-progress-track" value={processedChunks} max={totalChunks || 1}>
+            {progressPercent}%
+          </progress>
+          <p className="hint">Còn lại {remainingChunks} chunks</p>
+          {progress.error_message && <p className="banner warn" role="alert">{progress.error_message}</p>}
+        </section>
+      )}
 
       <section className="card" aria-labelledby="pipeline-heading">
         <h2 id="pipeline-heading">Tiến trình indexing</h2>
@@ -134,10 +194,6 @@ export default function IngestStep({ pipeline, update, goTo }) {
             <dt>rag_status</dt><dd><StatusBadge status={ingest.rag_status} /></dd>
             {(ingest.job?.error_message || ingest.error_message) && <><dt>Lỗi</dt><dd>{ingest.job?.error_message || ingest.error_message}</dd></>}
           </dl>
-          <pre className="json-out"><code>{JSON.stringify(ingest, null, 2)}</code></pre>
-          <footer className="foot-nav">
-            <button type="button" className="btn ghost" onClick={() => goTo('upload')}>← Tải tài liệu khác</button>
-          </footer>
         </section>
       )}
     </>

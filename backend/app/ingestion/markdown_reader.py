@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -12,7 +11,6 @@ from app.schemas.documents import DocumentMetadata
 
 @dataclass(frozen=True)
 class MarkdownDocument:
-    path: Path # đường dẫn file gốc
     metadata: DocumentMetadata #metadata
     body: str #nội dung file
     raw_frontmatter: dict[str, Any] #giữ lại yaml gốc
@@ -40,15 +38,12 @@ def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 
     return frontmatter, body.strip()
 
-def read_markdown_document(path: str | Path) -> MarkdownDocument:
-    markdown_path = Path(path)
-    text = markdown_path.read_text(encoding="utf-8")
+#Nhận trực tiếp nội dung Markdown dạng chuỗi -> tách body và yaml:
+def parse_markdown_document(text: str) -> MarkdownDocument:
     frontmatter, body = split_frontmatter(text)
-    metadata = DocumentMetadata(**frontmatter)
 
     return MarkdownDocument(
-        path=markdown_path,
-        metadata=metadata,
+        metadata=DocumentMetadata(**frontmatter),
         body=body,
         raw_frontmatter=frontmatter,
     )

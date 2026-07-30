@@ -65,13 +65,13 @@ ValidityStatus mô tả tình trạng hiệu lực pháp lý/nghiệp vụ của
 - unknown: đã kiểm tra nhưng chưa xác định được hiệu lực.
 """
 
-# ValidityStatus = Literal [
-#     "unchecked", 
-#     "valid", 
-#     "expired", 
-#     "replaced", 
-#     "unknown"
-# ]
+ValidityStatus = Literal[
+    "unchecked",
+    "valid",
+    "expired",
+    "replaced",
+    "unknown",
+]
 
 """
 RagStatus mô tả trạng thái của tài liệu trong pipeline RAG.
@@ -197,10 +197,10 @@ Domain = Literal[
 ]
 
 signer_name = Literal[
-    "HT" # Hiệu trưởng
-    "PHT" # Phó hiệu trưởng
-    "TT" # Thứ trưởng
-    "TP" # Trưởng phòng
+    "HT", # Hiệu trưởng
+    "PHT", # Phó hiệu trưởng
+    "TT", # Thứ trưởng
+    "TP", # Trưởng phòng
     "CT" # Chủ tịch
 ]
 
@@ -218,7 +218,7 @@ responsible_department = Literal[
     "PTTPC", # phòng thanh tra pháp chế
     "PTCPTNS", # phòng tổ chức cán bộ và phát triển nhân sự
     "PCTCT", # phòng công tác chính trị
-    "PLKDT"  # phòng liên kết đào tạo
+    "PLKDT",  # phòng liên kết đào tạo
     "TTGDQP&AN", # trung tâm giáo dục quốc phòng và an ninh
     "TTQLCL", # trung tâm quản lý chất lượng
     "TTHL", # trung tâm học liệu

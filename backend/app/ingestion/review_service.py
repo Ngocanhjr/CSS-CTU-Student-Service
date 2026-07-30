@@ -5,6 +5,7 @@ import json
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.databases.asset_repository import replace_document_assets
 from app.databases.models.documents import (
     Department,
     Document,
@@ -18,19 +19,22 @@ from app.ingestion.canonical_storage import (
     read_canonical_markdown,
     replace_canonical_markdown,
 )
+
 from app.ingestion.markdown_reader import (
     render_markdown_document,
     split_frontmatter,
 )
+
 from app.schemas.documents import DocumentMetadata
 from app.schemas.ingestion.responses import ReviewCanonicalResponse
-
+from app.schemas.assets import AssetWrite
 
 async def review_canonical_document(
     session: AsyncSession,
     *,
     document_version_id: int,
     canonical_markdown: str,
+    assets: list[AssetWrite] | None = None,
 ) -> ReviewCanonicalResponse:
     previous_markdown: str | None = None
     canonical_path: str | None = None
@@ -94,6 +98,13 @@ async def review_canonical_document(
                 document_version_id=version.id,
                 metadata=metadata,
             )
+
+            if assets is not None:
+                await replace_document_assets(
+                    session,
+                    document_version_id=version.id,
+                    assets=assets,
+                )
 
             if metadata.is_latest:
                 await session.execute(

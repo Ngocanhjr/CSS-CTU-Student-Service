@@ -9,6 +9,7 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+/.pytest_tmp/
 .mypy_cache/
 .ruff_cache/
 .coverage
@@ -46,7 +47,8 @@ RTK.md
 .rtk/
 .vscode/
 .claude/
-/backend/storage/canonical/
+/backend/storage/
+/backend/test/
 
 
 backend/.cache/
@@ -55,3 +57,5 @@ backend/answer.txt
 /backend/retrieval/docs/key.md
 
 .env copy
+/storage/
+.cache/

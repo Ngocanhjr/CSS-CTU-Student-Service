@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from app.schemas.base import StrictSchema
+from app.schemas.assets import AssetWrite, LinkedAssetResponse
 from pydantic import Field
 
 
@@ -29,11 +30,14 @@ class DocumentVersionSummary(StrictSchema):
 
 
 class DocumentVersionDetail(DocumentVersionSummary):
+    document_type_code: str
     canonical_markdown: str
     canonical_markdown_path: str
     source_path: str
     source_url: str
     checksum: str
+    responsible_department: list[str] = Field(default_factory=list)
+    assets: list[LinkedAssetResponse] = Field(default_factory=list)
     last_job_id: int | None = None
     last_job_status: str | None = None
     last_job_step: str | None = None
@@ -66,3 +70,26 @@ class DocumentVersionUpdateRequest(StrictSchema):
 class DocumentVersionUpdateResponse(StrictSchema):
     updated: bool
     document: DocumentVersionDetail
+
+
+class DocumentAssetsUpdateRequest(StrictSchema):
+    assets: list[AssetWrite] = Field(default_factory=list)
+
+
+class DeindexResponse(StrictSchema):
+    document_version_id: int
+    chunks_deleted: int
+    vectors_deleted: int
+    new_rag_status: str
+
+
+class PublishResponse(StrictSchema):
+    document_version_id: int
+    rag_status: str
+    published_at: datetime
+
+
+class UnpublishResponse(StrictSchema):
+    document_version_id: int
+    rag_status: str
+    unpublished_at: datetime

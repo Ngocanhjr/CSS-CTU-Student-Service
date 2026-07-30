@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/client.js'
 import PageHeader from '../components/PageHeader.jsx'
+import { notify } from '../lib/notify.js'
 
 function reportText(report) {
   if (typeof report === 'string') return report
@@ -15,7 +16,6 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
   const errors = preview?.errors || []
   const warnings = preview?.warnings || []
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
 
   if (!pipeline.review) {
     return (
@@ -31,12 +31,12 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
 
   async function createPreview() {
     setBusy(true)
-    setError('')
     update('chunkApproved', false)
     try {
       update('chunkPreview', await api.previewChunks(upload.document_version_id))
+      notify.success('Đã tạo chunk preview.')
     } catch (err) {
-      setError(err.message)
+      notify.error(err.message)
     } finally {
       setBusy(false)
     }
@@ -54,8 +54,6 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
         title="Review chunks"
         description="Kiểm tra parent/child, heading, trang, độ dài và cảnh báo trước khi embedding."
       />
-
-      {error && <p className="banner warn" role="alert">{error}</p>}
 
       <section className="card" aria-labelledby="preview-action-heading">
         <h2 id="preview-action-heading">Chunk preview</h2>

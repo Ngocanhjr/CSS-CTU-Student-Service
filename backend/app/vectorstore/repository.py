@@ -103,7 +103,7 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
     # Dense retrieval always starts from the same eligibility domain as PostgreSQL.
     conditions = [
         FieldCondition(key="review_status", match=MatchValue(value="approved")),
-        FieldCondition(key="rag_status", match=MatchValue(value="indexed")),
+        FieldCondition(key="rag_status", match=MatchValue(value="published")),
         FieldCondition(key="audience_student", match=MatchValue(value=True)),
         FieldCondition(key="chunk_type", match=MatchValue(value="child")),
     ]
@@ -314,6 +314,35 @@ def delete_points_by_version(
         ),
     )
 
+
+def set_version_rag_status(
+    client: QdrantClient,
+    *,
+    version_key: str,
+    rag_status: str,
+    collection_name: str = COLLECTION_NAME,
+) -> None:
+    if rag_status not in {"indexed", "published"}:
+        raise ValueError(f"Qdrant rag_status không hợp lệ: {rag_status}")
+    if not client.collection_exists(collection_name):
+        raise ValueError(f"Qdrant collection không tồn tại: {collection_name}")
+
+    client.set_payload(
+        collection_name=collection_name,
+        payload={"rag_status": rag_status},
+        points=FilterSelector(
+            filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="version_key",
+                        match=MatchValue(value=version_key),
+                    )
+                ]
+            )
+        ),
+        wait=True,
+    )
+
 # 
 def search_points(
     client: QdrantClient,
@@ -335,7 +364,7 @@ def search_points(
         limit=top_k,
         with_payload=True,
     )
-    
+
     return [
         QdrantSearchResult(
             point_id=str(result.id),
@@ -344,3 +373,51 @@ def search_points(
         )
         for result in response.points
     ]
+
+
+def delete_vectors_by_chunk_ids(
+    client: QdrantClient,
+    collection_name: str,
+    postgres_chunk_ids: list[int],
+) -> int:
+    """Delete vectors by their postgres chunk IDs. Returns count deleted."""
+
+    if not postgres_chunk_ids:
+        return 0
+
+    # Check if collection exists
+    collections = client.get_collections().collections
+    if collection_name not in [c.name for c in collections]:
+        return 0
+
+    deleted_count = 0
+
+    for chunk_id in postgres_chunk_ids:
+        # Count before delete
+        count_result = client.count(
+            collection_name=collection_name,
+            count_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="postgres_chunk_id",
+                        match=MatchValue(value=chunk_id),
+                    )
+                ]
+            ),
+        )
+        deleted_count += count_result.count
+
+        # Delete vectors matching this chunk_id
+        client.delete(
+            collection_name=collection_name,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="postgres_chunk_id",
+                        match=MatchValue(value=chunk_id),
+                    )
+                ]
+            ),
+        )
+
+    return deleted_count

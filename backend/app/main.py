@@ -5,6 +5,8 @@ from fastapi.responses import JSONResponse
 from app.api.admin_ingestion import router as admin_ingestion_router
 from app.api.health import router as health_router
 from app.api.documents import router as documents_router
+from app.api.reference import router as reference_router
+from app.api.chat import router as chat_router
 from app.api.router import api_router
 
 
@@ -41,5 +43,11 @@ app.include_router(
     documents_router,
     prefix="/api/v1",
 )
-
-
+app.include_router(
+    reference_router,
+    prefix="/api/v1",
+)
+app.include_router(
+    chat_router,
+    prefix="/api/v1",
+)

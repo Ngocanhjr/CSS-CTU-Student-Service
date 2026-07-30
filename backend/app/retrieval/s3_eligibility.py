@@ -26,7 +26,7 @@ class EligibilityPolicy:
     ) -> list[Any]:
         conditions: list[Any] = [
             DocumentVersion.review_status == "approved",
-            DocumentVersion.rag_status == "indexed",
+            DocumentVersion.rag_status == "published",
         ]
 
         if context.audience:

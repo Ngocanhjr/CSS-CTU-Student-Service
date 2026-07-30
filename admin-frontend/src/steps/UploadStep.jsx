@@ -1,27 +1,153 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { FileText, Loader2, Trash2, Upload } from 'lucide-react'
 import { api } from '../api/client.js'
-import StatusBadge from '../components/StatusBadge.jsx'
+import { notify } from '../lib/notify.js'
+import { useReferenceData } from '../hooks/useReferenceData.js'
 import PageHeader from '../components/PageHeader.jsx'
 
-export default function UploadStep({ pipeline, update, goTo }) {
+const MAX_SIZE_MB = 20
+const ACCEPTED_EXTENSIONS = ['.md', '.markdown']
+const ACCEPTED_SOURCE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.md', '.markdown']
+const EMPTY_METADATA = {
+  title: '',
+  document_key: '',
+  version_key: '',
+  document_type: '',
+  domain: 'unknown',
+  audience: [],
+  responsible_department: [],
+  code: '',
+  issued_date: '',
+  effective_date: '',
+  source_url: '',
+}
+const EDITABLE_METADATA_KEYS = new Set(Object.keys(EMPTY_METADATA))
+
+function getUploadErrorMessage({ name, message = '' }) {
+  if (name === 'AbortError') return 'Kết nối quá thời gian. Vui lòng kiểm tra mạng và thử lại.'
+  if (name === 'TypeError' || message === 'Failed to fetch') return 'Không thể kết nối server. Vui lòng thử lại sau.'
+  if (/HTTP\s*5\d{2}/i.test(message)) return 'Lỗi server. Vui lòng thử lại sau.'
+  if (/file|invalid|không hợp lệ|frontmatter|yaml/i.test(message)) return `File không hợp lệ: ${message}`
+  return message || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.'
+}
+
+export default function UploadStep({ update, goTo }) {
   const [file, setFile] = useState(null)
+  const [sourceFile, setSourceFile] = useState(null)
+  const [departmentCode, setDepartmentCode] = useState('')
+  const [metadata, setMetadata] = useState(EMPTY_METADATA)
   const [drag, setDrag] = useState(false)
+  const [sourceDrag, setSourceDrag] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [databaseStatus, setDatabaseStatus] = useState('checking')
+  const { documentTypes, departments, enumOptions, loading: referencesLoading } = useReferenceData()
 
-  const result = pipeline.upload
+  useEffect(() => {
+    let active = true
+    api.getDatabaseHealth()
+      .then(({ status }) => active && setDatabaseStatus(status))
+      .catch(() => active && setDatabaseStatus('unavailable'))
+    return () => { active = false }
+  }, [])
 
-  function pick(f) {
+  function oneFile(files, label) {
+    const selected = Array.from(files || [])
+    if (selected.length !== 1) {
+      notify.error(`${label} chỉ được chọn một file.`)
+      return null
+    }
+    return selected[0]
+  }
+
+  async function pickCanonical(files) {
+    const f = oneFile(files, 'Markdown nội dung')
     if (!f) return
+    const name = f.name.toLowerCase()
+    if (!ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+      notify.error(`Chỉ nhận tệp Markdown (${ACCEPTED_EXTENSIONS.join(', ')}).`)
+      return
+    }
+    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+      notify.error(`Tệp vượt giới hạn ${MAX_SIZE_MB} MB.`)
+      return
+    }
     setFile(f)
-    setError('')
+    setMetadata(EMPTY_METADATA)
+
+    try {
+      const preview = await api.previewMarkdownMetadata(f)
+      const suggested = Object.fromEntries(
+        Object.entries(preview.metadata || {}).filter(([key]) => EDITABLE_METADATA_KEYS.has(key)),
+      )
+      setMetadata((current) => ({ ...current, ...suggested }))
+    } catch {
+      // Không có YAML hoặc API preview chưa triển khai: người dùng nhập tay.
+    }
+  }
+
+  function setMetadataField(key, value) {
+    setMetadata((current) => ({ ...current, [key]: value }))
+  }
+
+  function toggleAudience(audience) {
+    setMetadata((current) => ({
+      ...current,
+      audience: current.audience.includes(audience)
+        ? current.audience.filter((item) => item !== audience)
+        : [...current.audience, audience],
+    }))
+  }
+
+  function setResponsibleDepartment(index, departmentCode) {
+    setMetadata((current) => ({
+      ...current,
+      responsible_department: (current.responsible_department.length
+        ? current.responsible_department
+        : ['']
+      ).map((item, currentIndex) => currentIndex === index ? departmentCode : item),
+    }))
+  }
+
+  function addResponsibleDepartment() {
+    setMetadata((current) => ({
+      ...current,
+      responsible_department: [...current.responsible_department, ''],
+    }))
+  }
+
+  function removeResponsibleDepartment(index) {
+    setMetadata((current) => ({
+      ...current,
+      responsible_department: current.responsible_department.filter((_, currentIndex) => currentIndex !== index),
+    }))
+  }
+
+  function pickSource(files) {
+    const f = oneFile(files, 'File nguồn')
+    if (!f) return
+    const name = f.name.toLowerCase()
+    if (!ACCEPTED_SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+      notify.error(`File nguồn chỉ nhận ${ACCEPTED_SOURCE_EXTENSIONS.join(', ')}.`)
+      return
+    }
+    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+      notify.error(`File nguồn vượt giới hạn ${MAX_SIZE_MB} MB.`)
+      return
+    }
+    setSourceFile(f)
   }
 
   async function onUpload() {
-    if (!file) return
+    if (!file || !departmentCode || !metadata.title.trim() || !metadata.document_key.trim() || !metadata.version_key.trim() || !metadata.document_type || !metadata.responsible_department.length || metadata.responsible_department.some((item) => !item)) return
     setBusy(true)
     try {
-      const res = await api.uploadCanonicalMarkdown(file)
+      const uploadMetadata = Object.fromEntries(
+        Object.entries({
+          ...metadata,
+          responsible_department: metadata.responsible_department.filter(Boolean),
+        }).filter(([, value]) => value !== ''),
+      )
+      const res = await api.uploadCanonicalMarkdown(file, sourceFile, departmentCode, uploadMetadata)
       update('upload', res)
       update('review', null)
       update('chunkPreview', null)
@@ -29,7 +155,7 @@ export default function UploadStep({ pipeline, update, goTo }) {
       update('ingest', null)
       goTo('review')
     } catch (err) {
-      setError(err.message)
+      notify.error(getUploadErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -38,81 +164,171 @@ export default function UploadStep({ pipeline, update, goTo }) {
   return (
     <>
       <PageHeader
-        eyebrow="Ingestion / 01"
-        title="Tải canonical Markdown"
-        description="Tải Markdown đã OCR, gồm YAML frontmatter và page markers. PostgreSQL phải hoạt động ở bước này."
+        eyebrow="Ingestion · Bước 01 / 04"
+        title="Tải Markdown tài liệu"
+        description="Tải nội dung Markdown và khai báo metadata. Hệ thống sẽ tạo canonical Markdown có YAML trước khi chuyển sang bước review."
       />
 
-      <form className="card" aria-labelledby="upload-file-heading" onSubmit={(event) => { event.preventDefault(); onUpload() }}>
-        <h2 id="upload-file-heading">Chọn file</h2>
-        <label
-          className={`dropzone ${drag ? 'drag' : ''}`}
-          onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
-          onDragLeave={() => setDrag(false)}
-          onDrop={(e) => {
-            e.preventDefault()
-            setDrag(false)
-            pick(e.dataTransfer.files?.[0])
-          }}
-        >
-          {file ? (
-            <span className="selected-file">
-              <strong>{file.name}</strong>
-              <small className="hint">{(file.size / 1024).toFixed(1)} KB — bấm để chọn file khác</small>
-            </span>
-          ) : (
-            <span>Kéo thả file vào đây, hoặc bấm để chọn</span>
-          )}
-          <input
-            type="file"
-            hidden
-            accept=".md,text/markdown"
-            onChange={(e) => pick(e.target.files?.[0])}
-          />
-        </label>
+      <p className={`database-health ${databaseStatus}`} role="status" aria-live="polite">
+        <span aria-hidden="true">●</span>
+        {databaseStatus === 'checking' && 'Đang kiểm tra PostgreSQL…'}
+        {databaseStatus === 'available' && 'PostgreSQL đang hoạt động'}
+        {databaseStatus === 'unavailable' && 'Không thể kết nối PostgreSQL'}
+      </p>
 
-        <button type="submit" className="btn upload-button" disabled={!file || busy}>
-          {busy ? 'Đang tải lên…' : 'Tải lên'}
-        </button>
+      <form className="card upload-form" aria-labelledby="upload-file-heading" onSubmit={(event) => { event.preventDefault(); onUpload() }}>
+        <header className="upload-card-head">
+          <h2 id="upload-file-heading">Chọn file</h2>
+          <span className="file-types">Markdown bắt buộc</span>
+        </header>
+        <div className="upload-fields">
+          <fieldset className="form-grid" disabled={referencesLoading}>
+            <legend>Thông tin tài liệu</legend>
+            <label className="field" htmlFor="upload-title">
+              <span>Tiêu đề <b aria-hidden="true">*</b></span>
+              <input id="upload-title" value={metadata.title} onChange={(event) => setMetadataField('title', event.target.value)} required />
+            </label>
+            <label className="field" htmlFor="upload-document-type">
+              <span>Loại tài liệu <b aria-hidden="true">*</b></span>
+              <select id="upload-document-type" value={metadata.document_type} onChange={(event) => setMetadataField('document_type', event.target.value)} required>
+                <option value="">— Chọn loại tài liệu —</option>
+                {documentTypes.filter((type) => type.is_active).map((type) => <option key={type.code} value={type.code}>{type.name} ({type.code})</option>)}
+              </select>
+            </label>
+            <label className="field" htmlFor="upload-document-key">
+              <span>Document key <b aria-hidden="true">*</b></span>
+              <input id="upload-document-key" value={metadata.document_key} onChange={(event) => setMetadataField('document_key', event.target.value)} placeholder="vd: huong-dan-sinh-vien" required />
+            </label>
+            <label className="field" htmlFor="upload-version-key">
+              <span>Version key <b aria-hidden="true">*</b></span>
+              <input id="upload-version-key" value={metadata.version_key} onChange={(event) => setMetadataField('version_key', event.target.value)} placeholder="vd: hdsv-2026-01" required />
+            </label>
+            <label className="field" htmlFor="upload-domain">
+              <span>Domain</span>
+              <select id="upload-domain" value={metadata.domain} onChange={(event) => setMetadataField('domain', event.target.value)}>
+                {enumOptions.domains.map((domain) => <option key={domain} value={domain}>{domain}</option>)}
+              </select>
+            </label>
+            <label className="field" htmlFor="upload-code">
+              <span>Số hiệu</span>
+              <input id="upload-code" value={metadata.code} onChange={(event) => setMetadataField('code', event.target.value)} />
+            </label>
+          </fieldset>
+
+          <fieldset className="responsible-departments" disabled={referencesLoading}>
+            <legend>Phòng ban phụ trách <b aria-hidden="true">*</b></legend>
+            {(metadata.responsible_department.length ? metadata.responsible_department : ['']).map((selectedCode, index) => (
+              <div className="responsible-department-row" key={`${index}-${selectedCode}`}>
+                <label className="field" htmlFor={`responsible-department-${index}`}>
+                  <span className="sr-only">Phòng ban phụ trách {index + 1}</span>
+                  <select id={`responsible-department-${index}`} value={selectedCode} onChange={(event) => setResponsibleDepartment(index, event.target.value)} required>
+                    <option value="">— Chọn phòng ban —</option>
+                    {departments.filter((department) => department.is_active && (department.code === selectedCode || !metadata.responsible_department.includes(department.code))).map((department) => (
+                      <option key={department.code} value={department.code}>{department.code} — {department.name}</option>
+                    ))}
+                  </select>
+                </label>
+                {metadata.responsible_department.length > 1 && <button type="button" className="btn ghost small danger-icon" onClick={() => removeResponsibleDepartment(index)} aria-label={`Bỏ phòng ban phụ trách ${index + 1}`} title="Bỏ phòng ban"><Trash2 aria-hidden="true" /></button>}
+              </div>
+            ))}
+            <button type="button" className="btn ghost small" onClick={addResponsibleDepartment} disabled={metadata.responsible_department.some((item) => !item)}>+ Thêm phòng ban</button>
+          </fieldset>
+
+          <fieldset className="form-grid" disabled={referencesLoading}>
+            <legend>Thông tin bổ sung</legend>
+            <label className="field" htmlFor="upload-issued-date">
+              <span>Ngày ban hành</span>
+              <input id="upload-issued-date" type="date" value={metadata.issued_date} onChange={(event) => setMetadataField('issued_date', event.target.value)} />
+            </label>
+            <label className="field" htmlFor="upload-effective-date">
+              <span>Ngày hiệu lực</span>
+              <input id="upload-effective-date" type="date" value={metadata.effective_date} onChange={(event) => setMetadataField('effective_date', event.target.value)} />
+            </label>
+            <label className="field" htmlFor="upload-source-url">
+              <span>URL nguồn</span>
+              <input id="upload-source-url" type="url" value={metadata.source_url} onChange={(event) => setMetadataField('source_url', event.target.value)} placeholder="https://…" />
+            </label>
+            <fieldset className="audience-fieldset">
+              <legend>Đối tượng sử dụng</legend>
+              <menu className="pill-row">
+                {enumOptions.audiences.map((audience) => (
+                  <li key={audience}><button type="button" className="tag" aria-pressed={metadata.audience.includes(audience)} onClick={() => toggleAudience(audience)}>{metadata.audience.includes(audience) ? '✓ ' : ''}{audience}</button></li>
+                ))}
+              </menu>
+            </fieldset>
+          </fieldset>
+
+          <div className="upload-dropzones">
+            <label
+              className={`dropzone ${drag ? 'drag' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+              onDragEnter={(e) => { e.preventDefault(); setDrag(true) }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); pickCanonical(e.dataTransfer.files) }}
+            >
+              <span className="dropzone-icon" aria-hidden="true"><Upload /></span>
+              <strong>Markdown nội dung <b aria-hidden="true">*</b></strong>
+              {file ? <span className="selected-file"><strong>{file.name}</strong><small className="hint">{(file.size / 1024).toFixed(1)} KB</small></span> : <small className="dropzone-meta">{ACCEPTED_EXTENSIONS.join(', ')} · không cần YAML</small>}
+              <input type="file" className="sr-only" accept=".md,.markdown,text/markdown" onChange={(e) => pickCanonical(e.target.files)} />
+            </label>
+
+            <label
+              className={`dropzone optional ${sourceDrag ? 'drag' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setSourceDrag(true) }}
+              onDragEnter={(e) => { e.preventDefault(); setSourceDrag(true) }}
+              onDragLeave={() => setSourceDrag(false)}
+              onDrop={(e) => { e.preventDefault(); setSourceDrag(false); pickSource(e.dataTransfer.files) }}
+            >
+              <span className="dropzone-icon" aria-hidden="true"><FileText /></span>
+              <strong>File nguồn <small>(tùy chọn)</small></strong>
+              {sourceFile ? <span className="selected-file"><strong>{sourceFile.name}</strong><small className="hint">{(sourceFile.size / 1024).toFixed(1)} KB</small></span> : <small className="dropzone-meta">PDF, DOC, DOCX, PPT, PPTX hoặc Markdown</small>}
+              <input type="file" className="sr-only" accept={ACCEPTED_SOURCE_EXTENSIONS.join(',')} onChange={(e) => pickSource(e.target.files)} />
+            </label>
+          </div>
+        </div>
+
+        <div className="upload-actions">
+          <label className="field upload-source-department" htmlFor="source-department-code">
+            <span>Phòng ban lưu file nguồn <b aria-hidden="true">*</b></span>
+            <select
+              id="source-department-code"
+              value={departmentCode}
+              disabled={referencesLoading}
+              onChange={(event) => setDepartmentCode(event.target.value)}
+              required
+            >
+              <option value="">{referencesLoading ? 'Đang tải phòng ban…' : '— Chọn phòng ban —'}</option>
+              {departments.filter((department) => department.is_active).map((department) => (
+                <option key={department.code} value={department.code}>
+                  {department.code} — {department.name}
+                </option>
+              ))}
+            </select>
+            <small className="hint">Dùng để tạo key riêng dưới <code>sources/</code>.</small>
+          </label>
+          <button type="submit" className="btn" disabled={!file || !departmentCode || !metadata.title.trim() || !metadata.document_key.trim() || !metadata.version_key.trim() || !metadata.document_type || !metadata.responsible_department.length || metadata.responsible_department.some((item) => !item) || busy} aria-busy={busy}>
+            {busy ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
+            {busy ? 'Đang tải lên...' : 'Tải lên'}
+          </button>
+          {file && !busy && (
+            <button type="button" className="btn ghost" onClick={() => { setFile(null); setSourceFile(null) }}>
+              Bỏ chọn
+            </button>
+          )}
+          {(!file || !departmentCode || !metadata.title.trim() || !metadata.document_key.trim() || !metadata.version_key.trim() || !metadata.document_type || !metadata.responsible_department.length || metadata.responsible_department.some((item) => !item)) && <span className="hint">Nhập các trường bắt buộc, chọn phòng ban phụ trách, phòng ban nguồn và Markdown để bật nút tải lên.</span>}
+        </div>
       </form>
 
-      {error && <p className="banner warn" role="alert">{error}</p>}
+      <aside className="upload-tip">
+        <span aria-hidden="true">◇</span>
+        <p><strong>Mẹo:</strong> Markdown chỉ chứa nội dung. Hệ thống tự tạo YAML từ metadata bạn đã nhập.</p>
+      </aside>
 
-      {result && (
-        <section className="card" aria-labelledby="upload-result-heading">
-          <h2 id="upload-result-heading">Đã tải lên</h2>
-          <dl className="kv">
-            <dt>document_id</dt><dd className="mono">{result.document_id}</dd>
-            <dt>document_version_id</dt><dd className="mono">{result.document_version_id}</dd>
-            <dt>ingestion_job_id</dt><dd className="mono">{result.ingestion_job_id}</dd>
-            <dt>document_key</dt><dd className="mono">{result.metadata.document_key}</dd>
-            <dt>version_key</dt><dd className="mono">{result.metadata.version_key}</dd>
-            <dt>source_path</dt><dd className="mono">{result.metadata.source_path}</dd>
-            <dt>file_type</dt><dd className="mono">{result.metadata.file_type}</dd>
-            <dt>checksum</dt><dd className="mono">{result.metadata.checksum}</dd>
-            <dt>ocr_status</dt><dd><StatusBadge status={result.metadata.ocr_status} /></dd>
-            <dt>review_status</dt><dd><StatusBadge status={result.metadata.review_status} /></dd>
-            <dt>rag_status</dt><dd><StatusBadge status={result.metadata.rag_status} /></dd>
-            <dt>Bước kế tiếp</dt><dd className="mono">review</dd>
-          </dl>
-          {result.metadata && (
-            <section aria-labelledby="metadata-preview-heading">
-              <h3 id="metadata-preview-heading">Metadata YAML</h3>
-              <pre className="json-out"><code>{JSON.stringify(result.metadata, null, 2)}</code></pre>
-            </section>
-          )}
-          {result.markdown && (
-            <section aria-labelledby="markdown-preview-heading">
-              <h3 id="markdown-preview-heading">Canonical Markdown</h3>
-              <label className="field" htmlFor="uploaded-markdown">Nội dung đã tải</label>
-              <textarea id="uploaded-markdown" readOnly value={result.markdown} />
-            </section>
-          )}
-          <nav className="foot-nav end" aria-label="Bước tiếp theo">
-            <button type="button" className="btn" onClick={() => goTo('review')}>Review nội dung →</button>
-          </nav>
-        </section>
-      )}
+      <aside className="upload-notice">
+        <span aria-hidden="true">!</span>
+        <p>PostgreSQL phải hoạt động ở bước này để lưu bản ghi ingestion. Trạng thái kết nối đang hiển thị phía trên.</p>
+      </aside>
+
     </>
   )
 }

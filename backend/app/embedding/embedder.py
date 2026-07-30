@@ -1,8 +1,9 @@
+import asyncio
 import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Awaitable, Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -233,17 +234,18 @@ def build_embedding_enriched_text(document: MarkdownDocument , chunk: Chunk)-> s
         ]
     )
     
-def embed_chunks_with_cache(
+async def embed_chunks_with_cache(
     document: MarkdownDocument,
-    chunks: list[Chunk], 
-    * ,
-    model_name: str  = EMBEDDING_MODEL_NAME
-    ) -> list[list[float]]:
-    
+    chunks: list[Chunk],
+    *,
+    model_name: str = EMBEDDING_MODEL_NAME,
+    progress_callback: Callable[[int], Awaitable[None]] | None = None,
+) -> list[list[float]]:
     cache = load_vector_cache()
     vectors_by_key: dict[str, list[float]] = {}
     missing_chunks: list[Chunk] = []
-    
+    cached_count = 0
+
     for chunk in chunks:
         embedding_text = build_embedding_enriched_text(document, chunk)
         hash_text_key = hash_text(embedding_text)
@@ -255,28 +257,35 @@ def embed_chunks_with_cache(
             and len(cached_vector.get("vector", [])) == EMBEDDING_VECTOR_SIZE
         ): 
             vectors_by_key[chunk.chunk_key] = cached_vector["vector"]
+            cached_count += 1
         else:
             missing_chunks.append(chunk)
-    
+
+    if cached_count and progress_callback:
+        await progress_callback(cached_count)
+
     if missing_chunks:
-        embedding_texts = [
-            build_embedding_enriched_text(document, chunk)
-            for chunk in missing_chunks
-        ]
-        new_vectors = embed_texts(embedding_texts)
-        invalid_sizes = {len(vector) for vector in new_vectors if len(vector) != EMBEDDING_VECTOR_SIZE}
-        if invalid_sizes:
-            raise ValueError(
-                f"{model_name} phải trả vector {EMBEDDING_VECTOR_SIZE} chiều, nhận được {sorted(invalid_sizes)}"
-            )
-        for chunk, vector in zip(missing_chunks, new_vectors, strict=True):
-            embedding_text = build_embedding_enriched_text(document, chunk)
-            cache[chunk.chunk_key] = {
-                "model": model_name,
-                "hash_text": hash_text(embedding_text),
-                "vector": vector,
-            }
-            vectors_by_key[chunk.chunk_key] = vector
+        for start in range(0, len(missing_chunks), EMBEDDING_BATCH_SIZE):
+            batch = missing_chunks[start : start + EMBEDDING_BATCH_SIZE]
+            embedding_texts = [
+                build_embedding_enriched_text(document, chunk)
+                for chunk in batch
+            ]
+            new_vectors = await asyncio.to_thread(embed_texts, embedding_texts)
+            invalid_sizes = {len(vector) for vector in new_vectors if len(vector) != EMBEDDING_VECTOR_SIZE}
+            if invalid_sizes:
+                raise ValueError(
+                    f"{model_name} phải trả vector {EMBEDDING_VECTOR_SIZE} chiều, nhận được {sorted(invalid_sizes)}"
+                )
+            for chunk, vector, embedding_text in zip(batch, new_vectors, embedding_texts, strict=True):
+                cache[chunk.chunk_key] = {
+                    "model": model_name,
+                    "hash_text": hash_text(embedding_text),
+                    "vector": vector,
+                }
+                vectors_by_key[chunk.chunk_key] = vector
+            if progress_callback:
+                await progress_callback(len(batch))
         save_vector_cache(cache)
 
     return [vectors_by_key[chunk.chunk_key] for chunk in chunks]
