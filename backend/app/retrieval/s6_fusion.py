@@ -58,3 +58,44 @@ def reciprocal_rank_fusion(
         )
         for key in ordered_keys
     ]
+
+
+def multi_reciprocal_rank_fusion(
+    ranked_doc_lists: list[list[LangChainDocument]],
+    *,
+    limit: int,
+    rank_constant: int = 60,
+) -> list[LangChainDocument]:
+    """Fuse ranked results from several equivalent query formulations."""
+
+    docs_by_key: dict[str, LangChainDocument] = {}
+    fusion_scores: dict[str, float] = {}
+
+    for ranked_docs in ranked_doc_lists:
+        for rank, doc in enumerate(ranked_docs, start=1):
+            chunk_key = doc.metadata.get("chunk_key")
+            if not chunk_key:
+                continue
+            key = str(chunk_key)
+            docs_by_key.setdefault(key, doc)
+            fusion_scores[key] = (
+                fusion_scores.get(key, 0.0)
+                + 1.0 / (rank_constant + rank)
+            )
+
+    ordered_keys = sorted(
+        fusion_scores,
+        key=fusion_scores.get,
+        reverse=True,
+    )[:limit]
+
+    return [
+        LangChainDocument(
+            page_content=docs_by_key[key].page_content,
+            metadata={
+                **docs_by_key[key].metadata,
+                "_score": fusion_scores[key],
+            },
+        )
+        for key in ordered_keys
+    ]

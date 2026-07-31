@@ -57,7 +57,7 @@ class EligibilityPolicy:
             ),
             qmodels.FieldCondition(
                 key="rag_status",
-                match=qmodels.MatchValue(value="indexed"),
+                match=qmodels.MatchValue(value="published"),
             ),
             qmodels.FieldCondition(
                 key="chunk_type",

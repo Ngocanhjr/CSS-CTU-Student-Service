@@ -30,6 +30,32 @@ Updated: `2026-07-04`
 | Retrieval | Hybrid: dense + sparse + RRF |
 | HNSW / advanced reranker | Future upgrade only |
 
+## Reranker configuration
+
+Set these variables in the project `.env` to enable the semantic reranker:
+
+```dotenv
+JINA_API_KEY=<your Jina API key>
+JINA_RERANK_MODEL=jina-reranker-v3
+JINA_RERANK_URL=https://api.jina.ai/v1/rerank
+JINA_RERANK_TIMEOUT=8
+```
+
+If Jina is unavailable, the backend preserves the hybrid RRF ranking instead
+of falling back to keyword-only reranking.
+
+## Query rewriting
+
+Before retrieval, the configured LLM can generate up to two meaning-preserving
+Vietnamese search variants. This is enabled by default and does not require a
+document re-index. Control it with:
+
+```dotenv
+QUERY_REWRITE_ENABLED=true
+QUERY_REWRITE_MAX_QUERIES=3
+QUERY_REWRITE_TIMEOUT_SECONDS=12
+```
+
 ## Indexing and retrieval policy
 
 Student-facing `/api/v1/rag/answer` must use:
