@@ -1,13 +1,21 @@
 # điều phối resolver -> Qdrant -> hydration -> LLM
 import asyncio
+import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.rag_chain import RagAnswer, generate_rag_answer
 from app.retrieval.s1_query_resolver import complete_or_clarify_query
+from app.retrieval.s0_query_rewriter import (
+    get_query_rewrite_timeout_seconds,
+    rewrite_query,
+)
 from app.retrieval.s10_retriever import Retriever
 from app.retrieval.s8_reranker import get_reranker
 from app.vectorstore.qdrant_client import get_qdrant_client
+
+
+logger = logging.getLogger(__name__)
 
 
 class RagService:
@@ -34,9 +42,24 @@ class RagService:
                 None,
             )
 
+        try:
+            queries = await asyncio.wait_for(
+                asyncio.to_thread(
+                    rewrite_query,
+                    decision.query,
+                ),
+                timeout=get_query_rewrite_timeout_seconds() + 1,
+            )
+        except TimeoutError:
+            logger.warning(
+                "Query rewrite exceeded its timeout; using the original query."
+            )
+            queries = [decision.query]
+
         results = await self.retriever.search_resolved_query(
             session,
             query=decision.query,
+            queries=queries,
             top_k=top_k,
             document_key=decision.document_key,
             version_key=decision.version_key,

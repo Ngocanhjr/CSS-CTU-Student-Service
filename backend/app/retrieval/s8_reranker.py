@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import replace
 import logging
 import os
-import re
 from typing import Protocol
 
 import httpx
@@ -40,100 +39,6 @@ class IdentityReranker:
     ) -> list[RetrievalResult]:
         del query
         return results
-
-
-class LexicalReranker:
-    """Xếp hạng lại bằng từ khóa, không phụ thuộc dịch vụ ngoài.
-
-    Ưu tiên mức độ phủ từ khóa của câu hỏi trong nội dung chunk, cộng thêm
-    điểm nhỏ cho khớp ở tiêu đề và cho cụm câu hỏi xuất hiện nguyên vẹn.
-    Giữ nguyên thứ tự gốc khi các chunk bằng điểm.
-
-    Dùng làm fallback khi Jina Reranker không khả dụng.
-    """
-
-    # Các từ ít mang nghĩa tìm kiếm -> bỏ qua để tính điểm chính xác hơn.
-    _STOP_WORDS = frozenset(
-        {
-            "a",
-            "an",
-            "and",
-            "cho",
-            "của",
-            "các",
-            "cần",
-            "có",
-            "để",
-            "gì",
-            "khi",
-            "là",
-            "một",
-            "nào",
-            "những",
-            "ở",
-            "the",
-            "thì",
-            "và",
-            "về",
-            "với",
-        }
-    )
-
-    @classmethod
-    def _tokens(cls, text: str) -> set[str]:
-        """Chuẩn hóa text thành tập từ khóa: chữ thường, bỏ từ ngắn và stop words."""
-        return {
-            token
-            for token in re.findall(r"\w+", text.casefold())
-            if len(token) > 1 and token not in cls._STOP_WORDS
-        }
-
-    def rerank(
-        self,
-        query: str,
-        results: list[RetrievalResult],
-    ) -> list[RetrievalResult]:
-        query_tokens = self._tokens(query)
-        if not query_tokens or len(results) < 2:
-            return results
-
-        normalized_query = " ".join(query.casefold().split())
-        reranked: list[tuple[float, int, RetrievalResult]] = []
-
-        for position, result in enumerate(results):
-            content_tokens = self._tokens(result.content)
-            title_tokens = self._tokens(result.title)
-
-            content_overlap = len(query_tokens & content_tokens)
-            title_overlap = len(query_tokens & title_tokens)
-
-            # Độ phủ từ khóa trong nội dung.
-            coverage = content_overlap / len(query_tokens)
-            # Mật độ từ khóa: chunk ngắn mà nhiều từ khớp thì điểm cao hơn.
-            density = content_overlap / max(len(content_tokens), 1)
-            # Khớp ở tiêu đề.
-            title_coverage = title_overlap / len(query_tokens)
-
-            normalized_content = " ".join(result.content.casefold().split())
-            phrase_bonus = 0.2 if normalized_query in normalized_content else 0.0
-
-            relevance_score = (
-                coverage
-                + (0.25 * density)
-                + (0.3 * title_coverage)
-                + phrase_bonus
-            )
-
-            reranked.append(
-                (
-                    relevance_score,
-                    position,
-                    replace(result, score=relevance_score),
-                )
-            )
-
-        reranked.sort(key=lambda item: (-item[0], item[1]))
-        return [result for _, _, result in reranked]
 
 
 class JinaReranker:
@@ -429,9 +334,8 @@ def get_reranker() -> Reranker:
     """Khởi tạo reranker từ biến môi trường.
 
     Trả về JinaReranker được bọc bởi :class:`FallbackReranker` để lùi về
-    :class:`LexicalReranker` khi Jina lỗi. Nếu chưa cấu hình JINA_API_KEY
-    thì dùng luôn LexicalReranker, giúp môi trường dev/test không bắt buộc
-    phải có API key.
+    :class:`IdentityReranker` khi Jina lỗi. Nếu chưa cấu hình JINA_API_KEY,
+    giữ nguyên thứ hạng RRF thay vì xếp hạng lại theo từ khóa.
     """
 
     api_key = os.getenv(
@@ -441,9 +345,9 @@ def get_reranker() -> Reranker:
 
     if not api_key:
         logger.warning(
-            "Chưa cấu hình JINA_API_KEY, dùng LexicalReranker."
+            "JINA_API_KEY is not configured; preserving semantic RRF ranking."
         )
-        return LexicalReranker()
+        return IdentityReranker()
 
     model = os.getenv(
         "JINA_RERANK_MODEL",
@@ -476,5 +380,5 @@ def get_reranker() -> Reranker:
             endpoint=endpoint,
             timeout=timeout,
         ),
-        fallback=LexicalReranker(),
+        fallback=IdentityReranker(),
     )
