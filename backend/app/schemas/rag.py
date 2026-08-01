@@ -14,15 +14,26 @@ class CitationResponse(StrictSchema):
     document_key: str
     version_key: str
     chunk_key: str
+
     title: str
     page_start: int | None = None
     page_end: int | None = None
     citation: str
-    # Metadata tài liệu phục vụ màn "Chi tiết tài liệu" trên client.
-    source_file: str = ""
+
+    # Metadata phục vụ màn Chi tiết tài liệu.
+    source_file: str
     issued_date: date | None = None
     issuing_authority: str | None = None
     document_type: str | None = None
+
+    # Link trang web nguồn.
+    source_url: str | None = None
+
+    # Object key của file PDF gốc trên Cloudflare R2.
+    source_path: str | None = None
+
+    # Object key của file Markdown OCR trên Cloudflare R2.
+    canonical_markdown_path: str | None = None
 
 
 class AnswerResponse(StrictSchema):

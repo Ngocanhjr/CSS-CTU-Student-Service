@@ -1,4 +1,6 @@
 # điều phối resolver -> Qdrant -> hydration -> LLM
+import asyncio
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.rag_chain import RagAnswer, generate_rag_answer
@@ -39,4 +41,11 @@ class RagService:
             document_key=decision.document_key,
             version_key=decision.version_key,
         )
-        return True, "", generate_rag_answer(question, results)
+        # generate_rag_answer gọi LLM đồng bộ (chain.invoke).
+        # Chạy trong thread để không chặn event loop của FastAPI.
+        answer = await asyncio.to_thread(
+            generate_rag_answer,
+            question,
+            results,
+        )
+        return True, "", answer

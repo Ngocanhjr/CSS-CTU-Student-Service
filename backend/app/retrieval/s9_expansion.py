@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from qdrant_client import QdrantClient
 from qdrant_client import models as qmodels
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,21 +49,26 @@ def _record_to_document(record) -> LangChainDocument:
     )
 
 
-def _retrieve_by_filter(
+async def _retrieve_by_filter(
     client: QdrantClient,
     *,
     collection_name: str,
     query_filter: qmodels.Filter,
     limit: int = 20,
 ) -> list[LangChainDocument]:
-    records, _ = client.scroll(
-        collection_name=collection_name,
-        scroll_filter=query_filter,
-        limit=limit,
-        with_payload=True,
-        with_vectors=False,
-    )
-    return [_record_to_document(record) for record in records]
+    # QdrantClient.scroll gọi HTTP đồng bộ. Chạy trong thread để không chặn
+    # event loop, vì hàm này được gọi nhiều lần cho mỗi direct hit.
+    def _scroll() -> list[LangChainDocument]:
+        records, _ = client.scroll(
+            collection_name=collection_name,
+            scroll_filter=query_filter,
+            limit=limit,
+            with_payload=True,
+            with_vectors=False,
+        )
+        return [_record_to_document(record) for record in records]
+
+    return await asyncio.to_thread(_scroll)
 
 
 async def find_parent_item(
@@ -74,7 +81,7 @@ async def find_parent_item(
     if not hit.parent_item_key:
         return []
 
-    docs = _retrieve_by_filter(
+    docs = await _retrieve_by_filter(
         qdrant_client,
         collection_name=collection_name,
         query_filter=qmodels.Filter(
@@ -109,7 +116,7 @@ async def find_direct_children(
     if not hit.logical_item_key:
         return []
 
-    docs = _retrieve_by_filter(
+    docs = await _retrieve_by_filter(
         qdrant_client,
         collection_name=collection_name,
         query_filter=qmodels.Filter(
@@ -165,7 +172,7 @@ async def find_siblings(
             )
         )
 
-    docs = _retrieve_by_filter(
+    docs = await _retrieve_by_filter(
         qdrant_client,
         collection_name=collection_name,
         query_filter=qmodels.Filter(must=must),
@@ -187,7 +194,7 @@ async def find_split_neighbors(
     if not hit.logical_item_key or hit.split_count <= 1:
         return []
 
-    docs = _retrieve_by_filter(
+    docs = await _retrieve_by_filter(
         qdrant_client,
         collection_name=collection_name,
         query_filter=qmodels.Filter(

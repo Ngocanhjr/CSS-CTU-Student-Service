@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from qdrant_client import QdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,7 +52,10 @@ class Retriever:
         if not query.strip():
             return []
 
-        dense_docs = retrieve_child_chunks(
+        # retrieve_child_chunks gọi HTTP đồng bộ (embed query + Qdrant search).
+        # Chạy trong thread để không chặn event loop của FastAPI.
+        dense_docs = await asyncio.to_thread(
+            retrieve_child_chunks,
             query,
             top_k=top_k,
             audience=audience,
@@ -80,7 +85,9 @@ class Retriever:
             expansion_reason="direct_hit",
         )
 
-        reranked_hits = self.reranker.rerank(
+        # Reranker gọi API bên ngoài bằng httpx đồng bộ.
+        reranked_hits = await asyncio.to_thread(
+            self.reranker.rerank,
             query,
             direct_hits,
         )
