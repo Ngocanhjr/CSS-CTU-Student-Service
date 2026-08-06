@@ -9,7 +9,6 @@ from typing import Any
 
 from app.llm.generator import get_chat_model
 
-
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_QUERIES = 3

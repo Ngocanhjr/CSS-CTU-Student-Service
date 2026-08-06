@@ -1,3 +1,4 @@
+#chứa prompt/rule hướng dẫn LLM trả lời đúng ngữ cảnh tài liệu, bằng tiếng Việt và không bịa thông tin.
 """Prompt templates for LLM interactions."""
 
 from langchain_core.prompts import ChatPromptTemplate

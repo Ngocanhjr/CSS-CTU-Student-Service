@@ -1,8 +1,6 @@
-"""Extract explicit document metadata constraints from a user's query.
-
-The mappings in this module are the single place to extend user-facing aliases.
-Retrievers consume the returned object instead of maintaining their own rules.
-"""
+# tách các điều kiện mà user nêu rõ, ví dụ document_key, version_key, hoặc loại/đơn vị nếu có;
+# mục đích là thu hẹp đúng phạm vi khi user hỏi một tài liệu cụ thể;
+# không tự đoán bừa metadata; nếu user không nêu rõ thì search toàn bộ kho tài liệu hợp lệ.
 
 from __future__ import annotations
 

@@ -1,3 +1,5 @@
+#cấu hình và khởi tạo model LLM từ biến môi trường, như API key, base URL, tên model, timeout.
+
 """Chat-model configuration for grounded RAG answers.
 
 Provider-agnostic: dùng endpoint OpenAI-compatible nên có thể đổi provider

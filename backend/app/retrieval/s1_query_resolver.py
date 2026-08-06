@@ -1,6 +1,9 @@
 # Xử lý câu hỏi nhận từ user
 # Nếu là câu hỏi ngoài lề, thì xử lý ntn
 # Nếu là câu hỏi nghiệp vụ thì sẽ gọi retrieval engine
+# chuẩn hoá chữ thường/khoảng trắng/dấu câu;
+# mở rộng từ viết tắt;
+# nhận diện chào hỏi hoặc câu hỏi quá mơ hồ để trả lời/làm rõ ngay, không cần search.   
 
 from __future__ import annotations
 from app.retrieval.models import QueryDecision, RetrievalContext
@@ -15,6 +18,7 @@ ABBREVIATIONS = {
     "ktx": "ký túc xá",
     "pctsv": "phòng công tác sinh viên",
     "pdt": "phòng đào tạo",
+    "nvqs": "nghĩa vụ quân sự"
 }
 
 

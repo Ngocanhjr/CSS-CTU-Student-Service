@@ -1,3 +1,6 @@
+#ghép kết quả retrieval thành context, đưa question + context vào prompt và LLM để sinh câu trả lời; 
+#đồng thời tạo danh sách citations trả về cho client.
+#nơi thực hiện để tạo câu trả lời cuối cùng.
 """Grounded answer generation from hydrated retrieval results."""
 
 from __future__ import annotations
