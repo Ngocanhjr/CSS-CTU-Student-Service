@@ -103,6 +103,11 @@ class DocumentVersionMetadata(DocumentVersionStatusFields):
     ocr_engine: str | None = None
     notes: str = ""
 
+    @field_validator("notes", mode="before")
+    @classmethod
+    def normalize_notes(cls, value: str | None) -> str:
+        return "" if value is None else value
+
     # Validate publish rule
     @model_validator(mode="after")
     def validate_publish_rules(self) -> "DocumentVersionMetadata":

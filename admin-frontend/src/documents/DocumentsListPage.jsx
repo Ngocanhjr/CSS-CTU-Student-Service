@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client.js";
 import StatusBadge from "../components/StatusBadge.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import { useReferenceData } from "../hooks/useReferenceData.js";
+import { notify } from "../lib/notify.js";
 
 function EmptyStateIcon() {
   return (
@@ -52,6 +53,8 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
   const [busy, setBusy] = useState(false);
   const [searched, setSearched] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
+  const actionInFlight = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,14 +100,50 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
     setReviewStatus("");
   }
 
+  async function handleReview(versionId) {
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
+    setPendingAction({ type: "review", versionId });
+    try {
+      await onReview(versionId);
+    } finally {
+      actionInFlight.current = false;
+      setPendingAction(null);
+    }
+  }
+
   async function handleDelete(versionId) {
-    if (!confirm("Bạn có chắc muốn xóa tài liệu này?")) return;
+    if (actionInFlight.current) return;
+    if (!confirm("Xóa tài liệu và dữ liệu liên quan?")) return;
+    actionInFlight.current = true;
+    setPendingAction({ type: "delete", versionId });
     setDeleteError(null);
     try {
       await api.deleteDocument(versionId);
       setResults((prev) => prev.filter((d) => d.id !== versionId));
     } catch (err) {
       setDeleteError(err.message);
+    } finally {
+      actionInFlight.current = false;
+      setPendingAction(null);
+    }
+  }
+
+  async function handlePublish(versionId) {
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
+    setPendingAction({ type: "publish", versionId });
+    try {
+      const result = await api.publishDocument(versionId);
+      setResults((prev) => prev.map((d) => (
+        d.id === versionId ? { ...d, rag_status: result.rag_status } : d
+      )));
+      notify.success("Đã xuất bản tài liệu. Chatbot có thể sử dụng tài liệu này.");
+    } catch (err) {
+      notify.error(err.message);
+    } finally {
+      actionInFlight.current = false;
+      setPendingAction(null);
     }
   }
 
@@ -243,6 +282,7 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
                     && d.rag_status === 'not_indexed'
                   const canReviewChunks = d.review_status === 'approved'
                     && d.rag_status === 'not_indexed'
+                  const canPublish = d.rag_status === 'indexed'
 
                   return (
                   <tr key={d.id}>
@@ -269,7 +309,7 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
                     <td className="status-cell">
                       <StatusBadge status={d.rag_status} />
                     </td>
-                    <td className="mono">
+                    <td className="mono updated-cell">
                       <time dateTime={d.updated_at}>
                         {new Date(d.updated_at).toLocaleString("vi-VN")}
                       </time>
@@ -279,9 +319,12 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
                         <button
                           type="button"
                           className="btn small"
-                          onClick={() => onReview(d.id)}
+                          onClick={() => handleReview(d.id)}
+                          disabled={pendingAction !== null}
                         >
-                          Review
+                          {pendingAction?.type === "review" && pendingAction.versionId === d.id
+                            ? "Đang mở…"
+                            : "Review"}
                         </button>
                       ) : (
                         <button
@@ -301,14 +344,29 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
                           Review chunks
                         </button>
                       )}
+                      {canPublish && (
+                        <button
+                          type="button"
+                          className="btn small"
+                          onClick={() => handlePublish(d.id)}
+                          disabled={pendingAction !== null}
+                        >
+                          {pendingAction?.type === "publish" && pendingAction.versionId === d.id
+                            ? "Đang xuất bản…"
+                            : "Xuất bản"}
+                        </button>
+                      )}
                       {(d.rag_status === "not_indexed" ||
                         d.rag_status === "failed") && (
                         <button
                           type="button"
                           className="btn ghost small danger"
                           onClick={() => handleDelete(d.id)}
+                          disabled={pendingAction !== null}
                         >
-                          Xóa
+                          {pendingAction?.type === "delete" && pendingAction.versionId === d.id
+                            ? "Đang xóa…"
+                            : "Xóa"}
                         </button>
                       )}
                     </td>

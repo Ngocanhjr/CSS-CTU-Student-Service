@@ -37,6 +37,14 @@ class DocumentVersionDetail(DocumentVersionSummary):
     source_url: str
     checksum: str
     responsible_department: list[str] = Field(default_factory=list)
+    issuing_authority: str | None = None
+    signer_name: str | None = None
+    is_latest: bool = False
+    language: str = "vi"
+    accessed_date: str | None = None
+    parser: str | None = None
+    ocr_engine: str | None = None
+    notes: str = ""
     assets: list[LinkedAssetResponse] = Field(default_factory=list)
     last_job_id: int | None = None
     last_job_status: str | None = None
@@ -51,7 +59,7 @@ class DocumentVersionUpdateMetadata(StrictSchema):
 
     title: str
     document_type_id: int | None = None
-    department_id: int | None = None
+    responsible_department: list[str] = Field(min_length=1)
     domain: str = ""
     audience: list[str] = Field(default_factory=list)
     code: str | None = None

@@ -813,11 +813,61 @@ textarea {
   font-size: 12.5px;
   line-height: 1.6;
 }
+.metadata-notes {
+  min-height: 40px;
+  height: 40px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: normal;
+}
 .markdown-editor {
   min-height: 280px;
 }
 .markdown-editor.large {
   min-height: 420px;
+}
+.line-numbered-editor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  width: 100%;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.line-numbered-editor:focus-within {
+  border-color: var(--primary-700);
+  box-shadow: var(--focus-ring);
+}
+.line-number-gutter {
+  min-width: 48px;
+  height: 100%;
+  margin: 0;
+  padding: 12px 10px;
+  overflow: hidden;
+  color: var(--primary-400);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: right;
+  user-select: none;
+  background: var(--panel-2);
+  border-right: 1px solid var(--border);
+}
+.line-numbered-editor textarea {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+}
+.line-numbered-editor textarea:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
@@ -1418,6 +1468,7 @@ fieldset legend b,
   display: grid;
   gap: var(--space-3);
 }
+.card-heading-row,
 .index-progress-header,
 .index-progress-summary {
   display: flex;
@@ -1425,6 +1476,7 @@ fieldset legend b,
   align-items: center;
   justify-content: space-between;
 }
+.card-heading-row h2,
 .index-progress-header h2,
 .index-progress-step,
 .index-progress-card .hint {
@@ -1561,13 +1613,15 @@ tbody tr:last-child td {
 .documents-table th:nth-child(8) { min-width: 130px; }
 .documents-table th:nth-child(9) { width: 150px; }
 .documents-table .table-action {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
+  vertical-align: middle;
   white-space: nowrap;
 }
-.documents-table .status-cell {
-  vertical-align: bottom;
+.documents-table .table-action .btn + .btn {
+  margin-left: var(--space-2);
+}
+.documents-table .status-cell,
+.documents-table .updated-cell {
+  vertical-align: middle;
 }
 
 .sr-only {

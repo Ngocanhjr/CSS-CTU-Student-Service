@@ -194,6 +194,7 @@ Domain = Literal[
     "unknown",
     "nghi_hoc",
     "dinh_chi",
+    "ktx",
 ]
 
 signer_name = Literal[
@@ -222,7 +223,7 @@ responsible_department = Literal[
     "TTGDQP&AN", # trung tâm giáo dục quốc phòng và an ninh
     "TTQLCL", # trung tâm quản lý chất lượng
     "TTHL", # trung tâm học liệu
-    "TTTT&QTM", # trung tâm thông tin và quản trị mạng
+    "TTTTQTM", # trung tâm thông tin và quản trị mạng
     "TTDGNLNN", # trung tâm đánh giá năng lực ngoại ngữ
     "TTLKDT", # trung tâm liên kết đào tạo
     "TTPVSV", # trung tâm phục vụ sinh viên

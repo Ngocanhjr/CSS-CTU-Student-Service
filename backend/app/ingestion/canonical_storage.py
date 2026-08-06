@@ -8,8 +8,8 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 
-MAX_MARKDOWN_BYTES = 10 * 1024 * 1024
-MAX_SOURCE_BYTES = 50 * 1024 * 1024
+MAX_MARKDOWN_BYTES = 20 * 1024 * 1024
+MAX_SOURCE_BYTES = 100 * 1024 * 1024
 
 DEFAULT_PREVIEW_EXPIRES_MINUTES = 5
 

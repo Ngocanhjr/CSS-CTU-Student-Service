@@ -22,6 +22,7 @@ from app.ingestion.canonical_storage import (
 from app.databases.models.documents import (
     Department,
     Document,
+    DocumentRecipient,
     DocumentType,
     DocumentVersion,
 )
@@ -33,7 +34,10 @@ from hashlib import sha256
 from io import BytesIO
 from zipfile import BadZipFile, ZipFile
 
-from app.ingestion.markdown_reader import render_markdown_document
+from app.ingestion.markdown_reader import (
+    render_markdown_document,
+    split_frontmatter,
+)
 from app.schemas.ingestion.requests import RawMarkdownUploadMetadata
 
 SAFE_VERSION_KEY = re.compile(
@@ -124,10 +128,10 @@ async def upload_canonical_document(
         raise ValueError("File Markdown rỗng")
 
     if len(content) > MAX_MARKDOWN_BYTES:
-        raise ValueError("File Markdown vượt quá 10 MB")
+        raise ValueError(f"File Markdown vượt quá {MAX_MARKDOWN_BYTES // 1024 // 1024} MB")
 
     if source_content is not None and len(source_content) > MAX_SOURCE_BYTES:
-        raise ValueError("File nguồn vượt quá 50 MB")
+        raise ValueError(f"File nguồn vượt quá {MAX_SOURCE_BYTES // 1024 // 1024} MB")
 
     try:
         markdown = content.decode("utf-8")
@@ -242,12 +246,19 @@ async def upload_canonical_document(
 
     canonical_markdown = render_markdown_document(metadata, body)
     provenance_checksum = metadata.checksum
+    recipient_effective_date = metadata.effective_date or metadata.issued_date
+    if recipient_effective_date is None:
+        raise ValueError(
+            "responsible_department yêu cầu effective_date hoặc issued_date"
+        )
 
     extra_fields = set(metadata.model_extra or {}) | {
         "parser",
         "ocr_engine",
         "notes",
         "effective_date",
+        "expiry_date",
+        "validity_status",
         "responsible_department",
     }
     extra_metadata = json.loads(
@@ -351,6 +362,27 @@ async def upload_canonical_document(
             )
             session.add(version)
             await session.flush()
+
+            recipient_departments = list(
+                (
+                    await session.scalars(
+                        select(Department).where(
+                            Department.code.in_(responsible_codes),
+                            Department.is_active.is_(True),
+                        )
+                    )
+                ).all()
+            )
+            session.add_all(
+                [
+                    DocumentRecipient(
+                        document_version_id=version.id,
+                        department_id=department.id,
+                        effective_date=recipient_effective_date,
+                    )
+                    for department in recipient_departments
+                ]
+            )
 
             job = IngestionJob(
                 document_version_id=version.id,

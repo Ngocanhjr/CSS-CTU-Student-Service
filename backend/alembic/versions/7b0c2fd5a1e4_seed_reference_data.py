@@ -58,7 +58,7 @@ def upgrade() -> None:
             ('TTGDQP&AN', 'Trung tâm Giáo dục Quốc phòng và An ninh', TRUE),
             ('TTQLCL', 'Trung tâm Quản lý Chất lượng', TRUE),
             ('TTHL', 'Trung tâm Học liệu', TRUE),
-            ('TTTT&QTM', 'Trung tâm Thông tin và Quản trị mạng', TRUE),
+            ('TTTTQTM', 'Trung tâm Thông tin và Quản trị mạng', TRUE),
             ('TTDGNLNN', 'Trung tâm Đánh giá Năng lực Ngoại ngữ', TRUE),
             ('TTLKDT', 'Trung tâm Liên kết Đào tạo', TRUE),
             ('TTPVSV', 'Trung tâm Phục vụ Sinh viên', TRUE),

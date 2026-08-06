@@ -139,18 +139,7 @@ async def get_indexing_job(
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-PREVIEW_METADATA_KEYS = {
-    "title",
-    "document_key",
-    "version_key",
-    "document_type",
-    "domain",
-    "audience",
-    "code",
-    "issued_date",
-    "effective_date",
-    "source_url",
-}
+PREVIEW_METADATA_KEYS = set(RawMarkdownUploadMetadata.model_fields)
 
 
 @router.post(
@@ -169,7 +158,7 @@ async def preview_markdown_metadata(
 
         content = await file.read(MAX_MARKDOWN_BYTES + 1)
         if len(content) > MAX_MARKDOWN_BYTES:
-            raise ValueError("File Markdown vượt quá 10 MB")
+            raise ValueError(f"File Markdown vượt quá {MAX_MARKDOWN_BYTES // 1024 // 1024} MB")
 
         try:
             markdown = content.decode("utf-8")

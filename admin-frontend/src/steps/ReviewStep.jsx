@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { api } from '../api/client.js'
 import AssetEditor from '../components/AssetEditor.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
+import LineNumberedTextarea from '../components/LineNumberedTextarea.jsx'
 import { useReferenceData } from '../hooks/useReferenceData.js'
 import { notify } from '../lib/notify.js'
 
@@ -17,7 +19,7 @@ function withFrontmatterValues(markdown, values) {
   return markdown.replace(/^---\r?\n([\s\S]*?)\r?\n---/, (_, frontmatter) => {
     const updated = Object.entries(values).reduce((yaml, [key, value]) => {
       const field = new RegExp(`^${key}:[^\\r\\n]*(?:\\r?\\n(?:[ \\t]+|- )[^\\r\\n]*)*`, 'm')
-      const emptyValue = key === 'source_url' ? '""' : 'null'
+      const emptyValue = ['source_url', 'notes'].includes(key) ? '""' : 'null'
       const line = `${key}: ${value === '' || value == null ? emptyValue : JSON.stringify(value)}`
       return field.test(yaml) ? yaml.replace(field, line) : `${yaml}\n${line}`
     }, frontmatter)
@@ -35,6 +37,7 @@ export default function ReviewStep({ pipeline, update, goTo }) {
   const [markdown, setMarkdown] = useState(() => splitCanonicalMarkdown(upload?.markdown || '').body)
   const [reviewMetadata, setReviewMetadata] = useState(() => ({
     ...metadata,
+    notes: metadata?.notes || '',
     audience: [...(metadata?.audience || [])],
     responsible_department: metadata?.responsible_department?.length
       ? [...metadata.responsible_department]
@@ -111,6 +114,7 @@ export default function ReviewStep({ pipeline, update, goTo }) {
         effective_date: reviewMetadata.effective_date,
         expiry_date: reviewMetadata.expiry_date,
         source_url: reviewMetadata.source_url,
+        notes: reviewMetadata.notes,
         validity_status: validityStatus,
       })
       const reviewed = await api.reviewCanonicalMarkdown(upload.document_version_id, reviewedMarkdown, assets)
@@ -225,6 +229,10 @@ export default function ReviewStep({ pipeline, update, goTo }) {
             <span>URL nguồn</span>
             <input id="review-source-url" type="url" value={reviewMetadata.source_url || ''} onChange={(event) => setMetadataField('source_url', event.target.value)} placeholder="https://…" />
           </label>
+          <label className="field" htmlFor="review-notes">
+            <span>Ghi chú</span>
+            <textarea className="metadata-notes" id="review-notes" value={reviewMetadata.notes || ''} onChange={(event) => setMetadataField('notes', event.target.value)} rows={1} />
+          </label>
         </fieldset>
 
         <fieldset className="audience-fieldset review-metadata-section" disabled={referencesLoading}>
@@ -260,7 +268,7 @@ export default function ReviewStep({ pipeline, update, goTo }) {
         <h2 id="review-content-heading">Nội dung cần review</h2>
         <label className="field" htmlFor="canonical-markdown">
           <span>Canonical Markdown</span>
-          <textarea
+          <LineNumberedTextarea
             id="canonical-markdown"
             className="markdown-editor large"
             value={markdown}

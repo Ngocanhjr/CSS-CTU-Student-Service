@@ -8,6 +8,7 @@ from app.schemas.enums import (
     Audience,
     DocumentType,
     Domain,
+    ValidityStatus,
 )
 
 class ReviewCanonicalRequest(StrictSchema):
@@ -28,7 +29,12 @@ class RawMarkdownUploadMetadata(StrictSchema):
     signer_name: str | None = None
     issued_date: date | None = None
     effective_date: date | None = None
+    expiry_date: date | None = None
+    validity_status: ValidityStatus = "unknown"
     is_latest: bool = False
     source_url: str = ""
     language: str = "vi"
+    accessed_date: date | None = None
+    parser: str | None = None
+    ocr_engine: str | None = None
     notes: str = ""

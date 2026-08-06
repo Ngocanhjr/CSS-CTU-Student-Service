@@ -5,7 +5,8 @@ import { notify } from '../lib/notify.js'
 import { useReferenceData } from '../hooks/useReferenceData.js'
 import PageHeader from '../components/PageHeader.jsx'
 
-const MAX_SIZE_MB = 20
+const MAX_MARKDOWN_SIZE_MB = 20
+const MAX_SOURCE_SIZE_MB = 100
 const ACCEPTED_EXTENSIONS = ['.md', '.markdown']
 const ACCEPTED_SOURCE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.md', '.markdown']
 const EMPTY_METADATA = {
@@ -20,9 +21,8 @@ const EMPTY_METADATA = {
   issued_date: '',
   effective_date: '',
   source_url: '',
+  notes: '',
 }
-const EDITABLE_METADATA_KEYS = new Set(Object.keys(EMPTY_METADATA))
-
 function getUploadErrorMessage({ name, message = '' }) {
   if (name === 'AbortError') return 'Kết nối quá thời gian. Vui lòng kiểm tra mạng và thử lại.'
   if (name === 'TypeError' || message === 'Failed to fetch') return 'Không thể kết nối server. Vui lòng thử lại sau.'
@@ -41,6 +41,17 @@ export default function UploadStep({ update, goTo }) {
   const [busy, setBusy] = useState(false)
   const [databaseStatus, setDatabaseStatus] = useState('checking')
   const { documentTypes, departments, enumOptions, loading: referencesLoading } = useReferenceData()
+  const uploadReady = Boolean(
+    file
+    && departmentCode
+    && metadata.title.trim()
+    && metadata.document_key.trim()
+    && metadata.version_key.trim()
+    && metadata.document_type
+    && metadata.responsible_department.length
+    && metadata.responsible_department.every(Boolean)
+    && (metadata.effective_date || metadata.issued_date),
+  )
 
   useEffect(() => {
     let active = true
@@ -67,8 +78,8 @@ export default function UploadStep({ update, goTo }) {
       notify.error(`Chỉ nhận tệp Markdown (${ACCEPTED_EXTENSIONS.join(', ')}).`)
       return
     }
-    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
-      notify.error(`Tệp vượt giới hạn ${MAX_SIZE_MB} MB.`)
+    if (f.size > MAX_MARKDOWN_SIZE_MB * 1024 * 1024) {
+      notify.error(`Tệp vượt giới hạn ${MAX_MARKDOWN_SIZE_MB} MB.`)
       return
     }
     setFile(f)
@@ -76,9 +87,7 @@ export default function UploadStep({ update, goTo }) {
 
     try {
       const preview = await api.previewMarkdownMetadata(f)
-      const suggested = Object.fromEntries(
-        Object.entries(preview.metadata || {}).filter(([key]) => EDITABLE_METADATA_KEYS.has(key)),
-      )
+      const suggested = preview.metadata || {}
       setMetadata((current) => ({ ...current, ...suggested }))
     } catch {
       // Không có YAML hoặc API preview chưa triển khai: người dùng nhập tay.
@@ -130,15 +139,15 @@ export default function UploadStep({ update, goTo }) {
       notify.error(`File nguồn chỉ nhận ${ACCEPTED_SOURCE_EXTENSIONS.join(', ')}.`)
       return
     }
-    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
-      notify.error(`File nguồn vượt giới hạn ${MAX_SIZE_MB} MB.`)
+    if (f.size > MAX_SOURCE_SIZE_MB * 1024 * 1024) {
+      notify.error(`File nguồn vượt giới hạn ${MAX_SOURCE_SIZE_MB} MB.`)
       return
     }
     setSourceFile(f)
   }
 
   async function onUpload() {
-    if (!file || !departmentCode || !metadata.title.trim() || !metadata.document_key.trim() || !metadata.version_key.trim() || !metadata.document_type || !metadata.responsible_department.length || metadata.responsible_department.some((item) => !item)) return
+    if (!uploadReady) return
     setBusy(true)
     try {
       const uploadMetadata = Object.fromEntries(
@@ -248,6 +257,10 @@ export default function UploadStep({ update, goTo }) {
               <span>URL nguồn</span>
               <input id="upload-source-url" type="url" value={metadata.source_url} onChange={(event) => setMetadataField('source_url', event.target.value)} placeholder="https://…" />
             </label>
+            <label className="field" htmlFor="upload-notes">
+              <span>Ghi chú</span>
+              <textarea className="metadata-notes" id="upload-notes" value={metadata.notes} onChange={(event) => setMetadataField('notes', event.target.value)} rows={1} />
+            </label>
             <fieldset className="audience-fieldset">
               <legend>Đối tượng sử dụng</legend>
               <menu className="pill-row">
@@ -306,7 +319,7 @@ export default function UploadStep({ update, goTo }) {
             </select>
             <small className="hint">Dùng để tạo key riêng dưới <code>sources/</code>.</small>
           </label>
-          <button type="submit" className="btn" disabled={!file || !departmentCode || !metadata.title.trim() || !metadata.document_key.trim() || !metadata.version_key.trim() || !metadata.document_type || !metadata.responsible_department.length || metadata.responsible_department.some((item) => !item) || busy} aria-busy={busy}>
+          <button type="submit" className="btn" disabled={!uploadReady || busy} aria-busy={busy}>
             {busy ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
             {busy ? 'Đang tải lên...' : 'Tải lên'}
           </button>
@@ -315,7 +328,7 @@ export default function UploadStep({ update, goTo }) {
               Bỏ chọn
             </button>
           )}
-          {(!file || !departmentCode || !metadata.title.trim() || !metadata.document_key.trim() || !metadata.version_key.trim() || !metadata.document_type || !metadata.responsible_department.length || metadata.responsible_department.some((item) => !item)) && <span className="hint">Nhập các trường bắt buộc, chọn phòng ban phụ trách, phòng ban nguồn và Markdown để bật nút tải lên.</span>}
+          {!uploadReady && <span className="hint">Nhập các trường bắt buộc, ít nhất một ngày ban hành/ngày hiệu lực, phòng ban phụ trách, phòng ban nguồn và Markdown để bật nút tải lên.</span>}
         </div>
       </form>
 

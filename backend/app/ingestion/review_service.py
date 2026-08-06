@@ -230,7 +230,7 @@ def _prepare_reviewed_markdown(
         len(canonical_markdown.encode("utf-8"))
         > MAX_MARKDOWN_BYTES
     ):
-        raise ValueError("Canonical Markdown vượt quá 10 MB")
+        raise ValueError(f"Canonical Markdown vượt quá {MAX_MARKDOWN_BYTES // 1024 // 1024} MB")
 
     frontmatter, body = split_frontmatter(
         canonical_markdown
