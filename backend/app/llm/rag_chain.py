@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date
 from typing import Any
 
 from langchain_core.output_parsers import StrOutputParser
@@ -15,6 +13,7 @@ from app.llm.generator import get_chat_model
 from app.llm.prompts import RAG_ANSWER_PROMPT
 from app.retrieval.models import RetrievalResult
 from app.retrieval.s11_context_builder import build_retrieval_context
+from app.schemas.rag import CitationResponse, RagAnswer
 
 
 NO_CONTEXT_ANSWER = (
@@ -23,41 +22,12 @@ NO_CONTEXT_ANSWER = (
 )
 
 
-@dataclass(frozen=True)
-class AnswerCitation:
-    document_key: str
-    version_key: str
-    chunk_key: str
-
-    title: str
-    page_start: int | None
-    page_end: int | None
-    citation: str
-
-    # Metadata phục vụ màn Chi tiết tài liệu.
-    source_file: str
-    issued_date: date | None
-    issuing_authority: str | None
-    document_type: str | None
-
-    # Nguồn để client mở tài liệu.
-    source_url: str | None = None
-    source_path: str | None = None
-    canonical_markdown_path: str | None = None
-
-
-@dataclass(frozen=True)
-class RagAnswer:
-    answer: str
-    citations: list[AnswerCitation]
-
-
 def build_answer_citations(
     results: list[RetrievalResult],
-) -> list[AnswerCitation]:
+) -> list[CitationResponse]:
     """Chuyển RetrievalResult thành danh sách citation không trùng lặp."""
 
-    citations: list[AnswerCitation] = []
+    citations: list[CitationResponse] = []
 
     seen_sources: set[
         tuple[str, str, int | None, int | None]
@@ -75,7 +45,7 @@ def build_answer_citations(
             continue
 
         citations.append(
-            AnswerCitation(
+            CitationResponse(
                 document_key=result.document_key,
                 version_key=result.version_key,
                 chunk_key=result.chunk_key,

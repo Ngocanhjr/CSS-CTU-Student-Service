@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FileText, Loader2, Trash2, Upload } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
-import { notify } from '../lib/notify.js'
 import { useReferenceData } from '../hooks/useReferenceData.js'
 import PageHeader from '../components/PageHeader.jsx'
 
@@ -64,7 +64,7 @@ export default function UploadStep({ update, goTo }) {
   function oneFile(files, label) {
     const selected = Array.from(files || [])
     if (selected.length !== 1) {
-      notify.error(`${label} chỉ được chọn một file.`)
+      toast.error(`${label} chỉ được chọn một file.`)
       return null
     }
     return selected[0]
@@ -75,11 +75,11 @@ export default function UploadStep({ update, goTo }) {
     if (!f) return
     const name = f.name.toLowerCase()
     if (!ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext))) {
-      notify.error(`Chỉ nhận tệp Markdown (${ACCEPTED_EXTENSIONS.join(', ')}).`)
+      toast.error(`Chỉ nhận tệp Markdown (${ACCEPTED_EXTENSIONS.join(', ')}).`)
       return
     }
     if (f.size > MAX_MARKDOWN_SIZE_MB * 1024 * 1024) {
-      notify.error(`Tệp vượt giới hạn ${MAX_MARKDOWN_SIZE_MB} MB.`)
+      toast.error(`Tệp vượt giới hạn ${MAX_MARKDOWN_SIZE_MB} MB.`)
       return
     }
     setFile(f)
@@ -136,11 +136,11 @@ export default function UploadStep({ update, goTo }) {
     if (!f) return
     const name = f.name.toLowerCase()
     if (!ACCEPTED_SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext))) {
-      notify.error(`File nguồn chỉ nhận ${ACCEPTED_SOURCE_EXTENSIONS.join(', ')}.`)
+      toast.error(`File nguồn chỉ nhận ${ACCEPTED_SOURCE_EXTENSIONS.join(', ')}.`)
       return
     }
     if (f.size > MAX_SOURCE_SIZE_MB * 1024 * 1024) {
-      notify.error(`File nguồn vượt giới hạn ${MAX_SOURCE_SIZE_MB} MB.`)
+      toast.error(`File nguồn vượt giới hạn ${MAX_SOURCE_SIZE_MB} MB.`)
       return
     }
     setSourceFile(f)
@@ -164,7 +164,7 @@ export default function UploadStep({ update, goTo }) {
       update('ingest', null)
       goTo('review')
     } catch (err) {
-      notify.error(getUploadErrorMessage(err))
+      toast.error(getUploadErrorMessage(err))
     } finally {
       setBusy(false)
     }

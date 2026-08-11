@@ -1,5 +1,5 @@
-import RagLogo from "./RagLogo.jsx";
 import { FolderOpen, Plus, Upload } from "lucide-react";
+import RagLogo from "./RagLogo.jsx";
 
 export default function Sidebar({
   steps,

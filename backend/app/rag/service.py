@@ -4,7 +4,7 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.llm.rag_chain import RagAnswer, generate_rag_answer
+from app.llm.rag_chain import generate_rag_answer
 from app.retrieval.s1_query_resolver import complete_or_clarify_query
 from app.retrieval.s0_query_rewriter import (
     get_query_rewrite_timeout_seconds,
@@ -12,6 +12,7 @@ from app.retrieval.s0_query_rewriter import (
 )
 from app.retrieval.s10_retriever import Retriever
 from app.retrieval.s8_reranker import get_reranker
+from app.schemas.rag import RagAnswer
 from app.vectorstore.qdrant_client import get_qdrant_client
 
 
