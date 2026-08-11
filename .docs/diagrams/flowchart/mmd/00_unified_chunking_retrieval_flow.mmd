@@ -1,0 +1,55 @@
+%% Canonical end-to-end flow.
+%% This diagram is the source-of-truth overview for parsing, chunking, publish, and retrieval.
+
+flowchart TD
+    A([Canonical Markdown body<br/>validated by markdown_reader])
+    B[split_body_by_page_markers]
+    C[PageBlock list<br/>page markers consumed]
+    D[structural_parser.parse_page_blocks]
+    E[StructuralParseResult<br/>blocks + validation reports]
+    F[parent_chunker.build_parent_sections]
+    G[ParentSection list<br/>non-overlapping, multi-page aware]
+    H[child_chunker.build_child_units<br/>group + safe oversized split]
+    I[ChildUnit list]
+    K[child_chunker.make_child_chunks<br/>Parent chunks + Child chunks]
+    M[ChunkingResult validation reports]
+    N{Any error?}
+    O([Stop publish<br/>return errors])
+    P[(PostgreSQL<br/>canonical content + relations)]
+    Q{publish?}
+    R([Preview-only result])
+    S[Build embedding text +<br/>embed Child chunks]
+    T[(Qdrant<br/>vectors + structural payload)]
+    U([Published])
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> K --> M --> N
+    N -->|yes| O
+    N -->|no| P --> Q
+    Q -->|no| R
+    Q -->|yes| S --> T --> U
+
+    V([User query])
+    W[Apply shared hard filters]
+    X[(Qdrant dense candidates)]
+    Y[(PostgreSQL FTS/BM25 candidates)]
+    Z[Fetch Qdrant payload for<br/>sparse-only candidates by point id]
+    ZA[RRF or weighted fusion]
+    AA[Hydrate fused canonical content<br/>from PostgreSQL; keep Qdrant metadata]
+    AB[Rerank fused candidates]
+    AC[Structural expansion<br/>parent, children, siblings, split neighbors]
+    AD[Deduplicate + source order<br/>context budget]
+    AE[Build citations]
+    AF([Answer context])
+
+    V --> W
+    W --> X
+    W --> Y
+    X --> ZA
+    Y --> Z --> ZA
+    ZA --> AA --> AB --> AC --> AD --> AE --> AF
+    T -. searchable Child vectors .-> X
+    P -. FTS corpus + canonical source .-> Y
+    P -. canonical content + relations .-> AA
+
+    D -. never reparses per Parent .-> H
+    E -. warnings continue by default<br/>errors block publish .-> M

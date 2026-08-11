@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CTU Student Service - RAG Ingestion Module",
+    "subtitle": "Canonical Markdown + YAML -> validation -> parent/child chunks -> BGE-M3 -> Qdrant index -> published retrieval",
+    "output": ".docs/diagrams/rag-ingestion-module.html",
+    "viewBox": [1960, 1140]
+  },
+  "components": [
+    { "id": "llamaparse", "type": "external", "label": "LlamaParse", "sublabel": "external OCR/parser", "tag": "outside backend", "pos": [40, 60], "size": [190, 64] },
+    { "id": "admin", "type": "external", "label": "Admin / Editor", "sublabel": "upload + review", "tag": "human sign-off", "pos": [40, 260], "size": [190, 64] },
+    { "id": "canonical_md", "type": "external", "label": "Canonical MD", "sublabel": "headings + page markers", "tag": "<!-- page: N -->", "pos": [40, 460], "size": [190, 64] },
+    { "id": "metadata_yaml", "type": "external", "label": "Metadata YAML", "sublabel": "document/version fields", "tag": "frontmatter", "pos": [40, 660], "size": [190, 64] },
+
+    { "id": "metadata_validator", "type": "security", "label": "Metadata Validator", "sublabel": "required keys + enums", "tag": "block if invalid", "pos": [420, 460], "size": [210, 64] },
+    { "id": "governance_gate", "type": "security", "label": "Governance Gate", "sublabel": "ocr done + approved", "tag": "eligible to index", "pos": [420, 660], "size": [210, 64] },
+    { "id": "ingestion_job", "type": "database", "label": "ingestion_jobs", "sublabel": "PostgreSQL", "tag": "status/current_step/error", "pos": [420, 860], "size": [210, 64] },
+
+    { "id": "normalize_md", "type": "backend", "label": "Normalize Markdown", "sublabel": "preserve tables/lists", "tag": "heading hierarchy", "pos": [820, 60], "size": [210, 64] },
+    { "id": "parent_chunks", "type": "backend", "label": "Parent Chunks", "sublabel": "major MD sections", "tag": "chunk_type=parent", "pos": [820, 260], "size": [210, 64] },
+    { "id": "child_chunks", "type": "backend", "label": "Child Chunks", "sublabel": "langchain splitters", "tag": "embedded + searched", "pos": [820, 460], "size": [210, 64] },
+    { "id": "document_chunks", "type": "database", "label": "document_chunks", "sublabel": "PostgreSQL source rows", "tag": "parent_chunk_id", "pos": [820, 660], "size": [210, 64] },
+
+    { "id": "embedding_model", "type": "backend", "label": "BGE-M3 Embedding", "sublabel": "BAAI/bge-m3", "tag": "1024d normalized", "pos": [1220, 460], "size": [210, 64] },
+    { "id": "index_status", "type": "database", "label": "Index Status", "sublabel": "document_chunks", "tag": "indexed/failed/etc.", "pos": [1220, 660], "size": [210, 64] },
+
+    { "id": "qdrant_upsert", "type": "database", "label": "Qdrant Upsert", "sublabel": "vector index layer", "tag": "cosine vectors", "pos": [1620, 60], "size": [210, 64] },
+    { "id": "qdrant_payload", "type": "database", "label": "Payload Metadata", "sublabel": "filterable fields", "tag": "version/status/pages", "pos": [1620, 260], "size": [210, 64] },
+    { "id": "qdrant_point", "type": "database", "label": "qdrant_point_id", "sublabel": "stored on chunks", "tag": "index pointer", "pos": [1620, 460], "size": [210, 64] },
+
+    { "id": "recipients", "type": "database", "label": "document_recipients", "sublabel": "department + effective_date", "tag": "scope metadata", "pos": [820, 1000], "size": [230, 64] },
+    { "id": "document_versions", "type": "database", "label": "document_versions", "sublabel": "PostgreSQL source of truth", "tag": "version + statuses", "pos": [1220, 1000], "size": [230, 64] },
+    { "id": "published", "type": "backend", "label": "Publish for RAG", "sublabel": "rag_status=published", "tag": "retrieval unlocked", "pos": [1620, 1000], "size": [230, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "01 Input", "wraps": ["llamaparse", "admin", "canonical_md", "metadata_yaml"], "pad": 24 },
+    { "kind": "security-group", "label": "02 Validate", "wraps": ["metadata_validator", "governance_gate", "ingestion_job"], "pad": 24 },
+    { "kind": "region", "label": "03 Chunk", "wraps": ["normalize_md", "parent_chunks", "child_chunks", "document_chunks"], "pad": 24 },
+    { "kind": "region", "label": "04 Embed", "wraps": ["embedding_model", "index_status"], "pad": 24 },
+    { "kind": "region", "label": "05 Index", "wraps": ["qdrant_upsert", "qdrant_payload", "qdrant_point"], "pad": 24 },
+    { "kind": "security-group", "label": "06 Publish", "wraps": ["document_versions", "recipients", "published"], "pad": 24 }
+  ],
+  "connections": [
+    { "from": "llamaparse", "to": "canonical_md", "variant": "dashed", "fromSide": "right", "toSide": "right", "route": "orthogonal-h", "via": [[270, 92], [270, 492]] },
+    { "from": "admin", "to": "canonical_md", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "admin", "to": "metadata_yaml", "variant": "dashed", "label": "frontmatter", "fromSide": "right", "toSide": "right", "route": "orthogonal-h", "via": [[300, 292], [300, 692]] },
+    { "from": "canonical_md", "to": "metadata_validator", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
+    { "from": "metadata_yaml", "to": "metadata_validator", "variant": "emphasis", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v" },
+    { "from": "metadata_validator", "to": "governance_gate", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "governance_gate", "to": "ingestion_job", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "governance_gate", "to": "normalize_md", "label": "approved MD", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[700, 692], [700, 92]], "labelAt": [740, 400] },
+    { "from": "normalize_md", "to": "parent_chunks", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "parent_chunks", "to": "child_chunks", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "child_chunks", "to": "document_chunks", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "child_chunks", "to": "embedding_model", "label": "child text", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
+    { "from": "document_chunks", "to": "index_status", "fromSide": "right", "toSide": "left", "route": "straight" },
+    { "from": "embedding_model", "to": "qdrant_upsert", "label": "1024d vector", "variant": "emphasis", "fromSide": "top", "toSide": "left", "route": "orthogonal-v", "via": [[1325, 320], [1325, 92]], "labelAt": [1400, 150] },
+    { "from": "document_chunks", "to": "qdrant_payload", "variant": "dashed", "fromSide": "top", "toSide": "left", "route": "orthogonal-v", "via": [[925, 620], [1620, 292]], "labelAt": [1000, 600] },
+    { "from": "qdrant_upsert", "to": "qdrant_point", "variant": "dashed", "fromSide": "right", "toSide": "right", "route": "orthogonal-h", "via": [[1870, 92], [1870, 492]] },
+    { "from": "qdrant_payload", "to": "qdrant_upsert", "label": "metadata", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "route": "straight", "labelDx": 46 },
+    { "from": "qdrant_point", "to": "document_versions", "label": "index ok", "variant": "emphasis", "fromSide": "bottom", "toSide": "right", "route": "orthogonal-v", "via": [[1725, 900], [1450, 900]], "labelAt": [1600, 890] },
+    { "from": "recipients", "to": "published", "variant": "security", "fromSide": "right", "toSide": "left", "route": "orthogonal-h", "via": [[1170, 1032], [1170, 1032]] },
+    { "from": "document_versions", "to": "published", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight" },
+    { "from": "ingestion_job", "to": "published", "label": "finish or fail", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "route": "orthogonal-v", "via": [[525, 1100], [1735, 1100]], "labelAt": [1000, 1090] }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "PostgreSQL source of truth",
+      "items": [
+        "documents, document_versions, document_chunks, ingestion_jobs",
+        "Qdrant stores retrieval index data only"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Chunking contract",
+      "items": [
+        "parent chunks are major Markdown sections",
+        "child chunks are embedded and searched",
+        "stable keys use version_key::p/c::index"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Spec boundaries",
+      "items": [
+        "LlamaParse/OCR runs outside backend",
+        "document validity status is not in document_versions",
+        "Qdrant failure keeps job failed for retry"
+      ]
+    }
+  ]
+}

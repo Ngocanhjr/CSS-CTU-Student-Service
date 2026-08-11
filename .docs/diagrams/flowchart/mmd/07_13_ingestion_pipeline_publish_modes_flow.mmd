@@ -1,0 +1,54 @@
+%% Sources:
+%% - 13_PART_F_PIPELINE_ORCHESTRATION_GUIDE.md
+%% - 13_PART_F_PIPELINE_ORCHESTRATION_GUIDE.md
+%% - 22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md
+
+flowchart TD
+    A([Canonical Markdown file])
+    B[read_markdown_document]
+    C[Validate YAML metadata<br/>and Markdown body]
+    T{Index eligible?<br/>ocr_status = done AND<br/>review_status = approved}
+    U([Not eligible<br/>stop before chunk/index<br/>request OCR or review])
+    D[chunk_markdown_body]
+    E[ChunkingResult<br/>parents + children + warnings + errors]
+    F{errors present?}
+    G[Mark ingestion failed<br/>persist error details]
+    H{strict mode and<br/>warnings present?}
+    I[Stop before publish<br/>request review]
+    J[Preview chunks and warnings]
+    K[PostgreSQL transaction<br/>replace Parent/Child chunks<br/>canonical content + parent relations]
+    L{publish?}
+    M([IngestionResult publish=false<br/>chunks saved, no Qdrant upsert])
+    N[Build embedding text<br/>for Child chunks only]
+    O[Embed Child chunks]
+    P[Build Qdrant payload<br/>Chunk.metadata structural fields<br/>+ PostgreSQL IDs]
+    Q[Upsert deterministic points]
+    R[Update chunk index_status = indexed<br/>and version rag_status = published]
+    S([Published for retrieval])
+
+    A --> B --> C --> T
+    T -->|no| U
+    T -->|yes| D --> E --> F
+    F -->|yes| G
+    F -->|no| H
+    H -->|yes| I
+    H -->|no| J --> K --> L
+    L -->|false| M
+    L -->|true| N --> O --> P --> Q --> R --> S
+
+    E -. warnings do not block<br/>in default mode .-> J
+    B -. exception .-> G
+    C -. exception .-> G
+    D -. exception .-> G
+    K -. exception .-> G
+    O -. exception .-> G
+    Q -. exception .-> G
+
+    subgraph Orchestrator_only
+        B
+        T
+        D
+        K
+        O
+        Q
+    end

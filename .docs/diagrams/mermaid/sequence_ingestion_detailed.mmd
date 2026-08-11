@@ -1,0 +1,71 @@
+%% CTU-Service - Ingestion Pipeline (Detailed Sequence Diagram)
+%% Actors: Admin -> API -> OCR Service -> Markdown Processor -> Metadata Validator
+%%         -> Chunking Service -> Embedding Service -> PostgreSQL -> Qdrant
+%% Tham chieu: .docs/spec/ctu-service/07_RAG_SPEC.md, 08_OCR_INGESTION_SPEC.md
+
+sequenceDiagram
+    autonumber
+    actor Admin as Admin
+    participant API as API<br/>(FastAPI)
+    participant OCR as OCR Service<br/>(LlamaParse)
+    participant MD as Markdown<br/>Processor
+    participant MV as Metadata<br/>Validator
+    participant CH as Chunking<br/>Service
+    participant EMB as Embedding<br/>Service (bge-m3)
+    participant PG as PostgreSQL
+    participant QD as Qdrant
+
+    Admin->>API: Upload document (PDF/DOCX)
+    Note right of Admin: Input: raw file
+
+    API->>PG: Create document + ingestion_job
+    PG-->>API: job_id
+    API-->>Admin: 202 Accepted (job_id)
+
+    API->>OCR: Run OCR on raw file
+    Note right of OCR: Input: raw file bytes
+    OCR-->>API: OCR text (raw)
+    Note left of OCR: Output: OCR text
+
+    API->>MD: Convert OCR text to canonical Markdown
+    MD-->>API: Canonical Markdown
+    API->>PG: Update ocr_status = done
+    Note left of MD: Output: Markdown + front-matter
+
+    Admin->>API: Complete metadata (YAML front-matter)
+    API->>MV: Validate metadata YAML
+    Note right of MV: Input: document_key, title,<br/>domain, audience...
+
+    alt Metadata invalid
+        MV-->>API: Validation errors
+        API-->>Admin: 422 Fix required fields
+        Admin->>API: Resubmit corrected metadata
+        API->>MV: Re-validate
+    end
+
+    MV-->>API: Metadata valid
+    API->>PG: Save metadata, review_status = approved
+    Note left of MV: Output: validated metadata
+
+    Admin->>API: Publish to RAG
+    API->>CH: Chunk canonical Markdown
+    Note right of CH: Input: Markdown + metadata
+    CH-->>API: Parent chunks + child chunks
+    Note left of CH: Output: chunk list<br/>(parent_chunk_id, chunk_type)
+    API->>PG: Store parent/child chunks
+
+    API->>EMB: Embed child chunks
+    Note right of EMB: Input: child chunk text
+    EMB-->>API: Embedding vectors (1024-dim)
+    Note left of EMB: Output: normalized vectors
+
+    API->>QD: Upsert vectors + payload
+    Note right of QD: Input: chunk_key, vector,<br/>document_key, version_key
+    QD-->>API: Upsert acknowledged
+
+    API->>PG: Set rag_status = published
+    API-->>Admin: Publish success
+    Note left of API: Output: document active in RAG
+
+%% Reference: .docs/spec/ctu-service/08_OCR_INGESTION_SPEC.md
+%% Reference: .docs/spec/ctu-service/06_API_SPEC.md

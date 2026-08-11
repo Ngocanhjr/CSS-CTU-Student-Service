@@ -1,0 +1,57 @@
+%% Sources:
+%% - 16_PART_I_RETRIEVAL_GUIDE.md
+%% - 22_CHUNKING_RETRIEVAL_RECONCILIATION_GUIDE.md
+%% Retrieval keeps Qdrant structural metadata while hydrating canonical content from PostgreSQL.
+
+flowchart TD
+    A([User query])
+    B{Greeting or blank?}
+    C[Return greeting or empty result<br/>without retrieval]
+    D{Needs clarification?}
+    E[Ask clarification<br/>without retrieval]
+    F[Complete or rewrite query<br/>from conversation context]
+    G[Prepare dense + sparse query]
+    H[Apply shared hard filters]
+    I[Hard filters<br/>approved + published + student audience]
+    J[(Qdrant dense candidates<br/>score + structural payload)]
+    K[(PostgreSQL FTS/BM25 candidates)]
+    L[Fetch Qdrant payload for<br/>sparse-only candidates by point id]
+    LA[RRF or weighted fusion]
+    M[Hydrate fused canonical content<br/>from PostgreSQL; keep Qdrant metadata]
+    N[Rerank fused candidates]
+    O[Structural expansion]
+    P[Hit child item<br/>add logical parent]
+    Q[Hit parent item + list query<br/>add direct children]
+    R[List-intent query<br/>optionally add siblings]
+    S[Hit split<br/>add related split neighbors]
+    T[Deduplicate by chunk_key]
+    U[Sort by source order]
+    V[Apply context budget]
+    W[Build citations from canonical content<br/>and page ranges]
+    X([RetrievalResult])
+
+    A --> B
+    B -->|yes| C
+    B -->|no| D
+    D -->|yes| E
+    D -->|no| F --> G --> H
+    I --> H
+    H --> J
+    H --> K
+    J --> LA
+    K --> L --> LA
+    LA --> M --> N --> O
+    O --> P
+    O --> Q
+    O --> R
+    O --> S
+    P --> T
+    Q --> T
+    R --> T
+    S --> T
+    T --> U --> V --> W --> X
+
+    J -. metadata retained .-> Y[logical_item_key + logical_item_keys<br/>parent_item_key<br/>logical_table_key + logical_code_key<br/>split_index + split_count<br/>chunk_index/source_order<br/>heading_path + item_path<br/>item_marker + item_level<br/>block_type + legal_unit_type]
+    K -. sparse score + qdrant_point_id .-> L
+    M -. PostgreSQL is canonical content source .-> N
+    Z{{Do not expand entire Parent<br/>when one item branch is enough}} -. budget rule .-> V

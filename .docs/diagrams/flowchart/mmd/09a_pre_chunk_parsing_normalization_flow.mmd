@@ -1,0 +1,33 @@
+%% Sources:
+%% - 09A_PRE_CHUNK_PARSING_NORMALIZATION_GUIDE.md
+%% - 10A_PART_C_PAGE_MARKER_HELPER_GUIDE.md
+%% - 10B_PART_C_PAGE_AWARE_CHUNKER_DECISIONS.md
+%% Canonical pre-chunk and structural parsing flow.
+
+flowchart TD
+    A([Markdown body validated<br/>by markdown_reader])
+    B[split_body_by_page_markers]
+    C[page_markers.py consumes page markers<br/>into PageBlock metadata]
+    D[page_markers.py drops boundary artifacts<br/>standalone OCR page number + ---]
+    E[PageBlock list]
+    F[structural_parser.parse_page_blocks<br/>stateful across all pages]
+    G[Recognition precedence inside parser]
+    H[StructuralParseResult<br/>StructuralBlock list + reports]
+    I[parent_chunker.build_parent_sections]
+    J[child_chunker.build_child_units<br/>group + safe oversized split]
+    L[child_chunker.make_child_chunks]
+    N[ChunkingResult validation reports]
+    O([ChunkingResult])
+
+    U[structural_parser.py ignores<br/>technical HTML comments]
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> L --> N --> O
+    F -. ignores .-> U
+
+    G -. order .-> P[fenced code<br/>Markdown table<br/>Markdown heading<br/>numbered item<br/>lettered item<br/>bullet item<br/>paragraph]
+
+    F -. preserves state .-> Q[heading stack<br/>item stack<br/>source order<br/>page range]
+    F -. does not use .-> R[MarkdownHeaderTextSplitter<br/>in production flow]
+    F -. does not modify .-> S[canonical Markdown]
+
+    H -. block metadata .-> T[block_type + raw_content<br/>page_start/page_end<br/>source_order + heading_path<br/>item marker/level<br/>logical_item_key<br/>parent_item_key]

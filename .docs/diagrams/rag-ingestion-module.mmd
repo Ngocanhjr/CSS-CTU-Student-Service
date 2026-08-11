@@ -1,0 +1,72 @@
+%% CTU Student Service - RAG Ingestion Module
+%% Source of truth: chatbot/.docs/spec/ctu-service/07_RAG_SPEC.md, 08_OCR_INGESTION_SPEC.md, 05_DATABASE_SPEC.md
+%% Paired Archify diagram: rag-ingestion-module.html / rag-ingestion-module.json
+flowchart LR
+    subgraph S1["01 Input"]
+        admin["Admin / Editor<br/>upload + review"]
+        llamaparse["LlamaParse<br/>external OCR/parser<br/>(outside backend)"]
+        canonical_md["Canonical Markdown<br/>headings + page markers<br/>&lt;!-- page: N --&gt;"]
+        metadata_yaml["Metadata YAML<br/>document_key/version_key/title/..."]
+    end
+
+    subgraph S2["02 Validate"]
+        metadata_validator["Metadata Validator<br/>required keys + enums<br/>block if invalid"]
+        governance_gate["Governance Gate<br/>ocr_status=done AND review_status=approved<br/>eligible to index"]
+        ingestion_job[("ingestion_jobs<br/>PostgreSQL<br/>status / current_step / error_message")]
+    end
+
+    subgraph S3["03 Chunk"]
+        normalize_md["Normalize Markdown<br/>preserve tables/lists, heading hierarchy"]
+        parent_chunks["Parent Chunks<br/>major Markdown sections<br/>chunk_type=parent"]
+        child_chunks["Child Chunks<br/>langchain-text-splitters<br/>embedded + searched"]
+        document_chunks[("document_chunks<br/>PostgreSQL<br/>parent_chunk_id, chunk_key, heading_path")]
+    end
+
+    subgraph S4["04 Embed"]
+        embedding_model["BGE-M3 Embedding<br/>BAAI/bge-m3<br/>1024d normalized"]
+        index_status[("Index Status<br/>document_chunks.index_status<br/>not_indexed/indexed/deactivated/failed")]
+    end
+
+    subgraph S5["05 Index"]
+        qdrant_upsert[("Qdrant Upsert<br/>vector index layer<br/>cosine vectors")]
+        qdrant_payload[("Payload Metadata<br/>chunk_key/document_key/version_key/<br/>review_status/rag_status/is_latest")]
+        qdrant_point[("qdrant_point_id<br/>stored on document_chunks<br/>index pointer")]
+    end
+
+    subgraph S6["06 Publish"]
+        document_versions[("document_versions<br/>PostgreSQL source of truth<br/>ocr_status/review_status/rag_status")]
+        recipients[("document_recipients<br/>department_id + effective_date")]
+        published["Publish for RAG<br/>rag_status = published<br/>retrieval unlocked"]
+    end
+
+    admin -->|upload| canonical_md
+    llamaparse -.->|OCR output| canonical_md
+    admin -->|frontmatter| metadata_yaml
+    canonical_md -->|approved MD| metadata_validator
+    metadata_yaml -->|required keys| metadata_validator
+    metadata_validator --> governance_gate
+    governance_gate -.->|job row| ingestion_job
+    governance_gate -->|approved MD| normalize_md
+    normalize_md --> parent_chunks
+    parent_chunks --> child_chunks
+    child_chunks -->|persist rows| document_chunks
+    child_chunks -->|child text| embedding_model
+    document_chunks --> index_status
+    embedding_model -->|1024d vector| qdrant_upsert
+    document_chunks -.->|filterable fields| qdrant_payload
+    qdrant_payload -.-> qdrant_upsert
+    qdrant_upsert --> qdrant_point
+    qdrant_point -->|index ok| document_versions
+    recipients -.-> published
+    document_versions --> published
+    ingestion_job -.->|finish or fail| published
+
+    classDef external fill:#083344,stroke:#22d3ee,color:#e2e8f0;
+    classDef security fill:#881337,stroke:#fb7185,color:#e2e8f0;
+    classDef database fill:#4c1d95,stroke:#a78bfa,color:#e2e8f0;
+    classDef backend fill:#064e3b,stroke:#34d399,color:#e2e8f0;
+
+    class admin,llamaparse,canonical_md,metadata_yaml external;
+    class metadata_validator,governance_gate security;
+    class ingestion_job,document_chunks,index_status,qdrant_upsert,qdrant_payload,qdrant_point,document_versions,recipients database;
+    class normalize_md,parent_chunks,child_chunks,embedding_model,published backend;

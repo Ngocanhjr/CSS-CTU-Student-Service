@@ -1,0 +1,41 @@
+%% Sources:
+%% - 17_PART_J_E2E_TEST_AND_SMOKE_GUIDE.md
+%% - final reconciliation decisions
+
+flowchart TD
+    A[ChunkingResult]
+    B[Run structural invariants]
+    C{Errors?}
+    D[Block publish]
+    E{Warnings?}
+    F[Continue by default<br/>show in preview/log]
+    G{Strict mode?}
+    H[Block for review]
+    I[Allow publish]
+
+    A --> B --> C
+    C -->|yes| D
+    C -->|no| E
+    E -->|no| I
+    E -->|yes| F --> G
+    G -->|yes| H
+    G -->|no| I
+
+    B -. invariants .-> J[Every marker is represented<br/>no Parent-boundary spill<br/>nested item requires parent_item_key<br/>top-level item may have parent_item_key=None<br/>page marker/comment absent<br/>table/code atomic before safe oversized split<br/>bullet group has logical_item_keys<br/>split metadata consistent<br/>Parent has Child or context_only_reason]
+
+    K[Runnable regression suite]
+    L[Long-item fixture<br/>forces multiple splits]
+    M[test_3266 golden fixture<br/>snapshot + pytest command]
+    N[Synthetic fenced-code fixture]
+    O[Payload and hydration test]
+    P[Retrieval expansion order test]
+
+    K --> L
+    K --> M
+    K --> N
+    K --> O
+    K --> P
+
+    L -. asserts .-> Q[shared logical_item_key<br/>same parent_item_key<br/>correct split_index/count<br/>no spill to next item]
+    M -. asserts .-> R[page artifacts<br/>heading-only handling<br/>chapter context pair<br/>nested and cross-page items<br/>atomic table<br/>warnings and source order]
+    N -. asserts .-> S[code is atomic<br/>internals not parsed<br/>line split keeps fences]

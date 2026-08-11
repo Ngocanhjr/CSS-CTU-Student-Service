@@ -1,0 +1,38 @@
+%% CTU-Service System Container Diagram (C4 Level 2)
+%% Major containers and their communication patterns
+
+graph TB
+    subgraph Frontend
+        Flutter[Flutter App<br/>Mobile/Web]
+    end
+    
+    subgraph Backend
+        API[Backend API<br/>FastAPI]
+        RAG[RAG Service]
+        Ingestion[Ingestion Service]
+    end
+    
+    subgraph Data
+        PG[(PostgreSQL<br/>Metadata)]
+        QD[(Qdrant<br/>Vectors)]
+        Storage[File Storage]
+    end
+    
+    Flutter -->|HTTP/REST| API
+    API --> RAG
+    API --> Ingestion
+    RAG --> PG
+    RAG --> QD
+    Ingestion --> PG
+    Ingestion --> Storage
+    
+    classDef frontendClass fill:#E1F5FE
+    classDef backendClass fill:#C8E6C9
+    classDef dataClass fill:#FFE0B2
+    
+    class Flutter frontendClass
+    class API,RAG,Ingestion backendClass
+    class PG,QD,Storage dataClass
+
+%% Reference: .docs/spec/ctu-service/03_SYSTEM_ARCHITECTURE.md
+%% Reference: .docs/spec/ctu-service/04_MODULE_SPEC.md

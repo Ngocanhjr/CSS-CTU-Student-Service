@@ -1,11 +1,129 @@
-services:
-  web:
-    build: .
-    ports:
-      - "${APP_PORT}:5000"
-    environment:
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
+name: ctu-chatbot
 
-  redis:
-    image: redis:alpine
+#Giới hạn kích thước log
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD_is_required}
+
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --data-checksums"
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+      PGTZ: ${TZ:-Asia/Ho_Chi_Minh}
+
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - ./infrastructure/docker/db/postgres:/var/lib/postgresql/data
+      # Bật dòng dưới khi đã có script khởi tạo database.
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    networks:
+      - ctu-network
+
+    logging: *default-logging
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.2
+    restart: unless-stopped
+
+    environment:
+      QDRANT__LOG_LEVEL: ${QDRANT_LOG_LEVEL:-INFO}
+      QDRANT__TELEMETRY_DISABLED: "${QDRANT_TELEMETRY_DISABLED:-true}"
+    ports:
+      - "${QDRANT_HTTP_PORT}:6333"
+      - "${QDRANT_GRPC_PORT}:6334"
+
+    volumes:
+      - ./infrastructure/docker/db/qdrant:/qdrant/storage
+      - ./infrastructure/docker/db/qdrant_snapshots:/qdrant/snapshots
+
+    networks:
+      - ctu-network
+
+    logging: *default-logging
+
+    stop_grace_period: 30s
+
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   restart: unless-stopped
+
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ctu.local}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+  #     PGADMIN_CONFIG_SERVER_MODE: "False"
+  #     PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+
+  #   ports:
+  #     - "${PGADMIN_PORT:-5050}:80"
+
+  #   volumes:
+  #     - pgadmin-data:/var/lib/pgadmin
+
+  #   depends_on:
+  #     - postgres
+
+  #   networks:
+  #     - ctu-network
+
+  #   logging: *default-logging
+
+  # tei:
+  #   image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+  #   restart: unless-stopped
+
+  #   environment:
+  #     API_KEY: ${TEI_API_KEY:?TEI_API_KEY_is_required}
+
+  #   command:
+  #     - --model-id
+  #     - BAAI/bge-m3
+  #     - --dtype
+  #     - float16
+  #     - --max-client-batch-size
+  #     - "4"
+  #     - --max-batch-tokens
+  #     - "4096"
+
+  #   ports:
+  #     - "${TEI_PORT:-8080}:80"
+
+  #   volumes:
+  #     - tei-data:/data
+
+  #   networks:
+  #     - ctu-network
+
+  #   logging: *default-logging
+
+  # tei-reranker đã được tắt - dùng LexicalReranker thay thế (nhẹ hơn)
+  # Để bật lại, uncomment block dưới và cấu hình TEI_RERANKER_* trong .env
+
+networks:
+  ctu-network:
+    driver: bridge
+
+# volumes:
+#   tei-data:
+#     name: tei-data
+#   tei-reranker-data:
+#     name: tei-reranker-data
+#   pgadmin-data:
+#     name: pgadmin-data

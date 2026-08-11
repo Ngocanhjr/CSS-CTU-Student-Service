@@ -1,0 +1,25 @@
+%% CTU-Service System Context Diagram (C4 Level 1)
+%% High-level system interactions with users and external systems
+
+graph TB
+    Student[Student User]
+    Admin[Admin User]
+    CTU[CTU-Service System]
+    ExtLLM[External LLM API]
+    ExtDocs[CTU Document Sources]
+    
+    Student -->|Asks questions| CTU
+    Admin -->|Manages documents| CTU
+    CTU -->|Generates answers| ExtLLM
+    CTU -->|Retrieves| ExtDocs
+    
+    classDef userClass fill:#E1F5FE
+    classDef systemClass fill:#C8E6C9
+    classDef externalClass fill:#FFE0B2
+    
+    class Student,Admin userClass
+    class CTU systemClass
+    class ExtLLM,ExtDocs externalClass
+
+%% Reference: .docs/spec/ctu-service/01_PROJECT_OVERVIEW.md
+%% Reference: .docs/spec/ctu-service/03_SYSTEM_ARCHITECTURE.md

@@ -1,0 +1,33 @@
+%% Sources:
+%% - 14_PART_G_EMBEDDING_GUIDE.md
+%% - 15_PART_H_QDRANT_VECTORSTORE_GUIDE.md
+
+flowchart TD
+    A[(PostgreSQL<br/>Child chunks not indexed)]
+    B[Use saved Child content +<br/>in-memory Chunk.metadata]
+    C[build_embedding_text]
+    D[Prepend heading_path]
+    E[Prepend ancestor item labels<br/>item_path without current item]
+    F[Keep raw Child content unchanged<br/>do not duplicate current item label]
+    G[Text embedder]
+    H[Vector list]
+    I{Collection exists?}
+    J[Ensure collection<br/>vector_size from embedding]
+    K[build_chunk_payload]
+    L[make deterministic point id<br/>version_key + chunk_key]
+    M[Upsert points]
+    N[(Qdrant)]
+    O[Mark chunks indexed]
+    P[(PostgreSQL<br/>qdrant_point_id + index_status)]
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+    I -->|no| J --> K
+    I -->|yes| K
+    K --> L --> M --> N
+    M --> O --> P
+
+    K -. identity and trace .-> Q[postgres_chunk_id<br/>chunk_key<br/>parent_chunk_key]
+    K -. structural payload .-> R[logical_item_key + logical_item_keys<br/>parent_item_key<br/>logical_table_key + logical_code_key<br/>heading_path + item_path<br/>item_marker + item_level<br/>split_index + split_count<br/>chunk_index or source_order<br/>block_type + legal_unit_type<br/>page_start + page_end]
+    K -. governance and citation .-> S[review_status<br/>rag_status<br/>audience_student<br/>title + source_file + source_url<br/>document/version metadata]
+
+    T{{Only Child chunks<br/>are embedded by default}} -. contract .-> A
