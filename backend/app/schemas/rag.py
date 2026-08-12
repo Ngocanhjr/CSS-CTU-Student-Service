@@ -8,6 +8,7 @@ from app.schemas.base import StrictSchema
 class AnswerRequest(StrictSchema):
     question: str = Field(min_length=1, max_length=2_000)
     top_k: int = Field(default=5, ge=1, le=20)
+    recent_topic: str | None = Field(default=None, max_length=2_000)
 
 
 class CitationResponse(StrictSchema):
@@ -45,3 +46,4 @@ class AnswerResponse(StrictSchema):
     answer: str
     citations: list[CitationResponse] = Field(default_factory=list)
     should_search: bool
+    recent_topic: str | None = None

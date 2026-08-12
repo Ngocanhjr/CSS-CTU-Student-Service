@@ -792,6 +792,16 @@ textarea[readonly] {
   background: var(--panel-2);
 }
 
+input[aria-invalid="true"] {
+  border-color: var(--error);
+  background: var(--error-light);
+}
+
+.field-error {
+  color: var(--error-text);
+  font-weight: var(--font-medium);
+}
+
 /* Bỏ native select styling, dùng caret tự vẽ */
 select {
   padding-right: 36px;

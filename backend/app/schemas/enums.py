@@ -203,6 +203,7 @@ signer_name = Literal[
     "TT", # Thứ trưởng
     "TP", # Trưởng phòng
     "CT" # Chủ tịch
+    "GD" #Giám đốc
 ]
 
 responsible_department = Literal[

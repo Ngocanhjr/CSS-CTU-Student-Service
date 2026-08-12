@@ -108,13 +108,6 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
         FieldCondition(key="chunk_type", match=MatchValue(value="child")),
     ]
 
-    if filters.audience:
-        conditions.append(
-            FieldCondition(
-                key="audience",
-                match=MatchValue(value=filters.audience),
-            )
-        )
     if filters.document_type:
         conditions.append(
             FieldCondition(
@@ -173,9 +166,6 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
                 match=MatchValue(value=filters.audience),
             )
         )
-
-    if not conditions:
-        return None
 
     return Filter(must=conditions)
 

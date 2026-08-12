@@ -9,6 +9,42 @@ const MAX_MARKDOWN_SIZE_MB = 20
 const MAX_SOURCE_SIZE_MB = 100
 const ACCEPTED_EXTENSIONS = ['.md', '.markdown']
 const ACCEPTED_SOURCE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.md', '.markdown']
+
+function parseVietnameseDate(value) {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
+  if (!match) return null
+
+  const [, dayText, monthText, yearText] = match
+  const day = Number(dayText)
+  const month = Number(monthText)
+  const year = Number(yearText)
+  if (year < 1000) return null
+  const candidate = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    candidate.getUTCFullYear() !== year
+    || candidate.getUTCMonth() !== month - 1
+    || candidate.getUTCDate() !== day
+  ) return null
+
+  return `${yearText}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function formatVietnameseDate(value) {
+  if (!value) return ''
+
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch
+    return `${day}/${month}/${year}`
+  }
+
+  const isoDate = parseVietnameseDate(value)
+  if (!isoDate) return value
+  const [year, month, day] = isoDate.split('-')
+  return `${day}/${month}/${year}`
+}
+
 const EMPTY_METADATA = {
   title: '',
   document_key: '',
@@ -41,6 +77,12 @@ export default function UploadStep({ update, goTo }) {
   const [busy, setBusy] = useState(false)
   const [databaseStatus, setDatabaseStatus] = useState('checking')
   const { documentTypes, departments, enumOptions, loading: referencesLoading } = useReferenceData()
+  const issuedDate = parseVietnameseDate(metadata.issued_date)
+  const effectiveDate = parseVietnameseDate(metadata.effective_date)
+  const datesAreValid = (
+    (!metadata.issued_date || issuedDate)
+    && (!metadata.effective_date || effectiveDate)
+  )
   const uploadReady = Boolean(
     file
     && departmentCode
@@ -50,7 +92,8 @@ export default function UploadStep({ update, goTo }) {
     && metadata.document_type
     && metadata.responsible_department.length
     && metadata.responsible_department.every(Boolean)
-    && (metadata.effective_date || metadata.issued_date),
+    && datesAreValid
+    && (effectiveDate || issuedDate),
   )
 
   useEffect(() => {
@@ -88,7 +131,12 @@ export default function UploadStep({ update, goTo }) {
     try {
       const preview = await api.previewMarkdownMetadata(f)
       const suggested = preview.metadata || {}
-      setMetadata((current) => ({ ...current, ...suggested }))
+      setMetadata((current) => ({
+        ...current,
+        ...suggested,
+        issued_date: formatVietnameseDate(suggested.issued_date),
+        effective_date: formatVietnameseDate(suggested.effective_date),
+      }))
     } catch {
       // Không có YAML hoặc API preview chưa triển khai: người dùng nhập tay.
     }
@@ -153,6 +201,8 @@ export default function UploadStep({ update, goTo }) {
       const uploadMetadata = Object.fromEntries(
         Object.entries({
           ...metadata,
+          issued_date: issuedDate || '',
+          effective_date: effectiveDate || '',
           responsible_department: metadata.responsible_department.filter(Boolean),
         }).filter(([, value]) => value !== ''),
       )
@@ -246,12 +296,36 @@ export default function UploadStep({ update, goTo }) {
           <fieldset className="form-grid" disabled={referencesLoading}>
             <legend>Thông tin bổ sung</legend>
             <label className="field" htmlFor="upload-issued-date">
-              <span>Ngày ban hành</span>
-              <input id="upload-issued-date" type="date" value={metadata.issued_date} onChange={(event) => setMetadataField('issued_date', event.target.value)} />
+              <span>Ngày ban hành <small>(Ngày/Tháng/Năm)</small></span>
+              <input
+                id="upload-issued-date"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="DD/MM/YYYY"
+                maxLength={10}
+                value={metadata.issued_date}
+                onChange={(event) => setMetadataField('issued_date', event.target.value)}
+                onBlur={(event) => setMetadataField('issued_date', formatVietnameseDate(event.target.value))}
+                aria-invalid={Boolean(metadata.issued_date && !issuedDate)}
+              />
+              {metadata.issued_date && !issuedDate && <small className="field-error">Nhập ngày hợp lệ theo DD/MM/YYYY.</small>}
             </label>
             <label className="field" htmlFor="upload-effective-date">
-              <span>Ngày hiệu lực</span>
-              <input id="upload-effective-date" type="date" value={metadata.effective_date} onChange={(event) => setMetadataField('effective_date', event.target.value)} />
+              <span>Ngày hiệu lực <small>(Ngày/Tháng/Năm)</small></span>
+              <input
+                id="upload-effective-date"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="DD/MM/YYYY"
+                maxLength={10}
+                value={metadata.effective_date}
+                onChange={(event) => setMetadataField('effective_date', event.target.value)}
+                onBlur={(event) => setMetadataField('effective_date', formatVietnameseDate(event.target.value))}
+                aria-invalid={Boolean(metadata.effective_date && !effectiveDate)}
+              />
+              {metadata.effective_date && !effectiveDate && <small className="field-error">Nhập ngày hợp lệ theo DD/MM/YYYY.</small>}
             </label>
             <label className="field" htmlFor="upload-source-url">
               <span>URL nguồn</span>

@@ -5,6 +5,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.rag_chain import generate_rag_answer
+from app.retrieval.models import RetrievalContext
 from app.retrieval.s1_query_resolver import complete_or_clarify_query
 from app.retrieval.s0_query_rewriter import (
     get_query_rewrite_timeout_seconds,
@@ -32,8 +33,9 @@ class RagService:
         *,
         question: str,
         top_k: int,
-    ) -> tuple[bool, str, RagAnswer | None]:
-        decision = complete_or_clarify_query(question)
+        context: RetrievalContext | None = None,
+    ) -> tuple[bool, str, RagAnswer | None, str | None]:
+        decision = complete_or_clarify_query(question, context=context)
         if not decision.should_search:
             return (
                 False,
@@ -41,6 +43,7 @@ class RagService:
                 or decision.clarification_question
                 or "",
                 None,
+                context.recent_topic if context is not None else None,
             )
 
         try:
@@ -72,4 +75,4 @@ class RagService:
             question,
             results,
         )
-        return True, "", answer
+        return True, "", answer, decision.query
