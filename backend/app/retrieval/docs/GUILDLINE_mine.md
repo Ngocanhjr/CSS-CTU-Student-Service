@@ -47,7 +47,7 @@ qdrant_point_id    → ID bản ghi vector trong Qdrant
 
 ---
 
-# Luồng Ingestion
+## Luồng Ingestion
 
 ```mermaid
 flowchart LR
@@ -190,3 +190,108 @@ Với điện thoại thật: dùng IP LAN
 - **cd myapp/frontend**
 - **Kiểm tra các thiết bị hiện có: flutter devices**
 - **Run: flutter run -d <tên TB>**
+
+---
+
+# API_KEY
+
+
+| Key                                              | Provider                               | Dùng                                                 | Limit                                                                                  |
+| -------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| LLM_API_KEY                                      | OpenRouter, endpoint OpenAI-compatible | Sinh câu trả lời RAG                               | `max_tokens=1024`timeout mặc định `45s`, model `qwen/qwen3-next-80b-a3b-instruct`   |
+| `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Workers AI                  | Tạo embedding cho query/chunks                       | batch size`4`, timeout HTTP `120s`, vector size yêu cầu `1024`                       |
+| JINA_API_KEY                                     | Jina AI                                | Rerank kết quả cho retrieval sau RRF                | timeout`.env` đang là `60s`, `top_n = len(documents)`                                |
+| QDRANT_API_KEY                                   | Qdrant Cloud                           | Lưu/Search vector database                           | retrieval config:`top_k=5`, `candidate_k=30`; quota thật nằm ở Qdrant Cloud plan    |
+| `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY`      | Cloudflare R2                          | Lưu Markdown/PDF nguồn, tạo preview URL            | Markdown tối đa`20MB`, source file tối đa `100MB`, preview URL hết hạn `5 phút` |
+| PostgreSQL                                       | Neon Postgre                           | Metadata DB, sparse retrieval, document/chunk records |                                                                                        |
+|                                                  |                                        |                                                       |                                                                                        |
+|                                                  |                                        |                                                       |                                                                                        |
+
+---
+
+PREVIEW 10/08/2026
+
+Những chỗ cần cải tiến trong retrieval
+
+Ưu tiên nên làm:
+
+1. **Tối ưu latency trong `s10_retriever.py`**
+   Hiện mỗi query rewrite chạy dense rồi sparse tuần tự. Có thể chạy dense và sparse song song bằng `asyncio.gather`. Nếu có 3 query variants, hiện pipeline dễ bị chậm vì gọi nối tiếp.
+
+-> Done
+
+2. **Giới hạn expansion trong `s9_expansion.py`**
+   Structural expansion hiện có thể thêm parent, children, siblings, split neighbors cho từng direct hit. Nên có `max_expanded_results` hoặc dedupe + limit theo budget trước khi trả sang LLM, tránh context phình quá nhiều và làm câu trả lời nhiễu.
+
+-> done
+
+3. **Dedupe cuối sau expansion**
+   `s6_fusion.py` có dedupe theo `chunk_key`, nhưng sau `s9_expansion.py` có thể lại sinh trùng. Nên dedupe `version_key + chunk_key + expansion_reason` hoặc ưu tiên direct hit rồi bỏ bản trùng expansion.
+
+-> done
+
+4. **Thêm score threshold sau rerank**
+   Trong `runtime.yaml` có `score_threshold: 0.5` nhưng mình chưa thấy được dùng rõ trong retrieval pipeline. Nếu Jina reranker trả relevance thấp, nên cắt bớt trước khi build context.
+
+`score_threshold: 0.5` dùng để  **loại bỏ kết quả retrieval quá yếu** , không đưa vào expansion/context/LLM.
+
+Ví dụ sau rerank có kết quả:
+
+```
+chunk A: 0.92
+chunk B: 0.74
+chunk C: 0.51
+chunk D: 0.22
+chunk E: 0.08
+```
+
+Nếu threshold là `0.5`, chỉ giữ:
+
+```
+A, B, C
+```
+
+Còn D/E bị bỏ vì khả năng liên quan thấp.
+
+Mục đích:
+
+* giảm context nhiễu,
+* tránh LLM đọc nhầm đoạn không liên quan,
+* tiết kiệm token,
+* không expansion từ những chunk yếu.
+
+=> Giữ lại chưa đưa vào pipeline
+
+6. **Log/trace retrieval để debug chất lượng**
+   Nên log top candidates gồm: query variant, dense/sparse rank, RRF score, rerank score, document/version/chunk. Cái này cực hữu ích để biết sai do chunking, embedding, sparse, rerank hay prompt.
+7. **RRF trong `s6_fusion.py` chưa cần đổi**
+   Công thức RRF hiện ổn. Không nên cộng `is_latest` vào RRF vì `is_latest` là filter cứng. Nếu cải tiến fusion, nên cân nhắc weighted RRF, ví dụ dense weight cao hơn sparse cho câu hỏi ngữ nghĩa, sparse cao hơn cho câu hỏi mã biểu mẫu/quyết định/số hiệu.
+8. **Metadata filter `s2` nên cẩn thận**
+   Hiện code có comment đúng: không dùng alias suy đoán làm hard filter. Cái này nên giữ. Nếu muốn tối ưu, chỉ hard filter khi user nêu rõ mã văn bản, phòng ban, version, hoặc document key.
+
+---
+
+## HƯỚNG DẪN XUẤT FILE APK 
+
+cd D:\Code\CTU_Student_Service\ctu_chatbot\myapp\frontend
+flutter clean
+flutter pub get
+flutter build apk --release
+
+file đã xuất apk nằm theo path này
+
+D:\Code\CTU_Student_Service\ctu_chatbot\myapp\frontend\build\app\outputs\flutter-apk\app-release.apk
+
+
+Điện thoại và máy chạy backend phải cùng WiFi, backend phải đang chạy, và Windows Firewall phải cho phép port `8000`.
+
+Khi cài APK nội bộ, điện thoại có thể hỏi “Install unknown apps” / “Cài ứng dụng không rõ nguồn gốc” → bật cho app bạn dùng để mở file APK.
+
+flutter build apk --release -- dart-define=API_BASE_URL=http://[ip lan của máy]:8000
+
+VD: 
+
+flutter build apk --release -- dart-define=API_BASE_URL=http://192.168.1.77:8000
+
+
+Cách 2: Thêm 1 màn hình cho nhập IP, không cần phải build lại apk khi chạy trên mỗi máy khác nhau

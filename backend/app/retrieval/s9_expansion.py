@@ -38,6 +38,28 @@ def detect_list_query(query: str) -> bool:
     )
 
 
+def dedupe_expanded_results(
+    results: list[RetrievalResult],
+    *,
+    limit: int | None = 20,
+) -> list[RetrievalResult]:
+    deduped: list[RetrievalResult] = []
+    seen: set[tuple[str, str]] = set()
+
+    for result in results:
+        key = (result.version_key, result.chunk_key)
+        if key in seen:
+            continue
+
+        seen.add(key)
+        deduped.append(result)
+
+        if limit is not None and len(deduped) >= limit:
+            break
+
+    return deduped
+
+
 def _record_to_document(record) -> LangChainDocument:
     payload = dict(record.payload or {})
     return LangChainDocument(
@@ -237,6 +259,7 @@ async def expand_structural_context(
     collection_name: str,
     direct_hits: list[RetrievalResult],
     query: str,
+    max_results: int | None = 20,
 ) -> list[RetrievalResult]:
     candidates = list(direct_hits)
     list_query = detect_list_query(query)
@@ -282,4 +305,4 @@ async def expand_structural_context(
                 )
             )
 
-    return candidates
+    return dedupe_expanded_results(candidates, limit=max_results)

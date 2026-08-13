@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +30,8 @@ from app.ingestion.markdown_reader import (
 from app.schemas.documents import DocumentMetadata
 from app.schemas.ingestion.responses import ReviewCanonicalResponse
 from app.schemas.assets import AssetWrite
+
+logger = logging.getLogger(__name__)
 
 async def review_canonical_document(
     session: AsyncSession,
@@ -191,6 +195,25 @@ async def review_canonical_document(
                 markdown=reviewed_markdown,
                 metadata=metadata,
             )
+
+        if response.metadata.is_latest:
+            try:
+                from app.vectorstore.qdrant_client import get_qdrant_client
+                from app.vectorstore.repository import set_document_latest_version
+
+                await asyncio.to_thread(
+                    set_document_latest_version,
+                    get_qdrant_client(),
+                    document_key=response.metadata.document_key,
+                    latest_version_key=response.metadata.version_key,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Could not sync Qdrant latest payload for %s/%s: %s",
+                    response.metadata.document_key,
+                    response.metadata.version_key,
+                    exc,
+                )
 
         return response
 

@@ -104,6 +104,7 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
     conditions = [
         FieldCondition(key="review_status", match=MatchValue(value="approved")),
         FieldCondition(key="rag_status", match=MatchValue(value="published")),
+        FieldCondition(key="is_latest", match=MatchValue(value=True)),
         FieldCondition(key="audience_student", match=MatchValue(value=True)),
         FieldCondition(key="chunk_type", match=MatchValue(value="child")),
     ]
@@ -340,6 +341,50 @@ def set_version_rag_status(
                 ]
             )
         ),
+        wait=True,
+    )
+
+def set_document_latest_version(
+    client: QdrantClient,
+    *,
+    document_key: str,
+    latest_version_key: str,
+    collection_name: str = COLLECTION_NAME,
+) -> None:
+    if not client.collection_exists(collection_name):
+        return
+
+    document_filter = Filter(
+        must=[
+            FieldCondition(
+                key="document_key",
+                match=MatchValue(value=document_key),
+            )
+        ]
+    )
+    latest_filter = Filter(
+        must=[
+            FieldCondition(
+                key="document_key",
+                match=MatchValue(value=document_key),
+            ),
+            FieldCondition(
+                key="version_key",
+                match=MatchValue(value=latest_version_key),
+            ),
+        ]
+    )
+
+    client.set_payload(
+        collection_name=collection_name,
+        payload={"is_latest": False},
+        points=FilterSelector(filter=document_filter),
+        wait=True,
+    )
+    client.set_payload(
+        collection_name=collection_name,
+        payload={"is_latest": True},
+        points=FilterSelector(filter=latest_filter),
         wait=True,
     )
 
