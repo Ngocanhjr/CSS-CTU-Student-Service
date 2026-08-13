@@ -36,6 +36,11 @@ class CitationResponse(StrictSchema):
     canonical_markdown_path: str | None = None
 
 
+class RagAnswer(StrictSchema):
+    answer: str
+    citations: list[CitationResponse] = Field(default_factory=list)
+
+
 class AnswerResponse(StrictSchema):
     answer: str
     citations: list[CitationResponse] = Field(default_factory=list)

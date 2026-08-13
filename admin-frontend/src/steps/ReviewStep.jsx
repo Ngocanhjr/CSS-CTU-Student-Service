@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
 import AssetEditor from '../components/AssetEditor.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import LineNumberedTextarea from '../components/LineNumberedTextarea.jsx'
 import { useReferenceData } from '../hooks/useReferenceData.js'
-import { notify } from '../lib/notify.js'
 
 function splitCanonicalMarkdown(canonicalMarkdown) {
   const match = canonicalMarkdown.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n)?/)
@@ -45,7 +45,6 @@ export default function ReviewStep({ pipeline, update, goTo }) {
   }))
   const [assets, setAssets] = useState(initialAssets)
   const [persistedAssets, setPersistedAssets] = useState(initialAssets)
-  const [validityStatus, setValidityStatus] = useState(metadata?.validity_status || 'unknown')
   const [busy, setBusy] = useState(false)
   const [assetBusy, setAssetBusy] = useState(false)
 
@@ -99,24 +98,51 @@ export default function ReviewStep({ pipeline, update, goTo }) {
     && reviewMetadata.responsible_department.length
     && reviewMetadata.responsible_department.every(Boolean)
 
+  function getCurrentCanonicalMarkdown() {
+    return withFrontmatterValues(`${frontmatter}${markdown}`, {
+      title: reviewMetadata.title,
+      document_type: reviewMetadata.document_type,
+      domain: reviewMetadata.domain,
+      audience: reviewMetadata.audience,
+      responsible_department: reviewMetadata.responsible_department,
+      code: reviewMetadata.code,
+      issued_date: reviewMetadata.issued_date,
+      effective_date: reviewMetadata.effective_date,
+      expiry_date: reviewMetadata.expiry_date,
+      source_url: reviewMetadata.source_url,
+      notes: reviewMetadata.notes,
+      validity_status: reviewMetadata.validity_status,
+    })
+  }
+
+  function createCanonicalObjectUrl() {
+    return URL.createObjectURL(new Blob(
+      [getCurrentCanonicalMarkdown()],
+      { type: 'text/markdown;charset=utf-8' },
+    ))
+  }
+
+  function openCanonicalMarkdown() {
+    const url = createCanonicalObjectUrl()
+    const opened = window.open(url, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    if (!opened) toast.error('Trình duyệt đã chặn tab xem Markdown đã xử lý.')
+  }
+
+  function downloadCanonicalMarkdown() {
+    const url = createCanonicalObjectUrl()
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${metadata.version_key || 'canonical'}.md`
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
   async function saveReview() {
     if (!assetsReady) return
     setBusy(true)
     try {
-      const reviewedMarkdown = withFrontmatterValues(`${frontmatter}${markdown}`, {
-        title: reviewMetadata.title,
-        document_type: reviewMetadata.document_type,
-        domain: reviewMetadata.domain,
-        audience: reviewMetadata.audience,
-        responsible_department: reviewMetadata.responsible_department,
-        code: reviewMetadata.code,
-        issued_date: reviewMetadata.issued_date,
-        effective_date: reviewMetadata.effective_date,
-        expiry_date: reviewMetadata.expiry_date,
-        source_url: reviewMetadata.source_url,
-        notes: reviewMetadata.notes,
-        validity_status: validityStatus,
-      })
+      const reviewedMarkdown = getCurrentCanonicalMarkdown()
       const reviewed = await api.reviewCanonicalMarkdown(upload.document_version_id, reviewedMarkdown, assets)
       const savedAssets = reviewed.assets || assets
       setMarkdown(splitCanonicalMarkdown(reviewed.markdown || reviewedMarkdown).body)
@@ -128,7 +154,6 @@ export default function ReviewStep({ pipeline, update, goTo }) {
         metadata: {
           ...metadata,
           ...reviewMetadata,
-          validity_status: validityStatus,
           ...(reviewed.metadata || {}),
         },
       })
@@ -136,10 +161,10 @@ export default function ReviewStep({ pipeline, update, goTo }) {
       update('chunkPreview', null)
       update('chunkApproved', false)
       update('ingest', null)
-      notify.success('Đã lưu và approve canonical Markdown.')
+      toast.success('Đã lưu và approve canonical Markdown.')
       goTo('chunks')
     } catch (err) {
-      notify.error(err.message)
+      toast.error(err.message)
     } finally {
       setBusy(false)
     }
@@ -154,9 +179,9 @@ export default function ReviewStep({ pipeline, update, goTo }) {
       setPersistedAssets(saved)
       update('upload', { ...upload, assets: saved })
       if (pipeline.review) update('review', { ...pipeline.review, assets: saved })
-      notify.success('Đã cập nhật asset.')
+      toast.success('Đã cập nhật asset.')
     } catch (error) {
-      notify.error(error.message)
+      toast.error(error.message)
     } finally {
       setAssetBusy(false)
     }
@@ -181,12 +206,19 @@ export default function ReviewStep({ pipeline, update, goTo }) {
           <dt>review_status</dt><dd><StatusBadge status={pipeline.review?.review_status || metadata.review_status} /></dd>
           <dt>rag_status</dt><dd><StatusBadge status={pipeline.review?.rag_status || metadata.rag_status} /></dd>
           <dt>Hiệu lực</dt><dd>
-            <select aria-label="Tình trạng hiệu lực" value={validityStatus} disabled={referencesLoading} onChange={(event) => setValidityStatus(event.target.value)}>
+            <select aria-label="Tình trạng hiệu lực" value={reviewMetadata.validity_status} disabled={referencesLoading} onChange={(event) => setMetadataField('validity_status', event.target.value)}>
               {enumOptions.validity_statuses.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
           </dd>
           {metadata.language && <><dt>Ngôn ngữ</dt><dd className="mono">{metadata.language}</dd></>}
-          <dt>Tài liệu gốc</dt><dd><a className="text-link" href={`/api/v1/admin/document-versions/${upload.document_version_id}/source-preview`} target="_blank" rel="noreferrer">Mở tài liệu gốc</a></dd>
+          <dt>Tệp tài liệu</dt>
+          <dd>
+            <nav className="document-file-actions" aria-label="Xem và tải tệp tài liệu">
+              <a className="text-link" href={`/api/v1/admin/document-versions/${upload.document_version_id}/source-preview`} target="_blank" rel="noreferrer">Mở tài liệu gốc</a>
+              <button type="button" className="text-link" onClick={openCanonicalMarkdown}>Mở Markdown đã xử lý</button>
+              <button type="button" className="text-link" onClick={downloadCanonicalMarkdown}>Tải Markdown đã cập nhật</button>
+            </nav>
+          </dd>
           {pipeline.review && <><dt>Bước kế tiếp</dt><dd className="mono">chunking</dd></>}
         </dl>
 

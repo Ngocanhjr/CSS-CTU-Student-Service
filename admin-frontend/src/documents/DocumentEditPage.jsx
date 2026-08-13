@@ -5,8 +5,8 @@ import StatusBadge from "../components/StatusBadge.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import LineNumberedTextarea from "../components/LineNumberedTextarea.jsx";
 import { useReferenceData } from "../hooks/useReferenceData.js";
-import { notify } from "../lib/notify.js";
 import { Trash2 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const editableAssets = (items = []) => items.map(({ title, url, asset_type }) => ({
   title,
@@ -45,7 +45,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [assetBusy, setAssetBusy] = useState(false);
-  const [result, setResult] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,12 +98,10 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   }
 
   function set(key, value) {
-    setResult(null);
     setForm((f) => ({ ...f, [key]: value }));
   }
 
   function toggleAudience(a) {
-    setResult(null);
     setForm((f) => ({
       ...f,
       audience: f.audience.includes(a)
@@ -114,7 +111,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   }
 
   function setResponsibleDepartment(index, value) {
-    setResult(null);
     setForm((current) => ({
       ...current,
       responsible_department: current.responsible_department.map((item, currentIndex) => (
@@ -124,7 +120,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   }
 
   function addResponsibleDepartment() {
-    setResult(null);
     setForm((current) => ({
       ...current,
       responsible_department: [...current.responsible_department, ""],
@@ -132,7 +127,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
   }
 
   function removeResponsibleDepartment(index) {
-    setResult(null);
     setForm((current) => ({
       ...current,
       responsible_department: current.responsible_department.filter((_, currentIndex) => currentIndex !== index),
@@ -145,9 +139,9 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
       const updated = await api.updateDocumentAssets(documentId, assets);
       setDoc(updated);
       setAssets(editableAssets(updated.assets));
-      notify.success("Đã cập nhật asset.");
+      toast.success("Đã cập nhật asset.");
     } catch (err) {
-      notify.error(err.message);
+      toast.error(err.message);
     } finally {
       setAssetBusy(false);
     }
@@ -155,7 +149,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
 
   async function onSave() {
     setBusy(true);
-    setResult(null);
     try {
       const res = await api.updateDocument(documentId, {
         metadata: form,
@@ -164,11 +157,10 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
       setDoc(res.document);
       setForm(toForm(res.document));
       setMarkdown(res.document.canonical_markdown);
-      setResult(res);
-      notify.success("Đã lưu thay đổi.");
+      toast.success(res.updated ? "Đã lưu thay đổi." : "Không có thay đổi để lưu.");
       return res;
     } catch (err) {
-      notify.error(err.message);
+      toast.error(err.message);
       return null;
     } finally {
       setBusy(false);
@@ -182,10 +174,9 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
       const updated = await api.getDocument(documentId);
       setDoc(updated);
       setForm(toForm(updated));
-      setResult({ updated: true, message: "Đã publish thành công" });
-      notify.success("Đã publish tài liệu.");
+      toast.success("Đã publish tài liệu.");
     } catch (err) {
-      notify.error(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -199,10 +190,9 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
       const updated = await api.getDocument(documentId);
       setDoc(updated);
       setForm(toForm(updated));
-      setResult({ updated: true, message: "Đã unpublish" });
-      notify.info("Đã unpublish tài liệu.");
+      toast.info("Đã unpublish tài liệu.");
     } catch (err) {
-      notify.error(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -217,13 +207,9 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
       setDoc(updated);
       setForm(toForm(updated));
       setMarkdown(updated.canonical_markdown);
-      setResult({
-        updated: true,
-        message: `Đã xóa ${res.chunks_deleted} chunks và ${res.vectors_deleted} vectors`,
-      });
-      notify.success("Đã deindex tài liệu.");
+      toast.success(`Đã deindex: xóa ${res.chunks_deleted} chunks và ${res.vectors_deleted} vectors.`);
     } catch (err) {
-      notify.error(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -477,7 +463,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
             className="markdown-editor"
             value={markdown}
             onChange={(e) => {
-              setResult(null);
               setMarkdown(e.target.value);
             }}
           />
@@ -505,17 +490,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           </AssetEditor>
         </section>
 
-        {result && !result.updated && (
-          <p className="banner" role="status">
-            Không có thay đổi nào để lưu.
-          </p>
-        )}
-        {result?.updated && (
-          <p className="banner" role="status">
-            Đã lưu thay đổi thành công. Cập nhật lúc{" "}
-            {new Date(result.document.updated_at).toLocaleString("vi-VN")}.
-          </p>
-        )}
         <footer className="foot-nav">
           <button type="button" className="btn ghost" onClick={onBack}>
             ← Quay lại danh sách

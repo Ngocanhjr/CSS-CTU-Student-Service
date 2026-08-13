@@ -1,16 +1,18 @@
 # CTU Student Service — Setup
 
-Hướng dẫn này chạy backend FastAPI, PostgreSQL, Qdrant và admin frontend React.
-OCR/LlamaParse không chạy trong repository này; backend chỉ nhận canonical Markdown đã xử lý.
+Hướng dẫn chạy PostgreSQL, Qdrant, FastAPI và admin frontend trên Windows PowerShell.
 
 ## 1. Yêu cầu
 
-- Docker Desktop
-- Python 3.10+
-- Node.js 18+
-- NVIDIA GPU + Docker GPU support nếu chạy service TEI để embedding/indexing
+- Docker Desktop.
+- Python 3.10 trở lên.
+- Node.js 18 trở lên.
+- Tài khoản Cloudflare có Workers AI và R2.
+- API key của một endpoint OpenAI-compatible để chạy query rewrite và sinh câu trả lời.
 
-## 2. Tạo cấu hình môi trường
+GPU và TEI local không bắt buộc; embedding hiện gọi Cloudflare Workers AI.
+
+## 2. Tạo cấu hình
 
 Tại thư mục gốc:
 
@@ -18,44 +20,24 @@ Tại thư mục gốc:
 Copy-Item .env.example .env
 ```
 
-Mở `.env`, thay các giá trị placeholder. Thêm `DATABASE_URL` vì backend và Alembic cần biến này:
+Mở `.env` và thay toàn bộ giá trị `change-me`. Các nhóm bắt buộc để chạy đầy đủ:
 
-```dotenv
-POSTGRES_DB=ctu_student_service
-POSTGRES_USER=ctu_user
-POSTGRES_PASSWORD=use_a_strong_password
-POSTGRES_PORT=5432
-DATABASE_URL=postgresql+asyncpg://ctu_user:use_a_strong_password@localhost:5432/ctu_student_service
+- PostgreSQL: `POSTGRES_*`, `DATABASE_URL`.
+- Qdrant: `QDRANT_URL`, `QDRANT_COLLECTION`.
+- Embedding: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`.
+- Object storage: `R2_*`.
+- RAG answer: `LLM_API_KEY`; `LLM_BASE_URL` và `LLM_MODEL` có giá trị mặc định nhưng nên khai báo rõ.
 
-QDRANT_HTTP_PORT=6333
-QDRANT_GRPC_PORT=6334
-QDRANT_COLLECTION=ctu_chunks_bge_m3
-QDRANT_API_KEY=
+`JINA_API_KEY` là tùy chọn. Khi bỏ trống, hệ thống giữ thứ hạng hybrid RRF.
 
-TEI_PORT=8080
-TEI_BASE_URL=http://localhost:8080
-TEI_API_KEY=use_a_long_random_value
-EMBEDDING_MODEL=BAAI/bge-m3
-EMBEDDING_BATCH_SIZE=4
-```
-
-`QDRANT_API_KEY` để trống với `compose.yaml` hiện tại vì Qdrant local chưa cấu hình API key.
-
-## 3. Chạy hạ tầng
-
-Chạy PostgreSQL và Qdrant:
+## 3. Chạy PostgreSQL và Qdrant
 
 ```powershell
 docker compose up -d postgres qdrant
 docker compose ps
 ```
 
-Chạy TEI khi cần embedding/indexing. Service này dùng `gpus: all`:
-
-```powershell
-docker compose pull tei
-docker compose up -d tei
-```
+Compose bind-mount dữ liệu vào `infrastructure/docker/db/`. `docker compose down` không xóa dữ liệu này.
 
 ## 4. Cài và chạy backend
 
@@ -69,19 +51,25 @@ alembic upgrade head
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-Kiểm tra API ở terminal khác:
+Nếu PowerShell chặn script activate, có thể gọi interpreter trực tiếp:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
+
+Kiểm tra:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod http://127.0.0.1:8000/api/v1/health/database
 ```
 
-Kết quả mong đợi:
-
-```json
-{"status":"ok"}
-```
+OpenAPI UI: `http://127.0.0.1:8000/docs`.
 
 ## 5. Cài và chạy admin frontend
+
+Mở terminal khác tại thư mục gốc:
 
 ```powershell
 Set-Location admin-frontend
@@ -89,25 +77,36 @@ npm ci
 npm run dev
 ```
 
-Mở `http://127.0.0.1:5174`. Vite proxy `/api` tới backend tại `http://127.0.0.1:8000`.
+Mở `http://127.0.0.1:5174`. Vite proxy `/api` đến `http://127.0.0.1:8000` theo `admin-frontend/vite.config.js`.
 
-## 6. Kiểm tra nhanh
+## 6. Kiểm tra workflow
+
+1. Upload canonical Markdown và chọn phòng ban nguồn.
+2. Review metadata/nội dung rồi approve.
+3. Tạo và duyệt chunk preview.
+4. Chạy index; theo dõi ingestion job đến khi `completed`.
+5. Publish tài liệu.
+6. Gọi `POST /api/v1/rag/answer` hoặc dùng ứng dụng hỏi đáp.
+
+Chỉ tài liệu có `review_status=approved` và `rag_status=published` được dùng để trả lời sinh viên.
+
+## 7. Chạy kiểm tra
 
 ```powershell
 Set-Location backend
-pytest -q
+python -m pytest -q
 
 Set-Location ..\admin-frontend
 npm run build
 ```
 
-Database smoke test chỉ chạy khi `DATABASE_URL` trỏ đến database riêng có hậu tố
-`/ctu_student_service_test`.
+Nếu `dist` đang được Vite preview hoặc tiến trình khác giữ file, dừng tiến trình đó trước khi build lại.
 
-## 7. Dừng dịch vụ
+## 8. Dừng dịch vụ
 
 ```powershell
+Set-Location ..
 docker compose down
 ```
 
-`docker compose down` không xóa dữ liệu bind-mount trong `infrastructure/docker/db/`.
+Không dùng `docker compose down -v` nếu muốn giữ dữ liệu local.

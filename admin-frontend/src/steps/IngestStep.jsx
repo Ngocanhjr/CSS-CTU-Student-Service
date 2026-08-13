@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
-import { notify } from '../lib/notify.js'
 
 const STAGES = [
   { key: 'chunked', label: 'Chunk parent/child', detail: 'Tạo cấu trúc parent và child chunk.' },
@@ -26,7 +26,7 @@ export default function IngestStep({ pipeline, update, goTo }) {
   const upload = pipeline.upload
   const metadata = upload?.metadata
   const ingest = pipeline.ingest
-  const [job, setJob] = useState(null)
+  const [job, setJob] = useState(() => ingest)
   const [busy, setBusy] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const completedJobRef = useRef(null)
@@ -49,9 +49,9 @@ export default function IngestStep({ pipeline, update, goTo }) {
       const res = await api.indexDocumentVersion(upload.document_version_id)
       setJob(res)
       update('ingest', res)
-      notify.info('Đã tạo job indexing.')
+      toast.info('Đã tạo job indexing.')
     } catch (err) {
-      notify.error(err.message)
+      toast.error(err.message)
     } finally {
       setBusy(false)
     }
@@ -64,9 +64,9 @@ export default function IngestStep({ pipeline, update, goTo }) {
       const next = { ...(job || ingest), rag_status: result.rag_status }
       setJob(next)
       update('ingest', next)
-      notify.success('Đã xuất bản tài liệu. Chatbot có thể sử dụng tài liệu này.')
+      toast.success('Đã xuất bản tài liệu. Chatbot có thể sử dụng tài liệu này.')
     } catch (err) {
-      notify.error(err.message)
+      toast.error(err.message)
     } finally {
       setPublishing(false)
     }
@@ -85,13 +85,13 @@ export default function IngestStep({ pipeline, update, goTo }) {
           update('ingest', next)
           if (next.job_status === 'completed' && completedJobRef.current !== next.ingestion_job_id) {
             completedJobRef.current = next.ingestion_job_id
-            notify.success('Indexing hoàn tất. Hãy kiểm tra kết quả rồi xuất bản tài liệu.')
+            toast.success('Indexing hoàn tất. Hãy kiểm tra kết quả rồi xuất bản tài liệu.')
           }
         }
       } catch (err) {
         if (!cancelled && !reportedPollError) {
           reportedPollError = true
-          notify.error(err.message)
+          toast.error(err.message)
         }
       }
     }
@@ -108,6 +108,13 @@ export default function IngestStep({ pipeline, update, goTo }) {
   const remainingChunks = Math.max(progress?.remaining_chunks ?? totalChunks - processedChunks, 0)
   const progressPercent = totalChunks ? Math.round((processedChunks / totalChunks) * 100) : 0
   const progressLabel = STEP_LABELS[progress?.current_step] || 'Đang chuẩn bị indexing'
+  const embeddingComplete = totalChunks > 0 && processedChunks === totalChunks
+  const chunkProgressLabel = progress?.job_status === 'completed'
+    ? 'child chunks đã index'
+    : 'child chunks đã embedding'
+  const chunkProgressAriaLabel = progress?.job_status === 'completed'
+    ? `Đã index ${processedChunks} trên ${totalChunks} child chunks`
+    : `Đã tạo embedding cho ${processedChunks} trên ${totalChunks} child chunks`
   const alreadyIndexed = ['indexed', 'published'].includes(ragStatus)
   const canIngest = metadata?.ocr_status === 'done'
     && metadata?.review_status === 'approved'
@@ -182,14 +189,20 @@ export default function IngestStep({ pipeline, update, goTo }) {
             </section>
             <StatusBadge status={progress.job_status} />
           </header>
-          <section className="index-progress-summary" aria-label={`Đã xử lý ${processedChunks} trên ${totalChunks} child chunks`}>
-            <strong>{processedChunks} / {totalChunks} child chunks</strong>
-            <strong className="index-progress-percent">{progressPercent}%</strong>
+          <section className="index-progress-summary" aria-label={chunkProgressAriaLabel}>
+            <strong>{processedChunks} / {totalChunks} {chunkProgressLabel}</strong>
+            <strong className="index-progress-percent">Embedding {progressPercent}%</strong>
           </section>
           <progress className="index-progress-track" value={processedChunks} max={totalChunks || 1}>
             {progressPercent}%
           </progress>
-          <p className="hint">Còn lại {remainingChunks} chunks</p>
+          <p className="hint">
+            {progress?.current_step === 'qdrant_upsert' && embeddingComplete
+              ? 'Embedding hoàn tất — đang lưu vectors vào Qdrant.'
+              : progress?.job_status === 'completed'
+                ? 'Indexing hoàn tất.'
+                : `Còn lại ${remainingChunks} chunks cần tạo embedding.`}
+          </p>
           {progress.error_message && <p className="banner warn" role="alert">{progress.error_message}</p>}
         </section>
       )}

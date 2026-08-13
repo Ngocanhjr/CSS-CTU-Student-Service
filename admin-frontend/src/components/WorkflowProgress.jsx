@@ -19,7 +19,10 @@ export default function WorkflowProgress({ steps, active, done, locked = false, 
     return done[steps[index + 1]?.key] || activeIndex > index || done[steps[index].key] ? 100 : 0
   }
 
-  const reachable = (step, index) => done[step.key] || (activeIndex >= 0 && index <= activeIndex) || index === 0
+  const reachable = (step, index) => index === 0
+    || done[step.key]
+    || done[steps[index - 1]?.key]
+    || (activeIndex >= 0 && index <= activeIndex)
 
   return (
     <nav className="workflow-progress" aria-label="Tiến trình xử lý tài liệu">

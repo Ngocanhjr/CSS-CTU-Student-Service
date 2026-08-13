@@ -1,7 +1,7 @@
 import { useState } from 'react'
+import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
 import PageHeader from '../components/PageHeader.jsx'
-import { notify } from '../lib/notify.js'
 
 function reportText(report) {
   if (typeof report === 'string') return report
@@ -35,9 +35,9 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
     update('chunkApproved', false)
     try {
       update('chunkPreview', await api.previewChunks(upload.document_version_id))
-      notify.success('Đã tạo chunk preview.')
+      toast.success('Đã tạo chunk preview.')
     } catch (err) {
-      notify.error(err.message)
+      toast.error(err.message)
     } finally {
       setBusy(false)
     }
@@ -53,7 +53,7 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
     const url = URL.createObjectURL(new Blob([canonicalMarkdown], { type: 'text/plain;charset=utf-8' }))
     const opened = window.open(url, '_blank')
     if (opened) opened.opener = null
-    else notify.error('Trình duyệt đã chặn tab xem canonical Markdown.')
+    else toast.error('Trình duyệt đã chặn tab xem canonical Markdown.')
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 

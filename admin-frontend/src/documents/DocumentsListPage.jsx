@@ -3,7 +3,7 @@ import { api } from "../api/client.js";
 import StatusBadge from "../components/StatusBadge.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import { useReferenceData } from "../hooks/useReferenceData.js";
-import { notify } from "../lib/notify.js";
+import { toast } from "react-toastify";
 
 function EmptyStateIcon() {
   return (
@@ -51,7 +51,6 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
   const [reviewStatus, setReviewStatus] = useState("");
   const [results, setResults] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [searched, setSearched] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const actionInFlight = useRef(false);
@@ -64,7 +63,6 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
       .then((rows) => {
         if (!cancelled) {
           setResults(rows.items || rows);
-          setSearched(true);
         }
       })
       .finally(() => {
@@ -86,7 +84,6 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
         review_status: reviewStatus,
       });
       setResults(rows.items || rows);
-      setSearched(true);
     } finally {
       setBusy(false);
     }
@@ -138,9 +135,9 @@ export default function DocumentsListPage({ onEdit, onReview, onReviewChunks, on
       setResults((prev) => prev.map((d) => (
         d.id === versionId ? { ...d, rag_status: result.rag_status } : d
       )));
-      notify.success("Đã xuất bản tài liệu. Chatbot có thể sử dụng tài liệu này.");
+      toast.success("Đã xuất bản tài liệu. Chatbot có thể sử dụng tài liệu này.");
     } catch (err) {
-      notify.error(err.message);
+      toast.error(err.message);
     } finally {
       actionInFlight.current = false;
       setPendingAction(null);

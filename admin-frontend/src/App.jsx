@@ -9,10 +9,9 @@ import DocumentEditPage from './documents/DocumentEditPage.jsx'
 import WorkflowProgress from './components/WorkflowProgress.jsx'
 import RagLogo from './components/RagLogo.jsx'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { ToastContainer } from 'react-toastify'
+import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { api } from './api/client.js'
-import { notify } from './lib/notify.js'
 
 const STEPS = [
   { key: 'upload', label: 'Tải Markdown' },
@@ -31,33 +30,13 @@ const emptyPipeline = {
 
 function toPipelineMetadata(document) {
   return {
-    document_key: document.document_key,
-    version_key: document.version_key,
-    title: document.title,
+    ...document,
     document_type: document.document_type_code,
     domain: document.domain || 'unknown',
     audience: document.audience || [],
     responsible_department: document.responsible_department || [],
-    code: document.code,
-    issued_date: document.issued_date,
-    effective_date: document.effective_date,
-    expiry_date: document.expiry_date,
-    validity_status: document.validity_status,
     source_url: document.source_url || '',
-    language: document.language,
-    issuing_authority: document.issuing_authority,
-    signer_name: document.signer_name,
-    is_latest: document.is_latest,
-    accessed_date: document.accessed_date,
-    parser: document.parser,
-    ocr_engine: document.ocr_engine,
     notes: document.notes || '',
-    file_type: document.file_type,
-    checksum: document.checksum,
-    source_path: document.source_path,
-    ocr_status: document.ocr_status,
-    review_status: document.review_status,
-    rag_status: document.rag_status,
   }
 }
 
@@ -71,7 +50,8 @@ export default function App() {
     upload: !!pipeline.upload,
     review: !!pipeline.review,
     chunks: pipeline.chunkApproved,
-    ingest: !!pipeline.ingest,
+    ingest: pipeline.ingest?.job_status === 'completed'
+      || ['indexed', 'published'].includes(pipeline.ingest?.rag_status),
   }
   const workflowLocked = ['indexed', 'published'].includes(
     pipeline.ingest?.rag_status || pipeline.upload?.metadata?.rag_status,
@@ -97,7 +77,7 @@ export default function App() {
 
   function goToWorkflow(step) {
     if (workflowLocked && step !== 'ingest') {
-      notify.warning('Tài liệu đã index; không thể quay lại các bước trước. Hãy deindex nếu cần sửa.')
+      toast.warning('Tài liệu đã index; không thể quay lại các bước trước. Hãy deindex nếu cần sửa.')
       return
     }
     setActive(step)
@@ -142,7 +122,7 @@ export default function App() {
     try {
       const document = await api.getDocument(versionId)
       if (document.rag_status !== 'not_indexed') {
-        notify.warning('Version đã có dữ liệu RAG; không thể mở lại Review.')
+        toast.warning('Version đã có dữ liệu RAG; không thể mở lại Review.')
         return
       }
 
@@ -163,7 +143,7 @@ export default function App() {
       }))
       setActive('review')
     } catch (error) {
-      notify.error(error.message || 'Không thể mở lại Review.')
+      toast.error(error.message || 'Không thể mở lại Review.')
     }
   }
 
@@ -171,12 +151,12 @@ export default function App() {
     try {
       const document = await api.getDocument(versionId)
       if (document.review_status !== 'approved' || document.rag_status !== 'not_indexed') {
-        notify.warning('Chỉ có thể review chunks cho version đã duyệt và chưa index.')
+        toast.warning('Chỉ có thể review chunks cho version đã duyệt và chưa index.')
         return
       }
       continueIndexing(document)
     } catch (error) {
-      notify.error(error.message || 'Không thể mở Review chunks.')
+      toast.error(error.message || 'Không thể mở Review chunks.')
     }
   }
 
@@ -237,7 +217,7 @@ export default function App() {
         </nav>
         <small className="site-footer-copyright">© 2026 Trường Đại học Cần Thơ</small>
       </footer>
-      <ToastContainer position="top-center" newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="light" />
+      <ToastContainer autoClose={4500} position="top-center" newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="light" />
     </article>
   )
 }

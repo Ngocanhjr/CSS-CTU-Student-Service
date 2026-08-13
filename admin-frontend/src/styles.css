@@ -1321,6 +1321,26 @@ fieldset legend b,
   overflow-wrap: anywhere;
 }
 
+.document-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.document-file-actions .text-link {
+  padding: 0;
+  color: var(--primary-600);
+  font: inherit;
+  text-decoration: underline;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.document-file-actions .text-link:hover {
+  color: var(--primary-700);
+}
+
 .banner {
   margin: 0 0 var(--space-3);
   padding: 12px var(--space-3);
@@ -1603,6 +1623,10 @@ tbody tr:last-child td {
 .documents-table {
   min-width: 1120px;
 }
+.documents-table th,
+.documents-table td {
+  vertical-align: middle;
+}
 .documents-table th:nth-child(1) { min-width: 150px; }
 .documents-table th:nth-child(2),
 .documents-table th:nth-child(3) { min-width: 100px; }
@@ -1613,17 +1637,11 @@ tbody tr:last-child td {
 .documents-table th:nth-child(8) { min-width: 130px; }
 .documents-table th:nth-child(9) { width: 150px; }
 .documents-table .table-action {
-  vertical-align: middle;
   white-space: nowrap;
 }
 .documents-table .table-action .btn + .btn {
   margin-left: var(--space-2);
 }
-.documents-table .status-cell,
-.documents-table .updated-cell {
-  vertical-align: middle;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
