@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import timedelta
+from pathlib import PurePosixPath
+from uuid import uuid4
 
 import boto3
 from botocore.config import Config
@@ -45,6 +48,21 @@ def make_source_relative_path(
         f"sources/{source_type}/"
         f"{department_code.lower()}/"
         f"{version_key}{normalized_extension}"
+    )
+
+
+def make_canonical_revision_path(relative_path: str) -> str:
+    """Return a new immutable object key beside the current canonical file."""
+
+    if not relative_path:
+        raise ValueError("Canonical Markdown path không được để trống")
+
+    path = PurePosixPath(relative_path)
+    base_stem = re.sub(r"\.[0-9a-f]{32}$", "", path.stem)
+    return str(
+        path.with_name(
+            f"{base_stem}.{uuid4().hex}{path.suffix or '.md'}"
+        )
     )
 
 
@@ -165,15 +183,6 @@ def replace_canonical_markdown(
     )
 
 
-def delete_canonical_markdown(
-    relative_path: str,
-) -> None:
-    _client().delete_object(
-        Bucket=_bucket(),
-        Key=relative_path,
-    )
-
-
 def create_source_file(
     relative_path: str,
     content: bytes,
@@ -191,7 +200,7 @@ def create_source_file(
     )
 
 
-def delete_source_file(
+def delete_object(
     relative_path: str,
 ) -> None:
     _client().delete_object(
@@ -233,27 +242,3 @@ def get_object_preview_url(
     )
 
 
-def get_source_preview_url(
-    relative_path: str,
-    *,
-    expires_minutes: int = DEFAULT_PREVIEW_EXPIRES_MINUTES,
-) -> str:
-    """Tạo URL xem PDF hoặc file nguồn gốc."""
-
-    return get_object_preview_url(
-        relative_path,
-        expires_minutes=expires_minutes,
-    )
-
-
-def get_canonical_markdown_preview_url(
-    relative_path: str,
-    *,
-    expires_minutes: int = DEFAULT_PREVIEW_EXPIRES_MINUTES,
-) -> str:
-    """Tạo URL xem file Markdown OCR."""
-
-    return get_object_preview_url(
-        relative_path,
-        expires_minutes=expires_minutes,
-    )

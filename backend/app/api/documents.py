@@ -20,10 +20,7 @@ from app.documents.service import (
     update_document_version,
     update_document_version_assets,
 )
-from app.ingestion.canonical_storage import (
-    get_canonical_markdown_preview_url,
-    get_source_preview_url,
-)
+from app.ingestion.canonical_storage import get_object_preview_url
 from app.schemas.base import StrictSchema
 from app.schemas.documents_management import (
     DeindexResponse,
@@ -95,10 +92,8 @@ async def get_version_preview_url(
 
     if file_type == "source":
         relative_path = version.source_path
-        preview_function = get_source_preview_url
     else:
         relative_path = version.canonical_markdown_path
-        preview_function = get_canonical_markdown_preview_url
 
     if not relative_path:
         raise HTTPException(
@@ -108,7 +103,7 @@ async def get_version_preview_url(
 
     try:
         preview_url = await run_in_threadpool(
-            preview_function,
+            get_object_preview_url,
             relative_path,
         )
     except FileNotFoundError as exc:
@@ -143,16 +138,10 @@ async def get_version(
     document_version_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> DocumentVersionDetail:
-    try:
-        return await get_document_version(
-            session,
-            document_version_id=document_version_id,
-        )
-    except LookupError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    return await get_document_version(
+        session,
+        document_version_id=document_version_id,
+    )
 
 
 @router.put(
@@ -164,22 +153,11 @@ async def update_version(
     payload: DocumentVersionUpdateRequest,
     session: AsyncSession = Depends(get_session),
 ) -> DocumentVersionUpdateResponse:
-    try:
-        return await update_document_version(
-            session,
-            document_version_id=document_version_id,
-            payload=payload,
-        )
-    except LookupError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
+    return await update_document_version(
+        session,
+        document_version_id=document_version_id,
+        payload=payload,
+    )
 
 
 @router.put(
@@ -191,22 +169,11 @@ async def update_version_assets(
     payload: DocumentAssetsUpdateRequest,
     session: AsyncSession = Depends(get_session),
 ) -> DocumentVersionDetail:
-    try:
-        return await update_document_version_assets(
-            session,
-            document_version_id=document_version_id,
-            payload=payload,
-        )
-    except LookupError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
+    return await update_document_version_assets(
+        session,
+        document_version_id=document_version_id,
+        payload=payload,
+    )
 
 
 @router.delete(
@@ -220,24 +187,11 @@ async def delete_version(
 ) -> Response:
     """Delete a document version if it has not been indexed."""
 
-    try:
-        await delete_document_version(
-            session,
-            document_version_id,
-        )
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-    except LookupError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
-
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
+    await delete_document_version(
+        session,
+        document_version_id,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
@@ -250,26 +204,10 @@ async def publish_version(
 ) -> PublishResponse:
     """Publish a document version to make it available in the RAG chatbot."""
 
-    try:
-        return await publish_document_version(
-            session,
-            document_version_id,
-        )
-    except LookupError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+    return await publish_document_version(
+        session,
+        document_version_id,
+    )
 
 
 @router.post(
@@ -282,26 +220,10 @@ async def unpublish_version(
 ) -> UnpublishResponse:
     """Unpublish a document version to hide it from the RAG chatbot."""
 
-    try:
-        return await unpublish_document_version(
-            session,
-            document_version_id,
-        )
-    except LookupError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+    return await unpublish_document_version(
+        session,
+        document_version_id,
+    )
 
 
 @router.post(
@@ -314,18 +236,7 @@ async def deindex_version(
 ) -> DeindexResponse:
     """Remove chunks and vectors for a document version to allow editing."""
 
-    try:
-        return await deindex_document_version(
-            session,
-            document_version_id,
-        )
-    except LookupError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
+    return await deindex_document_version(
+        session,
+        document_version_id,
+    )

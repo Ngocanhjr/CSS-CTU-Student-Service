@@ -59,11 +59,11 @@ export const api = {
     return request(`/api/v1/admin/ingestion-jobs/${jobId}`);
   },
 
-  reviewCanonicalMarkdown(versionId, canonicalMarkdown, assets) {
+  reviewCanonicalMarkdown(versionId, markdownBody, metadata, assets) {
     return request(`/api/v1/admin/canonical-markdown/${versionId}/review`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ canonical_markdown: canonicalMarkdown, assets }),
+      body: JSON.stringify({ markdown_body: markdownBody, metadata, assets }),
     });
   },
 
@@ -85,6 +85,13 @@ export const api = {
 
   getDocument(versionId) {
     return request(`/api/v1/versions/${versionId}`);
+  },
+
+  getDocumentPreviewUrl(versionKey, fileType = "canonical_markdown") {
+    const query = new URLSearchParams({ file_type: fileType });
+    return request(
+      `/api/v1/versions/preview-url/${encodeURIComponent(versionKey)}?${query}`,
+    );
   },
 
   updateDocument(versionId, payload) {
