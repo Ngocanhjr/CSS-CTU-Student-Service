@@ -271,7 +271,7 @@ Mục đích:
 
 ---
 
-## HƯỚNG DẪN XUẤT FILE APK 
+## HƯỚNG DẪN XUẤT FILE APK
 
 cd D:\Code\CTU_Student_Service\ctu_chatbot\myapp\frontend
 flutter clean
@@ -282,16 +282,18 @@ file đã xuất apk nằm theo path này
 
 D:\Code\CTU_Student_Service\ctu_chatbot\myapp\frontend\build\app\outputs\flutter-apk\app-release.apk
 
-
 Điện thoại và máy chạy backend phải cùng WiFi, backend phải đang chạy, và Windows Firewall phải cho phép port `8000`.
 
 Khi cài APK nội bộ, điện thoại có thể hỏi “Install unknown apps” / “Cài ứng dụng không rõ nguồn gốc” → bật cho app bạn dùng để mở file APK.
 
 flutter build apk --release -- dart-define=API_BASE_URL=http://[ip lan của máy]:8000
 
-VD: 
+**Xuất apk lên server**
+
+**flutter build apk --release --dart-define=API_BASE_URL=https://css-ctu-student-service-api.onrender.com**
+
+VD:
 
 flutter build apk --release -- dart-define=API_BASE_URL=http://192.168.1.77:8000
-
 
 Cách 2: Thêm 1 màn hình cho nhập IP, không cần phải build lại apk khi chạy trên mỗi máy khác nhau
