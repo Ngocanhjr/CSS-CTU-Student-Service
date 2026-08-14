@@ -1,33 +1,31 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import re
 from pathlib import Path
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.models.ingestion import IngestionJob
 from app.ingestion.canonical_storage import (
     MAX_MARKDOWN_BYTES,
     create_canonical_markdown,
-    delete_canonical_markdown,
+    delete_object,
     make_canonical_relative_path,
     MAX_SOURCE_BYTES,
     create_source_file,
-    delete_source_file,
     make_source_relative_path,
 )
 
 from app.databases.models.documents import (
     Department,
     Document,
-    DocumentRecipient,
     DocumentType,
     DocumentVersion,
 )
+from app.ingestion.metadata_persistence import persist_document_metadata
 
 from app.schemas.documents import DocumentMetadata
 from app.schemas.ingestion.responses import CanonicalUploadResponse
@@ -250,37 +248,25 @@ async def upload_canonical_document(
 
     canonical_markdown = render_markdown_document(metadata, body)
     provenance_checksum = metadata.checksum
-    recipient_effective_date = metadata.effective_date or metadata.issued_date
-    if recipient_effective_date is None:
+    if metadata.effective_date is None and metadata.issued_date is None:
         raise ValueError(
             "responsible_department yêu cầu effective_date hoặc issued_date"
         )
-
-    extra_fields = set(metadata.model_extra or {}) | {
-        "parser",
-        "ocr_engine",
-        "notes",
-        "effective_date",
-        "expiry_date",
-        "validity_status",
-        "responsible_department",
-    }
-    extra_metadata = json.loads(
-        metadata.model_dump_json(include=extra_fields)
-    )
 
     canonical_created = False
     source_created = False
 
     try:
         # 6. Gọi R2 trước; không giữ PostgreSQL transaction khi gọi external I/O.
-        create_canonical_markdown(
+        await asyncio.to_thread(
+            create_canonical_markdown,
             canonical_relative_path,
             canonical_markdown,
         )
         canonical_created = True
 
-        create_source_file(
+        await asyncio.to_thread(
+            create_source_file,
             source_relative_path,
             source_bytes,
             SOURCE_CONTENT_TYPES[source_type],
@@ -327,65 +313,22 @@ async def upload_canonical_document(
                 )
                 session.add(document)
                 await session.flush()
-            else:
-                document.title = metadata.title
-                document.domain = metadata.domain
-                document.audience = list(metadata.audience)
-                document.document_type_id = document_type.id
-
-            if metadata.is_latest:
-                await session.execute(
-                    update(DocumentVersion)
-                    .where(
-                        DocumentVersion.document_id == document.id,
-                        DocumentVersion.is_latest.is_(True),
-                    )
-                    .values(is_latest=False)
-                )
 
             version = DocumentVersion(
                 document_id=document.id,
                 version_key=metadata.version_key,
-                title=metadata.title,
-                code=metadata.code,
-                issued_date=metadata.issued_date,
-                issuing_authority=metadata.issuing_authority,
-                signer_name=metadata.signer_name,
-                is_latest=metadata.is_latest,
-                source_url=metadata.source_url,
                 source_path=source_relative_path,
                 canonical_markdown_path=canonical_relative_path,
-                file_type=metadata.file_type,
-                language=metadata.language,
-                accessed_date=metadata.accessed_date,
                 checksum=provenance_checksum,
-                extra_metadata=extra_metadata,
-                ocr_status="done",
-                review_status="reviewing",
-                rag_status="not_indexed",
             )
             session.add(version)
-            await session.flush()
-
-            recipient_departments = list(
-                (
-                    await session.scalars(
-                        select(Department).where(
-                            Department.code.in_(responsible_codes),
-                            Department.is_active.is_(True),
-                        )
-                    )
-                ).all()
-            )
-            session.add_all(
-                [
-                    DocumentRecipient(
-                        document_version_id=version.id,
-                        department_id=department.id,
-                        effective_date=recipient_effective_date,
-                    )
-                    for department in recipient_departments
-                ]
+            await persist_document_metadata(
+                session,
+                document=document,
+                version=version,
+                document_type_id=document_type.id,
+                metadata=metadata,
+                review_status="reviewing",
             )
 
             job = IngestionJob(
@@ -427,17 +370,17 @@ async def upload_canonical_document(
 
         return response
 
-    except Exception:
+    except BaseException:
         # 8. Chỉ dọn object do request này vừa tạo.
         if source_created:
             try:
-                delete_source_file(source_relative_path)
+                await asyncio.to_thread(delete_object, source_relative_path)
             except Exception:
                 pass
 
         if canonical_created:
             try:
-                delete_canonical_markdown(canonical_relative_path)
+                await asyncio.to_thread(delete_object, canonical_relative_path)
             except Exception:
                 pass
 

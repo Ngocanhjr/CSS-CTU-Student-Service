@@ -26,7 +26,7 @@ DEFAULT_TIMEOUT_SECONDS = 45.0
 
 def get_chat_model(
     *,
-    max_tokens: int = 1024,
+    max_tokens: int = 2048,
     timeout_seconds: float | None = None,
 ) -> ChatOpenAI:
     api_key = os.getenv("LLM_API_KEY")

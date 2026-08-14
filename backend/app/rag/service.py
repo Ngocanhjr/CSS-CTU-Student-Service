@@ -12,8 +12,7 @@ from app.retrieval.s0_query_rewriter import (
 )
 from app.retrieval.s10_retriever import Retriever
 from app.retrieval.s8_reranker import get_reranker
-from app.retrieval.models import RetrievalContext
-from app.retrieval.models import RetrievalResult
+from app.retrieval.models import RetrievalContext, RetrievalResult
 from app.schemas.rag import ConversationContext, RagAnswer
 from app.vectorstore.qdrant_client import get_qdrant_client
 
