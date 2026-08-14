@@ -9,6 +9,8 @@
 from __future__ import annotations
 
 from langchain_core.documents import Document as LangChainDocument
+import re
+
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +27,48 @@ from app.retrieval.s3_eligibility import (
     EligibilityContext,
     EligibilityPolicy,
 )
+
+
+# Vietnamese has no built-in PostgreSQL stemmer in the standard installation.
+# Build an OR tsquery from meaningful query terms rather than asking FTS to
+# match every word of a natural-language question.  The latter makes sparse
+# retrieval return no rows when a chunk contains the answer but not fillers
+# such as "khi", "nào", "được", or the full question wording.
+_FTS_TOKEN_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
+_FTS_STOP_WORDS = frozenset(
+    {
+        "ai", "bao", "các", "cho", "có", "của", "đã", "để", "đến",
+        "điều", "được", "gì", "hay", "khi", "là", "lại", "mà", "mỗi",
+        "một", "nào", "như", "những", "ở", "đâu", "phải", "sau", "sẽ", "sinh",
+        "số", "từ", "theo", "thì", "trong", "và", "về", "với", "vào",
+    }
+)
+
+
+def build_sparse_tsquery(query: str):
+    """Build a recall-oriented OR query suitable for Vietnamese FTS.
+
+    ``websearch_to_tsquery`` treats a whitespace-separated natural-language
+    question as a very restrictive AND query.  This helper retains meaningful
+    tokens, deduplicates them and joins them with ``|`` so ranking can select
+    the most lexically relevant candidates.  The existing ``ts_rank_cd``
+    ordering remains responsible for ranking the candidates.
+    """
+
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for token in _FTS_TOKEN_PATTERN.findall(query.casefold()):
+        if len(token) < 2 or token in _FTS_STOP_WORDS or token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+
+    if not tokens:
+        return None
+
+    # Tokens come exclusively from the regex above, so no tsquery operators
+    # can be injected into the expression.
+    return func.to_tsquery("simple", " | ".join(tokens))
 
 
 async def search_sparse_documents(
@@ -46,8 +90,12 @@ async def search_sparse_documents(
         version_key=version_key,
     )
 
-    #Chuyển câu hỏi thành truy vấn full text
-    ts_query = func.websearch_to_tsquery("simple", query)
+    # Search by meaningful terms using OR semantics. This is more robust for
+    # Vietnamese natural-language questions than websearch_to_tsquery's
+    # restrictive all-term matching.
+    ts_query = build_sparse_tsquery(query)
+    if ts_query is None:
+        return []
     
     #lập chỉ mục từ nội dung chunk
     search_vector = func.to_tsvector(
