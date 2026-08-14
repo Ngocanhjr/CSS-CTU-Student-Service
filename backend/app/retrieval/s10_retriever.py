@@ -135,6 +135,7 @@ class Retriever:
         audience: str = "sinh_vien",
         document_key: str | None = None,
         version_key: str | None = None,
+        exclude_chunk_keys: set[str] | None = None,
     ) -> list[RetrievalResult]:
         if not query.strip():
             return []
@@ -226,6 +227,16 @@ class Retriever:
         )
         _log_hits("reranked", reranked_hits)
 
+        # Follow-up requests should prefer information not already supplied in
+        # the preceding answer. Filter before taking top_k so previously used
+        # chunks cannot consume the entire direct-hit budget.
+        if exclude_chunk_keys:
+            reranked_hits = [
+                hit
+                for hit in reranked_hits
+                if hit.chunk_key not in exclude_chunk_keys
+            ]
+
         final_hits = reranked_hits[:top_k]
         _log_hits("final_direct", final_hits)
 
@@ -236,6 +247,12 @@ class Retriever:
             direct_hits=final_hits,
             query=query,
         )
+        if exclude_chunk_keys:
+            expanded = [
+                hit
+                for hit in expanded
+                if hit.chunk_key not in exclude_chunk_keys
+            ]
         _log_hits("expanded", expanded, top_n=10)
 
         return expanded

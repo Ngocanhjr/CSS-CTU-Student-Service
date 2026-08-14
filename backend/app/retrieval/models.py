@@ -26,6 +26,7 @@ class RetrievalContext:
     current_document_key: str | None = None
     current_version_key: str | None = None
     recent_topic: str | None = None
+    used_chunk_keys: tuple[str, ...] = ()
 
 # Kết quả của bước query_resolver.py
 # Trả lời cho câu hỏi: có cần chạy retrieval không? Nếu có thì kiếm câu gì và giới hạn trong tài liệu nào
@@ -39,6 +40,7 @@ class QueryDecision:
     
     document_key: str | None = None
     version_key: str | None = None
+    is_follow_up: bool = False
 
 
 @dataclass(frozen=True)
