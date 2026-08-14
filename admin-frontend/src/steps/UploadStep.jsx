@@ -136,6 +136,14 @@ export default function UploadStep({ update, goTo }) {
       setMetadata((current) => ({
         ...current,
         ...suggested,
+        document_type: documentTypes.some(({ code }) => code === suggested.document_type)
+          ? suggested.document_type
+          : '',
+        domain: enumOptions.domains.includes(suggested.domain) ? suggested.domain : 'unknown',
+        audience: Array.isArray(suggested.audience) ? suggested.audience : [],
+        responsible_department: Array.isArray(suggested.responsible_department)
+          ? suggested.responsible_department
+          : [],
         issued_date: formatVietnameseDate(suggested.issued_date),
         effective_date: formatVietnameseDate(suggested.effective_date),
       }))

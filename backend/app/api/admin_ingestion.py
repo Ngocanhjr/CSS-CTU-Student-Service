@@ -147,7 +147,7 @@ async def preview_markdown_metadata(
             metadata={
                 key: value
                 for key, value in frontmatter.items()
-                if key in PREVIEW_METADATA_KEYS
+                if key in PREVIEW_METADATA_KEYS and value is not None
             }
         )
 
