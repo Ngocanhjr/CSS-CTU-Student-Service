@@ -3,13 +3,20 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Sequence
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import yaml
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import (
+    ApplicationError,
+    ConflictError,
+    ExternalServiceError,
+    InvalidRequestError,
+    NotFoundError,
+)
 from app.databases.asset_repository import replace_document_assets
 from app.databases.models.assets import DocumentAsset
 from app.databases.models.documents import (
@@ -20,22 +27,45 @@ from app.databases.models.documents import (
 )
 from app.databases.models.ingestion import IngestionJob
 from app.ingestion.canonical_storage import (
-    delete_canonical_markdown,
-    delete_source_file,
+    delete_object,
     read_canonical_markdown,
+    replace_canonical_markdown,
 )
-from app.ingestion.markdown_reader import split_frontmatter
+from app.ingestion.markdown_reader import render_markdown_document, split_frontmatter
 from app.ingestion.review_service import review_canonical_document
 from app.schemas.documents_management import (
     DocumentAssetsUpdateRequest,
     DocumentVersionDetail,
     DocumentVersionSummary,
+    DocumentVersionUpdateMetadata,
     DocumentVersionUpdateRequest,
     DocumentVersionUpdateResponse,
 )
 from app.schemas.assets import LinkedAssetResponse
+from app.schemas.documents import DocumentMetadata
 
 logger = logging.getLogger(__name__)
+LIFECYCLE_RETRY_AFTER = timedelta(minutes=5)
+
+
+def _assert_lifecycle_job_retryable(
+    job: IngestionJob,
+    *,
+    operation: str,
+) -> None:
+    if job.status != "processing":
+        return
+
+    updated_at = job.updated_at or job.created_at
+    if updated_at is not None and updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    if (
+        updated_at is None
+        or datetime.now(timezone.utc) - updated_at < LIFECYCLE_RETRY_AFTER
+    ):
+        raise ConflictError(
+            f"{operation} đang được xử lý; vui lòng thử lại sau"
+        )
 
 
 def _iso(value: Any) -> str | None:
@@ -144,15 +174,10 @@ async def get_document_version(
     )
     version = await session.scalar(statement)
     if version is None:
-        raise LookupError(f"Không tìm thấy document version: {document_version_id}")
+        raise NotFoundError(f"Không tìm thấy document version: {document_version_id}")
 
     summary = _to_summary(version)
     job = _last_job(version)
-    try:
-        markdown = read_canonical_markdown(version.canonical_markdown_path)
-    except FileNotFoundError:
-        markdown = ""
-
     assets = [
         LinkedAssetResponse(
             asset_key=link.asset.asset_key,
@@ -170,31 +195,43 @@ async def get_document_version(
     responsible_departments = [
         recipient.department.code for recipient in version.recipients
     ] or list(_extra(version, "responsible_department", []))
+    detail = {
+        **summary.model_dump(),
+        "document_type_code": version.document.document_type.code,
+        "canonical_markdown_path": version.canonical_markdown_path,
+        "source_path": version.source_path,
+        "source_url": version.source_url,
+        "checksum": version.checksum,
+        "responsible_department": responsible_departments,
+        "issuing_authority": version.issuing_authority,
+        "signer_name": version.signer_name,
+        "is_latest": version.is_latest,
+        "language": version.language,
+        "accessed_date": _iso(version.accessed_date),
+        "parser": _extra(version, "parser"),
+        "ocr_engine": _extra(version, "ocr_engine"),
+        "notes": _extra(version, "notes", ""),
+        "assets": assets,
+        "last_job_id": job.id if job else None,
+        "last_job_type": job.job_type if job else None,
+        "last_job_status": job.status if job else None,
+        "last_job_step": job.current_step if job else None,
+        "last_job_error": job.error_message if job else None,
+        "last_job_processed_chunks": job.processed_chunks if job else None,
+        "last_job_total_chunks": job.total_chunks if job else None,
+    }
+    await session.rollback()
+    try:
+        markdown = await asyncio.to_thread(
+            read_canonical_markdown,
+            detail["canonical_markdown_path"],
+        )
+    except FileNotFoundError:
+        markdown = ""
 
     return DocumentVersionDetail(
-        **summary.model_dump(),
-        document_type_code=version.document.document_type.code,
+        **detail,
         canonical_markdown=markdown,
-        canonical_markdown_path=version.canonical_markdown_path,
-        source_path=version.source_path,
-        source_url=version.source_url,
-        checksum=version.checksum,
-        responsible_department=responsible_departments,
-        issuing_authority=version.issuing_authority,
-        signer_name=version.signer_name,
-        is_latest=version.is_latest,
-        language=version.language,
-        accessed_date=_iso(version.accessed_date),
-        parser=_extra(version, "parser"),
-        ocr_engine=_extra(version, "ocr_engine"),
-        notes=_extra(version, "notes", ""),
-        assets=assets,
-        last_job_id=job.id if job else None,
-        last_job_status=job.status if job else None,
-        last_job_step=job.current_step if job else None,
-        last_job_error=job.error_message if job else None,
-        last_job_processed_chunks=job.processed_chunks if job else None,
-        last_job_total_chunks=job.total_chunks if job else None,
     )
 
 
@@ -211,15 +248,22 @@ async def update_document_version_assets(
             .with_for_update()
         )
         if version is None:
-            raise LookupError(
+            raise NotFoundError(
                 f"Không tìm thấy document version: {document_version_id}"
             )
+        if version.rag_status == "deactivated":
+            raise ConflictError(
+                "Document đang chờ hoàn tất Deindex/Delete; chưa thể sửa asset"
+            )
 
-        await replace_document_assets(
-            session,
-            document_version_id=version.id,
-            assets=payload.assets,
-        )
+        try:
+            await replace_document_assets(
+                session,
+                document_version_id=version.id,
+                assets=payload.assets,
+            )
+        except ValueError as exc:
+            raise InvalidRequestError(str(exc)) from exc
 
     return await get_document_version(
         session,
@@ -233,18 +277,53 @@ async def update_document_version(
     document_version_id: int,
     payload: DocumentVersionUpdateRequest,
 ) -> DocumentVersionUpdateResponse:
+    try:
+        return await _update_document_version(
+            session,
+            document_version_id=document_version_id,
+            payload=payload,
+        )
+    except ApplicationError:
+        raise
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    except RuntimeError as exc:
+        raise ExternalServiceError(str(exc)) from exc
+
+
+async def _update_document_version(
+    session: AsyncSession,
+    *,
+    document_version_id: int,
+    payload: DocumentVersionUpdateRequest,
+) -> DocumentVersionUpdateResponse:
     version = await session.scalar(
         select(DocumentVersion)
+        .options(
+            selectinload(DocumentVersion.document),
+            selectinload(DocumentVersion.recipients).selectinload(
+                DocumentRecipient.department
+            ),
+        )
         .where(DocumentVersion.id == document_version_id)
         .with_for_update()
     )
     if version is None:
-        raise LookupError(f"Không tìm thấy document version: {document_version_id}")
-    if version.rag_status != "not_indexed":
-        raise ValueError("Không thể sửa version đã index; cần deindex trước")
-
+        raise NotFoundError(f"Không tìm thấy document version: {document_version_id}")
+    if version.rag_status == "deactivated":
+        raise ConflictError(
+            "Document đang chờ hoàn tất Deindex/Delete; vui lòng thử lại lifecycle trước"
+        )
     frontmatter, body = split_frontmatter(payload.canonical_markdown)
     metadata = payload.metadata
+
+    if version.rag_status != "not_indexed":
+        return await _update_indexed_version_metadata(
+            session,
+            version=version,
+            metadata=metadata,
+            submitted_body=body,
+        )
 
     if metadata.document_type_id is not None:
         document_type = await session.scalar(
@@ -254,7 +333,7 @@ async def update_document_version(
             )
         )
         if document_type is None:
-            raise ValueError("Document type không tồn tại hoặc đã bị khóa")
+            raise InvalidRequestError("Document type không tồn tại hoặc đã bị khóa")
         frontmatter["document_type"] = document_type.code
 
     frontmatter["responsible_department"] = metadata.responsible_department
@@ -275,19 +354,14 @@ async def update_document_version(
         }
     )
 
-    edited_markdown = (
-        "---\n"
-        + yaml.safe_dump(frontmatter, allow_unicode=True, sort_keys=False)
-        + "---\n\n"
-        + body.strip()
-        + "\n"
-    )
+    reviewed_metadata = DocumentMetadata.model_validate(frontmatter)
     # review_canonical_document owns its transaction; end read-only lookups first.
     await session.rollback()
     await review_canonical_document(
         session,
         document_version_id=document_version_id,
-        canonical_markdown=edited_markdown,
+        markdown_body=body,
+        metadata=reviewed_metadata,
     )
     return DocumentVersionUpdateResponse(
         updated=True,
@@ -298,67 +372,325 @@ async def update_document_version(
     )
 
 
+async def _update_indexed_version_metadata(
+    session: AsyncSession,
+    *,
+    version: DocumentVersion,
+    metadata: DocumentVersionUpdateMetadata,
+    submitted_body: str,
+) -> DocumentVersionUpdateResponse:
+    """Update cheap metadata while preserving existing chunks and vectors."""
+    document = version.document
+    current_departments = sorted(
+        recipient.department.code for recipient in version.recipients
+    )
+    submitted_departments = sorted(dict.fromkeys(metadata.responsible_department))
+    snapshot = {
+        "version_id": version.id,
+        "document_id": document.id,
+        "document_key": document.document_key,
+        "domain": document.domain,
+        "audience": list(document.audience),
+        "title": version.title or document.title,
+        "document_type_id": document.document_type_id,
+        "departments": current_departments,
+        "rag_status": version.rag_status,
+        "review_status": version.review_status,
+        "ocr_status": version.ocr_status,
+        "code": version.code,
+        "issued_date": version.issued_date,
+        "canonical_path": version.canonical_markdown_path,
+        "extra_metadata": dict(version.extra_metadata or {}),
+    }
+
+    # R2 is external I/O: close the read transaction before fetching the file.
+    await session.rollback()
+    previous_markdown = await asyncio.to_thread(
+        read_canonical_markdown,
+        snapshot["canonical_path"],
+    )
+    current_frontmatter, current_body = split_frontmatter(previous_markdown)
+
+    restricted_changes: list[str] = []
+    if metadata.title != snapshot["title"]:
+        restricted_changes.append("tiêu đề")
+    if metadata.document_type_id != snapshot["document_type_id"]:
+        restricted_changes.append("loại tài liệu")
+    if submitted_departments != snapshot["departments"]:
+        restricted_changes.append("phòng ban phụ trách")
+    if submitted_body.strip() != current_body.strip():
+        restricted_changes.append("nội dung canonical Markdown")
+    if restricted_changes:
+        raise InvalidRequestError(
+            "Các trường sau ảnh hưởng embedding và cần Deindex trước: "
+            + ", ".join(restricted_changes)
+        )
+
+    effective_date = metadata.effective_date or metadata.issued_date
+    if current_departments and effective_date is None:
+        raise InvalidRequestError(
+            "Phòng ban phụ trách yêu cầu ngày hiệu lực hoặc ngày ban hành"
+        )
+
+    new_audience = list(metadata.audience)
+    payload_changed = (
+        metadata.domain != snapshot["domain"]
+        or new_audience != snapshot["audience"]
+    )
+    direct_metadata_changed = payload_changed or any(
+        (
+            metadata.code != snapshot["code"],
+            metadata.issued_date != snapshot["issued_date"],
+            _iso(metadata.effective_date)
+            != snapshot["extra_metadata"].get("effective_date"),
+            _iso(metadata.expiry_date)
+            != snapshot["extra_metadata"].get("expiry_date"),
+            metadata.validity_status
+            != snapshot["extra_metadata"].get("validity_status", "unknown"),
+        )
+    )
+    if not direct_metadata_changed:
+        return DocumentVersionUpdateResponse(
+            updated=False,
+            document=await get_document_version(
+                session,
+                document_version_id=snapshot["version_id"],
+            ),
+        )
+
+    current_frontmatter.update(
+        {
+            "domain": metadata.domain,
+            "audience": new_audience,
+            "code": metadata.code,
+            "issued_date": _iso(metadata.issued_date),
+            "effective_date": _iso(metadata.effective_date),
+            "expiry_date": _iso(metadata.expiry_date),
+            "validity_status": metadata.validity_status,
+            "ocr_status": snapshot["ocr_status"],
+            "review_status": snapshot["review_status"],
+            "rag_status": snapshot["rag_status"],
+        }
+    )
+    edited_markdown = render_markdown_document(
+        DocumentMetadata.model_validate(current_frontmatter),
+        current_body,
+    )
+
+    from app.vectorstore.qdrant_client import get_qdrant_client
+    from app.vectorstore.repository import set_document_metadata_payload
+
+    async def sync_payload(domain: str, audience: list[str]) -> None:
+        try:
+            await asyncio.to_thread(
+                set_document_metadata_payload,
+                get_qdrant_client(),
+                document_key=snapshot["document_key"],
+                domain=domain,
+                audience=audience,
+            )
+        except Exception as exc:
+            raise ExternalServiceError(
+                f"Không đồng bộ được metadata Qdrant: {exc}"
+            ) from exc
+
+    if payload_changed:
+        await sync_payload(metadata.domain, new_audience)
+    try:
+        await asyncio.to_thread(
+            replace_canonical_markdown,
+            snapshot["canonical_path"],
+            edited_markdown,
+        )
+    except BaseException:
+        if payload_changed:
+            await sync_payload(snapshot["domain"], snapshot["audience"])
+        raise
+
+    try:
+        async with session.begin():
+            locked_version = await session.scalar(
+                select(DocumentVersion)
+                .where(DocumentVersion.id == snapshot["version_id"])
+                .with_for_update()
+            )
+            if locked_version is None:
+                raise NotFoundError(
+                    f"Không tìm thấy document version: {snapshot['version_id']}"
+                )
+            if locked_version.rag_status != snapshot["rag_status"]:
+                raise InvalidRequestError(
+                    "Trạng thái RAG đã thay đổi; vui lòng tải lại trang"
+                )
+
+            locked_document = await session.scalar(
+                select(Document)
+                .where(Document.id == snapshot["document_id"])
+                .with_for_update()
+            )
+            if locked_document is None:
+                raise NotFoundError("Không tìm thấy document của version")
+
+            locked_document.domain = metadata.domain
+            locked_document.audience = new_audience
+            locked_version.code = metadata.code
+            locked_version.issued_date = metadata.issued_date
+            extra = dict(locked_version.extra_metadata or {})
+            extra.update(
+                {
+                    "effective_date": _iso(metadata.effective_date),
+                    "expiry_date": _iso(metadata.expiry_date),
+                    "validity_status": metadata.validity_status,
+                }
+            )
+            locked_version.extra_metadata = extra
+            if effective_date is not None:
+                await session.execute(
+                    update(DocumentRecipient)
+                    .where(
+                        DocumentRecipient.document_version_id
+                        == snapshot["version_id"]
+                    )
+                    .values(effective_date=effective_date)
+                )
+    except BaseException:
+        await session.rollback()
+        await asyncio.to_thread(
+            replace_canonical_markdown,
+            snapshot["canonical_path"],
+            previous_markdown,
+        )
+        if payload_changed:
+            await sync_payload(snapshot["domain"], snapshot["audience"])
+        raise
+
+    return DocumentVersionUpdateResponse(
+        updated=True,
+        document=await get_document_version(
+            session,
+            document_version_id=snapshot["version_id"],
+        ),
+    )
+
+
 async def delete_document_version(
     session: AsyncSession,
     document_version_id: int,
 ) -> None:
-    """Delete a document version and remove its parent when it becomes empty."""
+    """Delete a version through a retryable cross-store state machine."""
 
-    # 1. Fetch version
-    result = await session.execute(
-        select(DocumentVersion).where(DocumentVersion.id == document_version_id)
+    version = await session.scalar(
+        select(DocumentVersion)
+        .where(DocumentVersion.id == document_version_id)
+        .with_for_update()
     )
-    version = result.scalar_one_or_none()
-
-    if not version:
-        raise LookupError(f"Document version {document_version_id} not found")
-
-    # 2. Check rag_status
-    if version.rag_status not in ("not_indexed", "failed"):
-        raise ValueError(
+    if version is None:
+        raise NotFoundError(f"Document version {document_version_id} not found")
+    if version.rag_status == "deactivated":
+        job = await session.scalar(
+            select(IngestionJob)
+            .where(
+                IngestionJob.document_version_id == document_version_id,
+                IngestionJob.job_type == "delete",
+                IngestionJob.status.in_(["pending", "processing", "failed"]),
+            )
+            .order_by(IngestionJob.id.desc())
+            .limit(1)
+            .with_for_update()
+        )
+        if job is None:
+            raise ConflictError("Delete state không có job tương ứng")
+        _assert_lifecycle_job_retryable(job, operation="Delete")
+    elif version.rag_status in ("not_indexed", "failed"):
+        job = IngestionJob(
+            document_version_id=version.id,
+            job_type="delete",
+            status="processing",
+            current_step="external_cleanup",
+            processed_chunks=0,
+        )
+        session.add(job)
+        version.rag_status = "deactivated"
+    else:
+        raise ConflictError(
             f"Cannot delete indexed document (rag_status={version.rag_status}). "
             "Deindex first."
         )
 
     canonical_path = version.canonical_markdown_path
     source_path = version.source_path
-    await session.rollback()
-
-    # R2 is external I/O; finish the read transaction before deleting objects.
-    if canonical_path:
-        await asyncio.to_thread(delete_canonical_markdown, canonical_path)
-    if source_path:
-        await asyncio.to_thread(delete_source_file, source_path)
-
-    version = await session.scalar(
-        select(DocumentVersion).where(DocumentVersion.id == document_version_id)
-    )
-    if version is None:
-        return
-
-    has_other_versions = await session.scalar(
-        select(DocumentVersion.id)
-        .where(
-            DocumentVersion.document_id == version.document_id,
-            DocumentVersion.id != document_version_id,
-        )
-        .limit(1)
-    )
-
-    # 3. Delete related ingestion jobs
-    await session.execute(
-        delete(IngestionJob).where(
-            IngestionJob.document_version_id == document_version_id
-        )
-    )
-
-    # 4. Delete version record
-    document_id = version.document_id
-    await session.delete(version)
+    version_key = version.version_key
+    job.status = "processing"
+    job.current_step = "external_cleanup"
+    job.error_message = None
     await session.flush()
-    if has_other_versions is None:
-        await session.execute(delete(Document).where(Document.id == document_id))
+    job_id = job.id
     await session.commit()
+
+    # Repeating every cleanup operation is safe after a partial failure.
+    try:
+        await _cleanup_deleted_version_artifacts(
+            version_key=version_key,
+            object_paths=[canonical_path, source_path],
+        )
+    except Exception as exc:
+        await _mark_lifecycle_job_failed(session, job_id, exc)
+        raise ExternalServiceError(
+            f"Không dọn được dữ liệu external của version: {exc}"
+        ) from exc
+
+    try:
+        async with session.begin():
+            version = await session.scalar(
+                select(DocumentVersion)
+                .where(DocumentVersion.id == document_version_id)
+                .with_for_update()
+            )
+            if version is None:
+                return
+            if version.rag_status != "deactivated":
+                raise ConflictError(
+                    "Trạng thái RAG đã thay đổi trong lúc xóa document"
+                )
+
+            has_other_versions = await session.scalar(
+                select(DocumentVersion.id)
+                .where(
+                    DocumentVersion.document_id == version.document_id,
+                    DocumentVersion.id != document_version_id,
+                )
+                .limit(1)
+            )
+            document_id = version.document_id
+            await session.delete(version)
+            await session.flush()
+            if has_other_versions is None:
+                await session.execute(
+                    delete(Document).where(Document.id == document_id)
+                )
+    except Exception as exc:
+        await session.rollback()
+        await _mark_lifecycle_job_failed(session, job_id, exc)
+        raise
+
+
+
+async def _cleanup_deleted_version_artifacts(
+    *,
+    version_key: str,
+    object_paths: list[str | None],
+) -> None:
+    from app.vectorstore.qdrant_client import get_qdrant_client
+    from app.vectorstore.repository import delete_points_by_version
+
+    await asyncio.to_thread(
+        delete_points_by_version,
+        get_qdrant_client(),
+        version_key=version_key,
+    )
+
+    for path in dict.fromkeys(path for path in object_paths if path):
+        await asyncio.to_thread(delete_object, path)
 
 
 async def publish_document_version(
@@ -366,61 +698,14 @@ async def publish_document_version(
     document_version_id: int,
 ) -> dict:
     """Mark document version as published."""
-    from datetime import datetime, timezone
-
-    result = await session.execute(
-        select(DocumentVersion)
-        .where(DocumentVersion.id == document_version_id)
-        .with_for_update()
+    return await _transition_rag_status(
+        session,
+        document_version_id=document_version_id,
+        expected_status="indexed",
+        target_status="published",
+        timestamp_key="published_at",
+        invalid_status_message="Document must be indexed before publishing",
     )
-    version = result.scalar_one_or_none()
-
-    if not version:
-        raise LookupError(f"Document version {document_version_id} not found")
-
-    if version.rag_status != "indexed":
-        raise ValueError(
-            f"Document must be indexed before publishing (current: {version.rag_status})"
-        )
-
-    now = datetime.now(timezone.utc)
-    version.rag_status = "published"
-    # Store published_at in extra_metadata
-    extra = dict(version.extra_metadata or {})
-    extra["published_at"] = now.isoformat()
-    version.extra_metadata = extra
-    await session.commit()
-
-    try:
-        from app.vectorstore.qdrant_client import get_qdrant_client
-        from app.vectorstore.repository import set_version_rag_status
-
-        await asyncio.to_thread(
-            set_version_rag_status,
-            get_qdrant_client(),
-            version_key=version.version_key,
-            rag_status="published",
-        )
-    except Exception as exc:
-        await session.rollback()
-        version = await session.scalar(
-            select(DocumentVersion)
-            .where(DocumentVersion.id == document_version_id)
-            .with_for_update()
-        )
-        if version is not None and version.rag_status == "published":
-            version.rag_status = "indexed"
-            extra = dict(version.extra_metadata or {})
-            extra.pop("published_at", None)
-            version.extra_metadata = extra
-            await session.commit()
-        raise RuntimeError(f"Không cập nhật được trạng thái Qdrant: {exc}") from exc
-
-    return {
-        "document_version_id": document_version_id,
-        "rag_status": "published",
-        "published_at": now,
-    }
 
 
 async def unpublish_document_version(
@@ -428,26 +713,42 @@ async def unpublish_document_version(
     document_version_id: int,
 ) -> dict:
     """Mark document version as unpublished (but keep vectors)."""
-    from datetime import datetime, timezone
+    return await _transition_rag_status(
+        session,
+        document_version_id=document_version_id,
+        expected_status="published",
+        target_status="indexed",
+        timestamp_key="unpublished_at",
+        invalid_status_message="Document is not published",
+    )
 
-    result = await session.execute(
+
+async def _transition_rag_status(
+    session: AsyncSession,
+    *,
+    document_version_id: int,
+    expected_status: str,
+    target_status: str,
+    timestamp_key: str,
+    invalid_status_message: str,
+) -> dict:
+    version = await session.scalar(
         select(DocumentVersion)
         .where(DocumentVersion.id == document_version_id)
         .with_for_update()
     )
-    version = result.scalar_one_or_none()
-
-    if not version:
-        raise LookupError(f"Document version {document_version_id} not found")
-
-    if version.rag_status != "published":
-        raise ValueError(f"Document is not published (current: {version.rag_status})")
+    if version is None:
+        raise NotFoundError(f"Document version {document_version_id} not found")
+    if version.rag_status != expected_status:
+        raise ConflictError(
+            f"{invalid_status_message} (current: {version.rag_status})"
+        )
 
     now = datetime.now(timezone.utc)
-    version.rag_status = "indexed"
-    # Store unpublished_at in extra_metadata
+    version_key = version.version_key
+    version.rag_status = target_status
     extra = dict(version.extra_metadata or {})
-    extra["unpublished_at"] = now.isoformat()
+    extra[timestamp_key] = now.isoformat()
     version.extra_metadata = extra
     await session.commit()
 
@@ -458,8 +759,8 @@ async def unpublish_document_version(
         await asyncio.to_thread(
             set_version_rag_status,
             get_qdrant_client(),
-            version_key=version.version_key,
-            rag_status="indexed",
+            version_key=version_key,
+            rag_status=target_status,
         )
     except Exception as exc:
         await session.rollback()
@@ -468,18 +769,20 @@ async def unpublish_document_version(
             .where(DocumentVersion.id == document_version_id)
             .with_for_update()
         )
-        if version is not None and version.rag_status == "indexed":
-            version.rag_status = "published"
+        if version is not None and version.rag_status == target_status:
+            version.rag_status = expected_status
             extra = dict(version.extra_metadata or {})
-            extra.pop("unpublished_at", None)
+            extra.pop(timestamp_key, None)
             version.extra_metadata = extra
             await session.commit()
-        raise RuntimeError(f"Không cập nhật được trạng thái Qdrant: {exc}") from exc
+        raise ExternalServiceError(
+            f"Không cập nhật được trạng thái Qdrant: {exc}"
+        ) from exc
 
     return {
         "document_version_id": document_version_id,
-        "rag_status": "indexed",
-        "unpublished_at": now,
+        "rag_status": target_status,
+        timestamp_key: now,
     }
 
 
@@ -491,51 +794,116 @@ async def deindex_document_version(
     document_version_id: int,
 ) -> dict:
     """Remove chunks and vectors for a document version."""
-    from sqlalchemy import func
-
-    from app.databases.models.chunks import DocumentChunk
     from app.databases.repositories.chunks import delete_chunks_by_version
     from app.vectorstore.qdrant_client import get_qdrant_client
-    from app.vectorstore.repository import COLLECTION_NAME, delete_vectors_by_chunk_ids
+    from app.vectorstore.repository import delete_points_by_version
 
-    # 1. Fetch version
-    result = await session.execute(
-        select(DocumentVersion).where(DocumentVersion.id == document_version_id)
+    # Phase 1: reserve this version for deindex and commit the durable intent.
+    version = await session.scalar(
+        select(DocumentVersion)
+        .where(DocumentVersion.id == document_version_id)
+        .with_for_update()
     )
-    version = result.scalar_one_or_none()
-
-    if not version:
-        raise LookupError(f"Document version {document_version_id} not found")
-
-    # 2. Check rag_status
-    if version.rag_status not in INDEXED_STATUSES:
-        raise ValueError(
+    if version is None:
+        raise NotFoundError(f"Document version {document_version_id} not found")
+    if version.rag_status == "deactivated":
+        job = await session.scalar(
+            select(IngestionJob)
+            .where(
+                IngestionJob.document_version_id == document_version_id,
+                IngestionJob.job_type == "deindex",
+                IngestionJob.status.in_(["pending", "processing", "failed"]),
+            )
+            .order_by(IngestionJob.id.desc())
+            .limit(1)
+            .with_for_update()
+        )
+        if job is None:
+            raise ConflictError("Deindex state không có job tương ứng")
+        _assert_lifecycle_job_retryable(job, operation="Deindex")
+    elif version.rag_status in INDEXED_STATUSES:
+        active_indexing_job = await session.scalar(
+            select(IngestionJob.id)
+            .where(
+                IngestionJob.document_version_id == document_version_id,
+                IngestionJob.job_type == "indexing",
+                IngestionJob.status == "processing",
+            )
+            .limit(1)
+        )
+        if active_indexing_job is not None:
+            raise ConflictError(
+                "Index đang được xử lý; chưa thể Deindex đồng thời"
+            )
+        job = IngestionJob(
+            document_version_id=version.id,
+            job_type="deindex",
+            status="processing",
+            current_step="qdrant_delete",
+            processed_chunks=0,
+        )
+        session.add(job)
+        version.rag_status = "deactivated"
+    else:
+        raise ConflictError(
             f"Document not indexed (rag_status={version.rag_status})"
         )
-
-    # 3. Get child chunk IDs for Qdrant deletion (only child chunks are in Qdrant)
-    chunk_ids_result = await session.execute(
-        select(DocumentChunk.id).where(
-            DocumentChunk.document_version_id == document_version_id,
-            DocumentChunk.chunk_type == "child",
-        )
-    )
-    child_chunk_ids = [row[0] for row in chunk_ids_result.all()]
-
-    # 4. Delete vectors from Qdrant
-    client = get_qdrant_client()
-    vectors_deleted = delete_vectors_by_chunk_ids(
-        client,
-        collection_name=COLLECTION_NAME,
-        postgres_chunk_ids=child_chunk_ids,
-    )
-
-    # 5. Delete chunks from PostgreSQL
-    chunks_deleted = await delete_chunks_by_version(session, document_version_id)
-
-    # 6. Update rag_status
-    version.rag_status = "not_indexed"
+    job.status = "processing"
+    job.current_step = "qdrant_delete"
+    job.error_message = None
+    version_key = version.version_key
+    await session.flush()
+    job_id = job.id
     await session.commit()
+
+    # Phase 2: idempotent external deletion with no PostgreSQL transaction open.
+    try:
+        vectors_deleted = await asyncio.to_thread(
+            delete_points_by_version,
+            get_qdrant_client(),
+            version_key=version_key,
+        )
+    except Exception as exc:
+        await _mark_lifecycle_job_failed(session, job_id, exc)
+        raise ExternalServiceError(
+            f"Không xóa được vectors khỏi Qdrant: {exc}"
+        ) from exc
+
+    # Phase 3: finish PostgreSQL cleanup. A retry resumes from the deactivated
+    # state and repeating the Qdrant deletion is safe.
+    try:
+        async with session.begin():
+            version = await session.scalar(
+                select(DocumentVersion)
+                .where(DocumentVersion.id == document_version_id)
+                .with_for_update()
+            )
+            job = await session.scalar(
+                select(IngestionJob)
+                .where(IngestionJob.id == job_id)
+                .with_for_update()
+            )
+            if version is None or job is None:
+                raise NotFoundError(
+                    f"Không tìm thấy deindex state: {document_version_id}"
+                )
+            if version.rag_status != "deactivated":
+                raise ConflictError(
+                    "Trạng thái RAG đã thay đổi trong lúc deindex"
+                )
+            job.current_step = "postgres_cleanup"
+            chunks_deleted = await delete_chunks_by_version(
+                session,
+                document_version_id,
+            )
+            version.rag_status = "not_indexed"
+            job.status = "completed"
+            job.current_step = "completed"
+            job.error_message = None
+    except Exception as exc:
+        await session.rollback()
+        await _mark_lifecycle_job_failed(session, job_id, exc)
+        raise
 
     return {
         "document_version_id": document_version_id,
@@ -543,3 +911,21 @@ async def deindex_document_version(
         "vectors_deleted": vectors_deleted,
         "new_rag_status": "not_indexed",
     }
+
+
+async def _mark_lifecycle_job_failed(
+    session: AsyncSession,
+    job_id: int,
+    exc: BaseException,
+) -> None:
+    await session.rollback()
+    async with session.begin():
+        job = await session.scalar(
+            select(IngestionJob)
+            .where(IngestionJob.id == job_id)
+            .with_for_update()
+        )
+        if job is not None:
+            job.status = "failed"
+            job.current_step = "failed"
+            job.error_message = str(exc)

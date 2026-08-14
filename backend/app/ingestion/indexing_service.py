@@ -6,7 +6,9 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import ConflictError, NotFoundError
 from app.databases.models.documents import DocumentVersion
 from app.databases.models.chunks import DocumentChunk
 from app.databases.models.ingestion import IngestionJob
@@ -61,19 +63,43 @@ def _preview_item(chunk: Chunk) -> ChunkPreviewItem:
     )
 
 
-def _read_document(version: DocumentVersion):
-    return parse_markdown_document(
-        read_canonical_markdown(version.canonical_markdown_path)
+def _read_document(
+    canonical_markdown_path: str,
+    domain: str,
+    audience: list[str],
+):
+    markdown_document = parse_markdown_document(
+        read_canonical_markdown(canonical_markdown_path)
     )
+    # PostgreSQL owns document-level business metadata. Overlay mirrors so an
+    # older canonical file cannot restore stale Qdrant filter payload.
+    markdown_document.metadata.domain = domain
+    markdown_document.metadata.audience = list(audience)
+    return markdown_document
 
 
 async def build_chunk_preview(session: AsyncSession, *, document_version_id: int) -> ChunkPreviewResponse:
-    version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == document_version_id))
+    version = await session.scalar(
+        select(DocumentVersion)
+        .options(selectinload(DocumentVersion.document))
+        .where(DocumentVersion.id == document_version_id)
+    )
     if version is None:
-        raise LookupError(f"Không tìm thấy document version: {document_version_id}")
-    result = _chunking(_read_document(version))
+        raise NotFoundError(f"Không tìm thấy document version: {document_version_id}")
+    version_id = version.id
+    canonical_path = version.canonical_markdown_path
+    domain = version.document.domain
+    audience = list(version.document.audience)
+    await session.rollback()
+    markdown_document = await asyncio.to_thread(
+        _read_document,
+        canonical_path,
+        domain,
+        audience,
+    )
+    result = await asyncio.to_thread(_chunking, markdown_document)
     return ChunkPreviewResponse(
-        document_version_id=version.id,
+        document_version_id=version_id,
         parent_chunks=len(result.parent_chunks),
         child_chunks=len(result.child_chunks),
         total_chunks=len(result.parent_chunks) + len(result.child_chunks),
@@ -104,35 +130,74 @@ async def start_index_document_version(
     *,
     document_version_id: int,
 ) -> IndexingJobProgress:
-    version = await session.scalar(select(DocumentVersion).where(DocumentVersion.id == document_version_id).with_for_update())
+    version = await session.scalar(
+        select(DocumentVersion)
+        .options(selectinload(DocumentVersion.document))
+        .where(DocumentVersion.id == document_version_id)
+        .with_for_update()
+    )
     if version is None:
-        raise LookupError(f"Không tìm thấy document version: {document_version_id}")
+        raise NotFoundError(f"Không tìm thấy document version: {document_version_id}")
+    if version.rag_status not in {"not_indexed", "failed"}:
+        raise ConflictError(
+            f"Không thể index khi rag_status={version.rag_status}"
+        )
     if version.ocr_status != "done" or version.review_status != "approved":
-        raise ValueError("Chỉ index document version có ocr done và review approved")
+        raise ConflictError("Chỉ index document version có ocr done và review approved")
 
-    markdown_document = _read_document(version)
-    result = _chunking(markdown_document)
+    canonical_path = version.canonical_markdown_path
+    domain = version.document.domain
+    audience = list(version.document.audience)
+    await session.rollback()
+    markdown_document = await asyncio.to_thread(
+        _read_document,
+        canonical_path,
+        domain,
+        audience,
+    )
+    result = await asyncio.to_thread(_chunking, markdown_document)
     if result.errors:
-        raise ValueError("Chunking có lỗi, không thể index")
+        raise ConflictError("Chunking có lỗi, không thể index")
 
-    job = IngestionJob(
-        document_version_id=version.id,
-        job_type="indexing",
-        status="processing",
-        current_step="persist_chunks",
-        total_chunks=len(result.child_chunks),
-        processed_chunks=0,
-        started_at=datetime.now(timezone.utc),
-    )
-    session.add(job)
-    await replace_version_chunks(
-        session,
-        document_version_id=version.id,
-        chunks=_all_chunks(result),
-    )
-    version.rag_status = "chunked"
-    await session.commit()
-    await session.refresh(job)
+    async with session.begin():
+        version = await session.scalar(
+            select(DocumentVersion)
+            .options(selectinload(DocumentVersion.document))
+            .where(DocumentVersion.id == document_version_id)
+            .with_for_update()
+        )
+        if version is None:
+            raise NotFoundError(
+                f"Không tìm thấy document version: {document_version_id}"
+            )
+        if version.rag_status not in {"not_indexed", "failed"}:
+            raise ConflictError(
+                f"Không thể index khi rag_status={version.rag_status}"
+            )
+        if (
+            version.canonical_markdown_path != canonical_path
+            or version.document.domain != domain
+            or set(version.document.audience) != set(audience)
+        ):
+            raise ConflictError("Document đã thay đổi; vui lòng tạo preview lại")
+
+        job = IngestionJob(
+            document_version_id=version.id,
+            job_type="indexing",
+            status="processing",
+            current_step="persist_chunks",
+            total_chunks=len(result.child_chunks),
+            processed_chunks=0,
+            started_at=datetime.now(timezone.utc),
+        )
+        session.add(job)
+        await replace_version_chunks(
+            session,
+            document_version_id=version.id,
+            chunks=_all_chunks(result),
+        )
+        version.rag_status = "chunked"
+        await session.flush()
     return _progress(job, version)
 
 
@@ -143,10 +208,10 @@ async def get_indexing_job_progress(
 ) -> IndexingJobProgress:
     job = await session.get(IngestionJob, ingestion_job_id)
     if job is None:
-        raise LookupError(f"Không tìm thấy ingestion job: {ingestion_job_id}")
+        raise NotFoundError(f"Không tìm thấy ingestion job: {ingestion_job_id}")
     version = await session.get(DocumentVersion, job.document_version_id)
     if version is None:
-        raise LookupError(f"Không tìm thấy document version: {job.document_version_id}")
+        raise NotFoundError(f"Không tìm thấy document version: {job.document_version_id}")
     return _progress(job, version)
 
 
@@ -155,19 +220,32 @@ async def run_indexing_job(ingestion_job_id: int) -> None:
         job = await session.get(IngestionJob, ingestion_job_id)
         if job is None:
             return
-        version = await session.get(DocumentVersion, job.document_version_id)
+        version = await session.scalar(
+            select(DocumentVersion)
+            .options(selectinload(DocumentVersion.document))
+            .where(DocumentVersion.id == job.document_version_id)
+        )
         if version is None:
             return
 
         try:
-            markdown_document = _read_document(version)
-            result = _chunking(markdown_document)
+            version_id = version.id
+            canonical_path = version.canonical_markdown_path
+            domain = version.document.domain
+            audience = list(version.document.audience)
+            job.current_step = "embedding"
+            await session.commit()
+
+            markdown_document = await asyncio.to_thread(
+                _read_document,
+                canonical_path,
+                domain,
+                audience,
+            )
+            result = await asyncio.to_thread(_chunking, markdown_document)
             child_chunks = result.child_chunks
             if result.errors:
                 raise ValueError("Chunking có lỗi, không thể index")
-
-            job.current_step = "embedding"
-            await session.commit()
 
             async def record_batch(count: int) -> None:
                 job.processed_chunks = min(job.processed_chunks + count, job.total_chunks or 0)
@@ -183,7 +261,7 @@ async def run_indexing_job(ingestion_job_id: int) -> None:
 
             job.current_step = "qdrant_upsert"
             await session.commit()
-            rows = await get_version_chunks(session, version.id)
+            rows = await get_version_chunks(session, version_id)
             row_by_key = {row.chunk_key: row for row in rows}
             postgres_ids = {
                 chunk.chunk_key: (
@@ -192,11 +270,12 @@ async def run_indexing_job(ingestion_job_id: int) -> None:
                 )
                 for chunk in child_chunks
             }
+            await session.rollback()
 
             from app.vectorstore.qdrant_client import get_qdrant_client
             from app.vectorstore.repository import make_point_id, upsert_chunks
 
-            points = await asyncio.to_thread(
+            await asyncio.to_thread(
                 upsert_chunks,
                 get_qdrant_client(),
                 markdown_document,
@@ -206,25 +285,48 @@ async def run_indexing_job(ingestion_job_id: int) -> None:
                 review_status="approved",
                 rag_status="indexed",
             )
-            for chunk in child_chunks:
-                row = row_by_key[chunk.chunk_key]
-                row.index_status = "indexed"
-                row.qdrant_point_id = make_point_id(chunk.version_key, chunk.chunk_key)
-            version.rag_status = "indexed"
-            job.status = "completed"
-            job.current_step = "completed"
-            job.processed_chunks = len(child_chunks)
-            job.finished_at = datetime.now(timezone.utc)
-            await session.commit()
-        except Exception as exc:
+
+            async with session.begin():
+                job = await session.scalar(
+                    select(IngestionJob)
+                    .where(IngestionJob.id == ingestion_job_id)
+                    .with_for_update()
+                )
+                version = await session.scalar(
+                    select(DocumentVersion)
+                    .where(DocumentVersion.id == version_id)
+                    .with_for_update()
+                )
+                if job is None or version is None:
+                    raise NotFoundError("Indexing state không còn tồn tại")
+                if job.status != "processing" or version.rag_status != "chunked":
+                    raise ConflictError("Indexing state đã thay đổi")
+
+                rows = await get_version_chunks(session, version_id)
+                row_by_key = {row.chunk_key: row for row in rows}
+                for chunk in child_chunks:
+                    row = row_by_key[chunk.chunk_key]
+                    row.index_status = "indexed"
+                    row.qdrant_point_id = make_point_id(
+                        chunk.version_key,
+                        chunk.chunk_key,
+                    )
+                version.rag_status = "indexed"
+                job.status = "completed"
+                job.current_step = "completed"
+                job.processed_chunks = len(child_chunks)
+                job.finished_at = datetime.now(timezone.utc)
+        except BaseException as exc:
             await session.rollback()
             job = await session.get(IngestionJob, ingestion_job_id)
             version = await session.get(DocumentVersion, job.document_version_id) if job else None
-            if version is not None:
+            if version is not None and version.rag_status in {"chunked", "embedded"}:
                 version.rag_status = "failed"
-            if job is not None:
+            if job is not None and job.status == "processing":
                 job.status = "failed"
                 job.current_step = "failed"
                 job.error_message = str(exc)
                 job.finished_at = datetime.now(timezone.utc)
             await session.commit()
+            if not isinstance(exc, Exception):
+                raise

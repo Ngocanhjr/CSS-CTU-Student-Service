@@ -4,6 +4,7 @@ from pydantic import Field
 
 from app.schemas.assets import AssetWrite
 from app.schemas.base import StrictSchema
+from app.schemas.documents import DocumentMetadata
 from app.schemas.enums import (
     Audience,
     DocumentType,
@@ -12,7 +13,8 @@ from app.schemas.enums import (
 )
 
 class ReviewCanonicalRequest(StrictSchema):
-    canonical_markdown: str = Field(min_length=1)
+    markdown_body: str = Field(min_length=1)
+    metadata: DocumentMetadata
     assets: list[AssetWrite] = Field(default_factory=list)
 
 

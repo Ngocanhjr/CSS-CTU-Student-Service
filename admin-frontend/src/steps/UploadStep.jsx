@@ -1,14 +1,52 @@
 import { useEffect, useState } from 'react'
-import { FileText, Loader2, Trash2, Upload } from 'lucide-react'
+import { FileText, Loader2, Upload } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
 import { useReferenceData } from '../hooks/useReferenceData.js'
 import PageHeader from '../components/PageHeader.jsx'
+import AudiencePicker from '../components/AudiencePicker.jsx'
+import ResponsibleDepartmentPicker from '../components/ResponsibleDepartmentPicker.jsx'
 
 const MAX_MARKDOWN_SIZE_MB = 20
 const MAX_SOURCE_SIZE_MB = 100
 const ACCEPTED_EXTENSIONS = ['.md', '.markdown']
 const ACCEPTED_SOURCE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.md', '.markdown']
+
+function parseVietnameseDate(value) {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
+  if (!match) return null
+
+  const [, dayText, monthText, yearText] = match
+  const day = Number(dayText)
+  const month = Number(monthText)
+  const year = Number(yearText)
+  if (year < 1000) return null
+  const candidate = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    candidate.getUTCFullYear() !== year
+    || candidate.getUTCMonth() !== month - 1
+    || candidate.getUTCDate() !== day
+  ) return null
+
+  return `${yearText}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function formatVietnameseDate(value) {
+  if (!value) return ''
+
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch
+    return `${day}/${month}/${year}`
+  }
+
+  const isoDate = parseVietnameseDate(value)
+  if (!isoDate) return value
+  const [year, month, day] = isoDate.split('-')
+  return `${day}/${month}/${year}`
+}
+
 const EMPTY_METADATA = {
   title: '',
   document_key: '',
@@ -41,6 +79,12 @@ export default function UploadStep({ update, goTo }) {
   const [busy, setBusy] = useState(false)
   const [databaseStatus, setDatabaseStatus] = useState('checking')
   const { documentTypes, departments, enumOptions, loading: referencesLoading } = useReferenceData()
+  const issuedDate = parseVietnameseDate(metadata.issued_date)
+  const effectiveDate = parseVietnameseDate(metadata.effective_date)
+  const datesAreValid = (
+    (!metadata.issued_date || issuedDate)
+    && (!metadata.effective_date || effectiveDate)
+  )
   const uploadReady = Boolean(
     file
     && departmentCode
@@ -50,7 +94,8 @@ export default function UploadStep({ update, goTo }) {
     && metadata.document_type
     && metadata.responsible_department.length
     && metadata.responsible_department.every(Boolean)
-    && (metadata.effective_date || metadata.issued_date),
+    && datesAreValid
+    && (effectiveDate || issuedDate),
   )
 
   useEffect(() => {
@@ -88,7 +133,12 @@ export default function UploadStep({ update, goTo }) {
     try {
       const preview = await api.previewMarkdownMetadata(f)
       const suggested = preview.metadata || {}
-      setMetadata((current) => ({ ...current, ...suggested }))
+      setMetadata((current) => ({
+        ...current,
+        ...suggested,
+        issued_date: formatVietnameseDate(suggested.issued_date),
+        effective_date: formatVietnameseDate(suggested.effective_date),
+      }))
     } catch {
       // Không có YAML hoặc API preview chưa triển khai: người dùng nhập tay.
     }
@@ -96,39 +146,6 @@ export default function UploadStep({ update, goTo }) {
 
   function setMetadataField(key, value) {
     setMetadata((current) => ({ ...current, [key]: value }))
-  }
-
-  function toggleAudience(audience) {
-    setMetadata((current) => ({
-      ...current,
-      audience: current.audience.includes(audience)
-        ? current.audience.filter((item) => item !== audience)
-        : [...current.audience, audience],
-    }))
-  }
-
-  function setResponsibleDepartment(index, departmentCode) {
-    setMetadata((current) => ({
-      ...current,
-      responsible_department: (current.responsible_department.length
-        ? current.responsible_department
-        : ['']
-      ).map((item, currentIndex) => currentIndex === index ? departmentCode : item),
-    }))
-  }
-
-  function addResponsibleDepartment() {
-    setMetadata((current) => ({
-      ...current,
-      responsible_department: [...current.responsible_department, ''],
-    }))
-  }
-
-  function removeResponsibleDepartment(index) {
-    setMetadata((current) => ({
-      ...current,
-      responsible_department: current.responsible_department.filter((_, currentIndex) => currentIndex !== index),
-    }))
   }
 
   function pickSource(files) {
@@ -153,6 +170,8 @@ export default function UploadStep({ update, goTo }) {
       const uploadMetadata = Object.fromEntries(
         Object.entries({
           ...metadata,
+          issued_date: issuedDate || '',
+          effective_date: effectiveDate || '',
           responsible_department: metadata.responsible_department.filter(Boolean),
         }).filter(([, value]) => value !== ''),
       )
@@ -224,34 +243,47 @@ export default function UploadStep({ update, goTo }) {
             </label>
           </fieldset>
 
-          <fieldset className="responsible-departments" disabled={referencesLoading}>
-            <legend>Phòng ban phụ trách <b aria-hidden="true">*</b></legend>
-            {(metadata.responsible_department.length ? metadata.responsible_department : ['']).map((selectedCode, index) => (
-              <div className="responsible-department-row" key={`${index}-${selectedCode}`}>
-                <label className="field" htmlFor={`responsible-department-${index}`}>
-                  <span className="sr-only">Phòng ban phụ trách {index + 1}</span>
-                  <select id={`responsible-department-${index}`} value={selectedCode} onChange={(event) => setResponsibleDepartment(index, event.target.value)} required>
-                    <option value="">— Chọn phòng ban —</option>
-                    {departments.filter((department) => department.is_active && (department.code === selectedCode || !metadata.responsible_department.includes(department.code))).map((department) => (
-                      <option key={department.code} value={department.code}>{department.code} — {department.name}</option>
-                    ))}
-                  </select>
-                </label>
-                {metadata.responsible_department.length > 1 && <button type="button" className="btn ghost small danger-icon" onClick={() => removeResponsibleDepartment(index)} aria-label={`Bỏ phòng ban phụ trách ${index + 1}`} title="Bỏ phòng ban"><Trash2 aria-hidden="true" /></button>}
-              </div>
-            ))}
-            <button type="button" className="btn ghost small" onClick={addResponsibleDepartment} disabled={metadata.responsible_department.some((item) => !item)}>+ Thêm phòng ban</button>
-          </fieldset>
+          <ResponsibleDepartmentPicker
+            departments={departments}
+            value={metadata.responsible_department}
+            onChange={(value) => setMetadataField('responsible_department', value)}
+            idPrefix="responsible-department"
+            disabled={referencesLoading}
+          />
 
           <fieldset className="form-grid" disabled={referencesLoading}>
             <legend>Thông tin bổ sung</legend>
             <label className="field" htmlFor="upload-issued-date">
-              <span>Ngày ban hành</span>
-              <input id="upload-issued-date" type="date" value={metadata.issued_date} onChange={(event) => setMetadataField('issued_date', event.target.value)} />
+              <span>Ngày ban hành <small>(Ngày/Tháng/Năm)</small></span>
+              <input
+                id="upload-issued-date"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="DD/MM/YYYY"
+                maxLength={10}
+                value={metadata.issued_date}
+                onChange={(event) => setMetadataField('issued_date', event.target.value)}
+                onBlur={(event) => setMetadataField('issued_date', formatVietnameseDate(event.target.value))}
+                aria-invalid={Boolean(metadata.issued_date && !issuedDate)}
+              />
+              {metadata.issued_date && !issuedDate && <small className="field-error">Nhập ngày hợp lệ theo DD/MM/YYYY.</small>}
             </label>
             <label className="field" htmlFor="upload-effective-date">
-              <span>Ngày hiệu lực</span>
-              <input id="upload-effective-date" type="date" value={metadata.effective_date} onChange={(event) => setMetadataField('effective_date', event.target.value)} />
+              <span>Ngày hiệu lực <small>(Ngày/Tháng/Năm)</small></span>
+              <input
+                id="upload-effective-date"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="DD/MM/YYYY"
+                maxLength={10}
+                value={metadata.effective_date}
+                onChange={(event) => setMetadataField('effective_date', event.target.value)}
+                onBlur={(event) => setMetadataField('effective_date', formatVietnameseDate(event.target.value))}
+                aria-invalid={Boolean(metadata.effective_date && !effectiveDate)}
+              />
+              {metadata.effective_date && !effectiveDate && <small className="field-error">Nhập ngày hợp lệ theo DD/MM/YYYY.</small>}
             </label>
             <label className="field" htmlFor="upload-source-url">
               <span>URL nguồn</span>
@@ -261,14 +293,11 @@ export default function UploadStep({ update, goTo }) {
               <span>Ghi chú</span>
               <textarea className="metadata-notes" id="upload-notes" value={metadata.notes} onChange={(event) => setMetadataField('notes', event.target.value)} rows={1} />
             </label>
-            <fieldset className="audience-fieldset">
-              <legend>Đối tượng sử dụng</legend>
-              <menu className="pill-row">
-                {enumOptions.audiences.map((audience) => (
-                  <li key={audience}><button type="button" className="tag" aria-pressed={metadata.audience.includes(audience)} onClick={() => toggleAudience(audience)}>{metadata.audience.includes(audience) ? '✓ ' : ''}{audience}</button></li>
-                ))}
-              </menu>
-            </fieldset>
+            <AudiencePicker
+              options={enumOptions.audiences}
+              value={metadata.audience}
+              onChange={(value) => setMetadataField('audience', value)}
+            />
           </fieldset>
 
           <div className="upload-dropzones">

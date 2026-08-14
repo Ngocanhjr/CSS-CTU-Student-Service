@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.session import get_session
 from app.rag.service import RagService
+from app.retrieval.models import RetrievalContext
 from app.schemas.rag import AnswerRequest, AnswerResponse
 
 
@@ -15,10 +16,16 @@ async def answer_question(
     request: AnswerRequest,
     session: AsyncSession = Depends(get_session),
 ) -> AnswerResponse:
-    should_search, direct_answer, rag_answer = await rag_service.answer(
-        session,
-        question=request.question,
-        top_k=request.top_k,
+    context = RetrievalContext(
+        recent_topic=request.recent_topic,
+    )
+    should_search, direct_answer, rag_answer, recent_topic = (
+        await rag_service.answer(
+            session,
+            question=request.question,
+            top_k=request.top_k,
+            context=context,
+        )
     )
 
     if not should_search:
@@ -26,6 +33,7 @@ async def answer_question(
             answer=direct_answer,
             citations=[],
             should_search=False,
+            recent_topic=recent_topic,
         )
 
     assert rag_answer is not None
@@ -34,4 +42,5 @@ async def answer_question(
         answer=rag_answer.answer,
         citations=rag_answer.citations,
         should_search=True,
+        recent_topic=recent_topic,
     )

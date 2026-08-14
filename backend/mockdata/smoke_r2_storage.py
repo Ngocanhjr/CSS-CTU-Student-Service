@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 from app.ingestion.canonical_storage import (
     create_canonical_markdown,
-    delete_canonical_markdown,
+    delete_object,
     make_canonical_relative_path,
     read_canonical_markdown,
     replace_canonical_markdown,
@@ -30,7 +30,7 @@ try:
 
     print(f"PASS: create/read/replace — {object_key}")
 finally:
-    delete_canonical_markdown(object_key)
+    delete_object(object_key)
 
 try:
     read_canonical_markdown(object_key)

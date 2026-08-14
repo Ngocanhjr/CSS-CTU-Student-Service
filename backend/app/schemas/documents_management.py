@@ -47,6 +47,7 @@ class DocumentVersionDetail(DocumentVersionSummary):
     notes: str = ""
     assets: list[LinkedAssetResponse] = Field(default_factory=list)
     last_job_id: int | None = None
+    last_job_type: str | None = None
     last_job_status: str | None = None
     last_job_step: str | None = None
     last_job_error: str | None = None
