@@ -1,5 +1,13 @@
+const DEFAULT_PRODUCTION_API_URL =
+  "https://css-ctu-student-service-api.onrender.com";
+
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : "")
+).replace(/\/$/, "");
+
 async function request(path, options) {
-  const response = await fetch(path, options);
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
   const text = await response.text();
   const data =
     text && response.headers.get("content-type")?.includes("application/json")
