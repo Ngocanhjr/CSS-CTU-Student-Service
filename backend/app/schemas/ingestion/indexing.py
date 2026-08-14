@@ -32,21 +32,6 @@ class ChunkPreviewResponse(StrictSchema):
     errors: list[dict]
 
 
-class IndexingResponse(StrictSchema):
-    document_version_id: int
-    ingestion_job_id: int
-    job_status: str
-    current_step: str
-    parent_chunks: int
-    child_chunks: int
-    total_chunks: int
-    indexed_chunks: int
-    qdrant_points: int
-    rag_status: str
-    warnings: list[dict] = Field(default_factory=list)
-    errors: list[dict] = Field(default_factory=list)
-
-
 class IndexingJobProgress(StrictSchema):
     ingestion_job_id: int
     document_version_id: int

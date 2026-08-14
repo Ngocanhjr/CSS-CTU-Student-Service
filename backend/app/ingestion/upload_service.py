@@ -44,8 +44,6 @@ SAFE_VERSION_KEY = re.compile(
     r"[A-Za-z0-9][A-Za-z0-9._-]{0,250}"
 )
 
-logger = logging.getLogger(__name__)
-
 SOURCE_TYPE_BY_EXTENSION = {
     ".pdf": "pdf",
     ".doc": "doc",
@@ -348,25 +346,6 @@ async def upload_canonical_document(
                 markdown=canonical_markdown,
                 metadata=metadata,
             )
-
-        if metadata.is_latest:
-            try:
-                from app.vectorstore.qdrant_client import get_qdrant_client
-                from app.vectorstore.repository import set_document_latest_version
-
-                await asyncio.to_thread(
-                    set_document_latest_version,
-                    get_qdrant_client(),
-                    document_key=metadata.document_key,
-                    latest_version_key=metadata.version_key,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Could not sync Qdrant latest payload for %s/%s: %s",
-                    metadata.document_key,
-                    metadata.version_key,
-                    exc,
-                )
 
         return response
 
