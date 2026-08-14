@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import (
     ApplicationError,
     ConflictError,
-    ConflictError,
     ExternalServiceError,
     InvalidRequestError,
     NotFoundError,

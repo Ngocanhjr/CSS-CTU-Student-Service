@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.logging_setup import setup_logging
 from app.api.admin_ingestion import router as admin_ingestion_router
 from app.api.documents import router as documents_router
 from app.api.exception_handlers import register_exception_handlers

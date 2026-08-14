@@ -151,6 +151,7 @@ async def list_document_versions(
     return [_to_summary(version) for version in result.scalars().unique().all()]
 
 
+# Read-only document management queries. These return API DTOs rather than ORM models.
 async def get_document_version(
     session: AsyncSession,
     *,
@@ -271,6 +272,8 @@ async def update_document_version_assets(
     )
 
 
+# Metadata updates may also rebuild canonical Markdown and trigger a review pass.
+# Keep external storage work outside the short database transaction phases.
 async def update_document_version(
     session: AsyncSession,
     *,
@@ -573,6 +576,8 @@ async def _update_indexed_version_metadata(
     )
 
 
+# Delete is deliberately conservative: indexed versions must be deindexed first.
+# This prevents database metadata from pointing at vectors that still exist in Qdrant.
 async def delete_document_version(
     session: AsyncSession,
     document_version_id: int,
@@ -693,6 +698,7 @@ async def _cleanup_deleted_version_artifacts(
         await asyncio.to_thread(delete_object, path)
 
 
+# Publish and unpublish change lifecycle state; vector content is managed by indexing.
 async def publish_document_version(
     session: AsyncSession,
     document_version_id: int,
@@ -789,6 +795,7 @@ async def _transition_rag_status(
 INDEXED_STATUSES = {"chunked", "embedded", "indexed", "published"}
 
 
+# Deindex removes derived chunks/vectors while preserving the source document version.
 async def deindex_document_version(
     session: AsyncSession,
     document_version_id: int,
