@@ -44,7 +44,6 @@ function toPipelineMetadata(document) {
 export default function App() {
   const [active, setActive] = useState('upload')
   const [pipeline, setPipeline] = useState(emptyPipeline)
-  const [ocrDraft, setOcrDraft] = useState(null)
   const [editingVersionId, setEditingVersionId] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -66,7 +65,6 @@ export default function App() {
   function reset() {
     setPipeline(emptyPipeline)
     setEditingVersionId(null)
-    setOcrDraft(null)
     setActive('upload')
   }
 
@@ -87,11 +85,6 @@ export default function App() {
   }
 
   const shared = { pipeline, update, goTo: goToWorkflow }
-
-  function continueFromOcr(draft) {
-    setOcrDraft(draft)
-    setActive('upload')
-  }
 
   function openEdit(versionId) {
     setEditingVersionId(versionId)
@@ -198,12 +191,10 @@ export default function App() {
           {active === 'upload' && (
             <UploadStep
               {...shared}
-              ocrDraft={ocrDraft}
-              onClearOcrDraft={() => setOcrDraft(null)}
               onOpenOcr={() => setActive('ocr')}
             />
           )}
-          {active === 'ocr' && <OcrStep onBack={() => setActive('upload')} onContinue={continueFromOcr} />}
+          {active === 'ocr' && <OcrStep {...shared} onBack={() => setActive('upload')} />}
           {active === 'review' && <ReviewStep {...shared} />}
           {active === 'chunks' && <ChunkReviewStep {...shared} />}
           {active === 'ingest' && <IngestStep {...shared} />}

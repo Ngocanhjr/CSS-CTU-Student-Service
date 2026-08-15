@@ -1,6 +1,6 @@
 # 08. Đặc Tả Ingestion Pipeline
 
-**Version:** 5.0
+**Version:** 5.1
 **Status:** Final
 
 ## Scope
@@ -14,7 +14,7 @@ không ghi PostgreSQL/R2 trước khi admin review Markdown và bấm Lưu.
 ```text
 1. Nếu chưa có Markdown: admin upload file nguồn tại trang OCR
 2. `POST /api/v1/admin/ocr` gọi `app/ocr`, trả Markdown; chưa persistence
-3. Admin review/chỉnh Markdown, chuyển sang form metadata
+3. Trang OCR hiển thị ngay form metadata dùng chung với nhánh upload; admin review/chỉnh Markdown và nhập metadata tại đây
 4. Admin bấm Lưu; `POST /api/v1/admin/canonical-markdown` lưu source + canonical Markdown vào R2 và document/version/job vào PostgreSQL
 5. Validate metadata và approve review
 6. Chunk with LangChain / langchain-text-splitters

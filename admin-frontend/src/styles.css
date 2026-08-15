@@ -1129,6 +1129,27 @@ textarea {
   border-top: 1px solid var(--border);
 }
 
+.ocr-metadata {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.ocr-save-actions {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.ocr-save-actions .hint {
+  flex-basis: 100%;
+  text-align: right;
+}
+
 @media (max-width: 680px) {
   .ocr-entry {
     grid-template-columns: auto 1fr;
@@ -1824,6 +1845,9 @@ tbody tr:last-child td {
   }
   .foot-nav .btn {
     width: 100%;
+  }
+  .ocr-save-actions .hint {
+    text-align: left;
   }
   .site-footer {
     align-items: flex-start;

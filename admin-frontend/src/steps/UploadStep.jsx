@@ -4,101 +4,35 @@ import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
 import { useReferenceData } from '../hooks/useReferenceData.js'
 import PageHeader from '../components/PageHeader.jsx'
-import AudiencePicker from '../components/AudiencePicker.jsx'
-import ResponsibleDepartmentPicker from '../components/ResponsibleDepartmentPicker.jsx'
+import DocumentMetadataForm, {
+  EMPTY_METADATA,
+  formatVietnameseDate,
+  getMetadataValidation,
+  getUploadErrorMessage,
+  prepareUploadMetadata,
+  SourceDepartmentField,
+} from '../components/DocumentMetadataForm.jsx'
 
 const MAX_MARKDOWN_SIZE_MB = 20
 const MAX_SOURCE_SIZE_MB = 100
 const ACCEPTED_EXTENSIONS = ['.md', '.markdown']
 const ACCEPTED_SOURCE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp', '.webp', '.md', '.markdown']
 
-function parseVietnameseDate(value) {
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
-  if (!match) return null
-
-  const [, dayText, monthText, yearText] = match
-  const day = Number(dayText)
-  const month = Number(monthText)
-  const year = Number(yearText)
-  if (year < 1000) return null
-  const candidate = new Date(Date.UTC(year, month - 1, day))
-
-  if (
-    candidate.getUTCFullYear() !== year
-    || candidate.getUTCMonth() !== month - 1
-    || candidate.getUTCDate() !== day
-  ) return null
-
-  return `${yearText}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-}
-
-function formatVietnameseDate(value) {
-  if (!value) return ''
-
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (isoMatch) {
-    const [, year, month, day] = isoMatch
-    return `${day}/${month}/${year}`
-  }
-
-  const isoDate = parseVietnameseDate(value)
-  if (!isoDate) return value
-  const [year, month, day] = isoDate.split('-')
-  return `${day}/${month}/${year}`
-}
-
-const EMPTY_METADATA = {
-  title: '',
-  document_key: '',
-  version_key: '',
-  document_type: '',
-  domain: 'unknown',
-  audience: [],
-  responsible_department: [],
-  code: '',
-  issued_date: '',
-  effective_date: '',
-  source_url: '',
-  notes: '',
-}
-function getUploadErrorMessage({ name, message = '' }) {
-  if (name === 'AbortError') return 'Kết nối quá thời gian. Vui lòng kiểm tra mạng và thử lại.'
-  if (name === 'TypeError' || message === 'Failed to fetch') return 'Không thể kết nối server. Vui lòng thử lại sau.'
-  if (/HTTP\s*5\d{2}/i.test(message)) return 'Lỗi server. Vui lòng thử lại sau.'
-  if (/file|invalid|không hợp lệ|frontmatter|yaml/i.test(message)) return `File không hợp lệ: ${message}`
-  return message || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.'
-}
-
-export default function UploadStep({ update, goTo, ocrDraft, onClearOcrDraft, onOpenOcr }) {
-  const [file, setFile] = useState(ocrDraft?.markdownFile || null)
-  const [sourceFile, setSourceFile] = useState(ocrDraft?.sourceFile || null)
+export default function UploadStep({ update, goTo, onOpenOcr }) {
+  const [file, setFile] = useState(null)
+  const [sourceFile, setSourceFile] = useState(null)
   const [departmentCode, setDepartmentCode] = useState('')
-  const [metadata, setMetadata] = useState(() => ({
-    ...EMPTY_METADATA,
-    ...(ocrDraft?.metadata || {}),
-  }))
+  const [metadata, setMetadata] = useState(EMPTY_METADATA)
   const [drag, setDrag] = useState(false)
   const [sourceDrag, setSourceDrag] = useState(false)
   const [busy, setBusy] = useState(false)
   const [databaseStatus, setDatabaseStatus] = useState('checking')
   const { documentTypes, departments, enumOptions, loading: referencesLoading } = useReferenceData()
-  const issuedDate = parseVietnameseDate(metadata.issued_date)
-  const effectiveDate = parseVietnameseDate(metadata.effective_date)
-  const datesAreValid = (
-    (!metadata.issued_date || issuedDate)
-    && (!metadata.effective_date || effectiveDate)
-  )
+  const { complete: metadataComplete } = getMetadataValidation(metadata)
   const uploadReady = Boolean(
     file
     && departmentCode
-    && metadata.title.trim()
-    && metadata.document_key.trim()
-    && metadata.version_key.trim()
-    && metadata.document_type
-    && metadata.responsible_department.length
-    && metadata.responsible_department.every(Boolean)
-    && datesAreValid
-    && (effectiveDate || issuedDate),
+    && metadataComplete,
   )
 
   useEffect(() => {
@@ -132,7 +66,6 @@ export default function UploadStep({ update, goTo, ocrDraft, onClearOcrDraft, on
     }
     setFile(f)
     setSourceFile(null)
-    onClearOcrDraft()
     setMetadata(EMPTY_METADATA)
 
     try {
@@ -180,16 +113,8 @@ export default function UploadStep({ update, goTo, ocrDraft, onClearOcrDraft, on
     if (!uploadReady) return
     setBusy(true)
     try {
-      const uploadMetadata = Object.fromEntries(
-        Object.entries({
-          ...metadata,
-          issued_date: issuedDate || '',
-          effective_date: effectiveDate || '',
-          responsible_department: metadata.responsible_department.filter(Boolean),
-        }).filter(([, value]) => value !== ''),
-      )
+      const uploadMetadata = prepareUploadMetadata(metadata)
       const res = await api.uploadCanonicalMarkdown(file, sourceFile, departmentCode, uploadMetadata)
-      onClearOcrDraft()
       update('upload', res)
       update('review', null)
       update('chunkPreview', null)
@@ -232,101 +157,16 @@ export default function UploadStep({ update, goTo, ocrDraft, onClearOcrDraft, on
           <h2 id="upload-file-heading">Chọn file</h2>
           <span className="file-types">Markdown bắt buộc</span>
         </header>
-        {ocrDraft && (
-          <p className="banner info" role="status">
-            Markdown từ OCR đã sẵn sàng. Kiểm tra metadata rồi bấm Lưu để ghi PostgreSQL và R2.
-          </p>
-        )}
         <div className="upload-fields">
-          <fieldset className="form-grid" disabled={referencesLoading}>
-            <legend>Thông tin tài liệu</legend>
-            <label className="field" htmlFor="upload-title">
-              <span>Tiêu đề <b aria-hidden="true">*</b></span>
-              <input id="upload-title" value={metadata.title} onChange={(event) => setMetadataField('title', event.target.value)} required />
-            </label>
-            <label className="field" htmlFor="upload-document-type">
-              <span>Loại tài liệu <b aria-hidden="true">*</b></span>
-              <select id="upload-document-type" value={metadata.document_type} onChange={(event) => setMetadataField('document_type', event.target.value)} required>
-                <option value="">— Chọn loại tài liệu —</option>
-                {documentTypes.filter((type) => type.is_active).map((type) => <option key={type.code} value={type.code}>{type.name} ({type.code})</option>)}
-              </select>
-            </label>
-            <label className="field" htmlFor="upload-document-key">
-              <span>Document key <b aria-hidden="true">*</b></span>
-              <input id="upload-document-key" value={metadata.document_key} onChange={(event) => setMetadataField('document_key', event.target.value)} placeholder="vd: huong-dan-sinh-vien" required />
-            </label>
-            <label className="field" htmlFor="upload-version-key">
-              <span>Version key <b aria-hidden="true">*</b></span>
-              <input id="upload-version-key" value={metadata.version_key} onChange={(event) => setMetadataField('version_key', event.target.value)} placeholder="vd: hdsv-2026-01" required />
-            </label>
-            <label className="field" htmlFor="upload-domain">
-              <span>Domain</span>
-              <select id="upload-domain" value={metadata.domain} onChange={(event) => setMetadataField('domain', event.target.value)}>
-                {enumOptions.domains.map((domain) => <option key={domain} value={domain}>{domain}</option>)}
-              </select>
-            </label>
-            <label className="field" htmlFor="upload-code">
-              <span>Số hiệu</span>
-              <input id="upload-code" value={metadata.code} onChange={(event) => setMetadataField('code', event.target.value)} />
-            </label>
-          </fieldset>
-
-          <ResponsibleDepartmentPicker
+          <DocumentMetadataForm
+            metadata={metadata}
+            onChange={setMetadataField}
+            documentTypes={documentTypes}
             departments={departments}
-            value={metadata.responsible_department}
-            onChange={(value) => setMetadataField('responsible_department', value)}
-            idPrefix="responsible-department"
-            disabled={referencesLoading}
+            enumOptions={enumOptions}
+            loading={referencesLoading}
+            idPrefix="upload"
           />
-
-          <fieldset className="form-grid" disabled={referencesLoading}>
-            <legend>Thông tin bổ sung</legend>
-            <label className="field" htmlFor="upload-issued-date">
-              <span>Ngày ban hành <small>(Ngày/Tháng/Năm)</small></span>
-              <input
-                id="upload-issued-date"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="DD/MM/YYYY"
-                maxLength={10}
-                value={metadata.issued_date}
-                onChange={(event) => setMetadataField('issued_date', event.target.value)}
-                onBlur={(event) => setMetadataField('issued_date', formatVietnameseDate(event.target.value))}
-                aria-invalid={Boolean(metadata.issued_date && !issuedDate)}
-              />
-              {metadata.issued_date && !issuedDate && <small className="field-error">Nhập ngày hợp lệ theo DD/MM/YYYY.</small>}
-            </label>
-            <label className="field" htmlFor="upload-effective-date">
-              <span>Ngày hiệu lực <small>(Ngày/Tháng/Năm)</small></span>
-              <input
-                id="upload-effective-date"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="DD/MM/YYYY"
-                maxLength={10}
-                value={metadata.effective_date}
-                onChange={(event) => setMetadataField('effective_date', event.target.value)}
-                onBlur={(event) => setMetadataField('effective_date', formatVietnameseDate(event.target.value))}
-                aria-invalid={Boolean(metadata.effective_date && !effectiveDate)}
-              />
-              {metadata.effective_date && !effectiveDate && <small className="field-error">Nhập ngày hợp lệ theo DD/MM/YYYY.</small>}
-            </label>
-            <label className="field" htmlFor="upload-source-url">
-              <span>URL nguồn</span>
-              <input id="upload-source-url" type="url" value={metadata.source_url} onChange={(event) => setMetadataField('source_url', event.target.value)} placeholder="https://…" />
-            </label>
-            <label className="field" htmlFor="upload-notes">
-              <span>Ghi chú</span>
-              <textarea className="metadata-notes" id="upload-notes" value={metadata.notes} onChange={(event) => setMetadataField('notes', event.target.value)} rows={1} />
-            </label>
-            <AudiencePicker
-              options={enumOptions.audiences}
-              value={metadata.audience}
-              onChange={(value) => setMetadataField('audience', value)}
-            />
-          </fieldset>
 
           <div className="upload-dropzones">
             <label
@@ -358,30 +198,19 @@ export default function UploadStep({ update, goTo, ocrDraft, onClearOcrDraft, on
         </div>
 
         <div className="upload-actions">
-          <label className="field upload-source-department" htmlFor="source-department-code">
-            <span>Phòng ban lưu file nguồn <b aria-hidden="true">*</b></span>
-            <select
-              id="source-department-code"
-              value={departmentCode}
-              disabled={referencesLoading}
-              onChange={(event) => setDepartmentCode(event.target.value)}
-              required
-            >
-              <option value="">{referencesLoading ? 'Đang tải phòng ban…' : '— Chọn phòng ban —'}</option>
-              {departments.filter((department) => department.is_active).map((department) => (
-                <option key={department.code} value={department.code}>
-                  {department.code} — {department.name}
-                </option>
-              ))}
-            </select>
-            <small className="hint">Dùng để tạo key riêng dưới <code>sources/</code>.</small>
-          </label>
+          <SourceDepartmentField
+            departments={departments}
+            value={departmentCode}
+            onChange={setDepartmentCode}
+            loading={referencesLoading}
+            idPrefix="upload"
+          />
           <button type="submit" className="btn" disabled={!uploadReady || busy} aria-busy={busy}>
             {busy ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
             {busy ? 'Đang lưu...' : 'Lưu và tiếp tục'}
           </button>
           {file && !busy && (
-            <button type="button" className="btn ghost" onClick={() => { setFile(null); setSourceFile(null); onClearOcrDraft() }}>
+            <button type="button" className="btn ghost" onClick={() => { setFile(null); setSourceFile(null) }}>
               Bỏ chọn
             </button>
           )}

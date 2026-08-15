@@ -2,18 +2,31 @@ import { ArrowLeft, FileCheck2, FileScan, Loader2, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
+import { useReferenceData } from '../hooks/useReferenceData.js'
+import DocumentMetadataForm, {
+  EMPTY_METADATA,
+  getMetadataValidation,
+  getUploadErrorMessage,
+  prepareUploadMetadata,
+  SourceDepartmentField,
+} from '../components/DocumentMetadataForm.jsx'
 import LineNumberedTextarea from '../components/LineNumberedTextarea.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 
 const ACCEPTED_OCR_FILES = '.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp'
 const MAX_SOURCE_SIZE = 100 * 1024 * 1024
 
-export default function OcrStep({ onBack, onContinue }) {
+export default function OcrStep({ onBack, update, goTo }) {
   const [file, setFile] = useState(null)
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [markdown, setMarkdown] = useState('')
-  const [resultMetadata, setResultMetadata] = useState(null)
+  const [metadata, setMetadata] = useState(EMPTY_METADATA)
+  const [departmentCode, setDepartmentCode] = useState('')
+  const { documentTypes, departments, enumOptions, loading: referencesLoading } = useReferenceData()
+  const { complete: metadataComplete } = getMetadataValidation(metadata)
+  const saveReady = Boolean(markdown.trim() && file && departmentCode && metadataComplete)
 
   function selectFile(selectedFile) {
     if (!selectedFile) return
@@ -28,7 +41,8 @@ export default function OcrStep({ onBack, onContinue }) {
     }
     setFile(selectedFile)
     setMarkdown('')
-    setResultMetadata(null)
+    setMetadata(EMPTY_METADATA)
+    setDepartmentCode('')
   }
 
   async function startOcr() {
@@ -38,12 +52,7 @@ export default function OcrStep({ onBack, onContinue }) {
     try {
       const result = await api.runOcr(file)
       setMarkdown(result.markdown)
-      setResultMetadata({
-        parser: result.parser,
-        ocr_engine: result.ocr_engine,
-        language: result.language,
-      })
-      toast.success('OCR hoàn tất. Hãy kiểm tra Markdown trước khi tiếp tục.')
+      toast.success('OCR hoàn tất. Hãy kiểm tra Markdown và nhập thông tin tài liệu.')
     } catch (error) {
       toast.error(error.message || 'OCR thất bại; vui lòng thử lại.')
     } finally {
@@ -51,15 +60,37 @@ export default function OcrStep({ onBack, onContinue }) {
     }
   }
 
-  function continueToIngestion() {
-    if (!file || !markdown.trim()) return
+  function setMetadataField(key, value) {
+    setMetadata((current) => ({ ...current, [key]: value }))
+  }
+
+  async function saveAndContinue() {
+    if (!saveReady) return
     const stem = file.name.replace(/\.[^.]+$/, '')
     const markdownFile = new File(
       [markdown],
       `${stem}_ocr.md`,
       { type: 'text/markdown;charset=utf-8' },
     )
-    onContinue({ sourceFile: file, markdownFile, metadata: resultMetadata })
+    setSaving(true)
+    try {
+      const result = await api.uploadCanonicalMarkdown(
+        markdownFile,
+        file,
+        departmentCode,
+        prepareUploadMetadata(metadata),
+      )
+      update('upload', result)
+      update('review', null)
+      update('chunkPreview', null)
+      update('chunkApproved', false)
+      update('ingest', null)
+      goTo('review')
+    } catch (error) {
+      toast.error(getUploadErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -70,7 +101,11 @@ export default function OcrStep({ onBack, onContinue }) {
         description="Tải file nguồn lên để OCR. PostgreSQL và R2 chỉ được ghi sau khi bạn kiểm tra Markdown và bấm Lưu ở bước tiếp theo."
       />
 
-      <section className="card ocr-workspace" aria-labelledby="ocr-source-heading">
+      <form
+        className="card ocr-workspace"
+        aria-labelledby="ocr-source-heading"
+        onSubmit={(event) => { event.preventDefault(); saveAndContinue() }}
+      >
         <header>
           <h2 id="ocr-source-heading">File cần OCR</h2>
           <p>Hỗ trợ PDF, Word, PowerPoint và ảnh.</p>
@@ -105,21 +140,48 @@ export default function OcrStep({ onBack, onContinue }) {
         </p>
 
         {markdown && (
-          <section className="ocr-review" aria-labelledby="ocr-review-heading">
-            <header>
-              <h2 id="ocr-review-heading">Review Markdown</h2>
-              <p>Chỉnh lỗi OCR tại đây. Nội dung chỉ được lưu khi hoàn tất form ingestion.</p>
-            </header>
-            <label className="field" htmlFor="ocr-markdown">
-              <span>Markdown sau OCR</span>
-              <LineNumberedTextarea
-                id="ocr-markdown"
-                className="markdown-editor large"
-                value={markdown}
-                onChange={(event) => setMarkdown(event.target.value)}
-              />
-            </label>
-          </section>
+          <>
+            <section className="ocr-review" aria-labelledby="ocr-review-heading">
+              <header>
+                <h2 id="ocr-review-heading">Review Markdown</h2>
+                <p>Chỉnh lỗi OCR tại đây trước khi lưu tài liệu.</p>
+              </header>
+              <label className="field" htmlFor="ocr-markdown">
+                <span>Markdown sau OCR</span>
+                <LineNumberedTextarea
+                  id="ocr-markdown"
+                  className="markdown-editor large"
+                  value={markdown}
+                  onChange={(event) => setMarkdown(event.target.value)}
+                />
+              </label>
+            </section>
+
+            <section className="ocr-metadata" aria-labelledby="ocr-metadata-heading">
+              <header>
+                <h2 id="ocr-metadata-heading">Thông tin tài liệu</h2>
+                <p>Nhập metadata để lưu file nguồn, canonical Markdown và tạo version tài liệu.</p>
+              </header>
+              <div className="upload-fields">
+                <DocumentMetadataForm
+                  metadata={metadata}
+                  onChange={setMetadataField}
+                  documentTypes={documentTypes}
+                  departments={departments}
+                  enumOptions={enumOptions}
+                  loading={referencesLoading}
+                  idPrefix="ocr"
+                />
+                <SourceDepartmentField
+                  departments={departments}
+                  value={departmentCode}
+                  onChange={setDepartmentCode}
+                  loading={referencesLoading}
+                  idPrefix="ocr"
+                />
+              </div>
+            </section>
+          </>
         )}
 
         <nav className="foot-nav" aria-label="Điều hướng OCR">
@@ -133,12 +195,20 @@ export default function OcrStep({ onBack, onContinue }) {
             </button>
           )}
           {markdown && (
-            <button type="button" className="btn" disabled={!markdown.trim()} onClick={continueToIngestion}>
-              Tiếp tục nhập metadata
-            </button>
+            <div className="ocr-save-actions">
+              <button type="submit" className="btn" disabled={!saveReady || saving} aria-busy={saving}>
+                {saving ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
+                {saving ? 'Đang lưu...' : 'Lưu và tiếp tục'}
+              </button>
+              {!saveReady && (
+                <span className="hint">
+                  Nhập các trường bắt buộc, ít nhất một ngày ban hành/ngày hiệu lực, phòng ban phụ trách và phòng ban nguồn để lưu.
+                </span>
+              )}
+            </div>
           )}
         </nav>
-      </section>
+      </form>
     </>
   )
 }
