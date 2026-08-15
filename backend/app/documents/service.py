@@ -84,6 +84,13 @@ def _last_job(version: DocumentVersion):
     return max(version.ingestion_jobs, key=lambda job: job.id, default=None)
 
 
+def _chunks_approved(version: DocumentVersion) -> bool:
+    return any(
+        job.job_type == "ingestion" and job.current_step == "chunks_approved"
+        for job in version.ingestion_jobs
+    )
+
+
 def _to_summary(version: DocumentVersion) -> DocumentVersionSummary:
     document = version.document
     return DocumentVersionSummary(
@@ -105,6 +112,7 @@ def _to_summary(version: DocumentVersion) -> DocumentVersionSummary:
         validity_status=_extra(version, "validity_status", "unknown"),
         ocr_status=version.ocr_status,
         rag_status=version.rag_status,
+        chunks_approved=_chunks_approved(version),
         updated_at=version.updated_at.isoformat() if version.updated_at else None,
     )
 
@@ -903,6 +911,22 @@ async def deindex_document_version(
                 session,
                 document_version_id,
             )
+            approval_job = await session.scalar(
+                select(IngestionJob)
+                .where(
+                    IngestionJob.document_version_id == document_version_id,
+                    IngestionJob.job_type == "ingestion",
+                )
+                .order_by(IngestionJob.id.desc())
+                .limit(1)
+                .with_for_update()
+            )
+            if approval_job is not None:
+                approval_job.status = "pending"
+                approval_job.current_step = "chunking"
+                approval_job.total_chunks = None
+                approval_job.processed_chunks = 0
+                approval_job.error_message = None
             version.rag_status = "not_indexed"
             job.status = "completed"
             job.current_step = "completed"

@@ -47,6 +47,19 @@ GET /api/v1/ingestion/jobs/{id}
 
 Job status uses `current_step`.
 
+## Admin chunk review
+
+```http
+POST /api/v1/admin/document-versions/{id}/chunk-preview
+POST /api/v1/admin/document-versions/{id}/chunks/approve
+POST /api/v1/admin/document-versions/{id}/index
+```
+
+Preview is read-only. Approve replaces the version's Parent/Child rows in
+`document_chunks` and persists `ingestion_jobs.current_step = chunks_approved`.
+Index is rejected unless that durable approval marker and the approved rows still
+match the current canonical Markdown.
+
 ## Documents
 
 ```http

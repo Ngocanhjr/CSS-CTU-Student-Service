@@ -20,6 +20,7 @@ from app.databases.models.documents import (
     DocumentVersion,
 )
 from app.databases.models.ingestion import IngestionJob
+from app.databases.repositories.chunks import delete_chunks_by_version
 from app.ingestion.canonical_storage import (
     MAX_MARKDOWN_BYTES,
     create_canonical_markdown,
@@ -227,6 +228,9 @@ async def _review_canonical_document(
                     assets=assets,
                 )
 
+            # A canonical revision invalidates any previously approved chunk snapshot.
+            await delete_chunks_by_version(session, version.id)
+
             job = await session.scalar(
                 select(IngestionJob)
                 .where(
@@ -249,6 +253,8 @@ async def _review_canonical_document(
             else:
                 job.status = "pending"
                 job.current_step = "chunking"
+                job.total_chunks = None
+                job.processed_chunks = 0
                 job.error_message = None
 
             await session.flush()

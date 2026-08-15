@@ -19,6 +19,7 @@ from app.ingestion.canonical_storage import read_canonical_markdown
 from app.ingestion.markdown_reader import parse_markdown_document
 from app.schemas.chunks import Chunk
 from app.schemas.ingestion.indexing import (
+    ChunkApprovalResponse,
     ChunkPreviewItem,
     ChunkPreviewResponse,
     IndexingJobProgress,
@@ -42,6 +43,71 @@ def _chunking(document: Any) -> ChunkingResult:
 
 def _all_chunks(result: ChunkingResult) -> list[Chunk]:
     return [*result.parent_chunks, *result.child_chunks]
+
+
+def _approved_chunk_signature(rows: list[DocumentChunk]) -> list[tuple]:
+    key_by_id = {row.id: row.chunk_key for row in rows}
+    return [
+        (
+            row.chunk_key,
+            key_by_id.get(row.parent_chunk_id),
+            row.chunk_index,
+            row.chunk_type,
+            row.content,
+            tuple(row.heading_path),
+            row.page_start,
+            row.page_end,
+            row.token_count,
+        )
+        for row in sorted(rows, key=lambda item: item.chunk_index)
+    ]
+
+
+def _generated_chunk_signature(chunks: list[Chunk]) -> list[tuple]:
+    return [
+        (
+            chunk.chunk_key,
+            chunk.parent_chunk_key,
+            chunk.chunk_index,
+            chunk.chunk_type,
+            chunk.content,
+            tuple(chunk.heading_path),
+            chunk.page_start,
+            chunk.page_end,
+            chunk.token_count,
+        )
+        for chunk in sorted(chunks, key=lambda item: item.chunk_index)
+    ]
+
+
+def _assert_approved_chunks_match(
+    rows: list[DocumentChunk],
+    generated: list[Chunk],
+) -> None:
+    if not rows or _approved_chunk_signature(rows) != _generated_chunk_signature(generated):
+        raise ConflictError(
+            "Canonical Markdown đã thay đổi; vui lòng preview và approve chunks lại"
+        )
+
+
+async def _get_chunk_approval_job(
+    session: AsyncSession,
+    document_version_id: int,
+    *,
+    for_update: bool = False,
+) -> IngestionJob | None:
+    statement = (
+        select(IngestionJob)
+        .where(
+            IngestionJob.document_version_id == document_version_id,
+            IngestionJob.job_type == "ingestion",
+        )
+        .order_by(IngestionJob.id.desc())
+        .limit(1)
+    )
+    if for_update:
+        statement = statement.with_for_update()
+    return await session.scalar(statement)
 
 
 def _preview_item(chunk: Chunk) -> ChunkPreviewItem:
@@ -78,7 +144,11 @@ def _read_document(
     return markdown_document
 
 
-async def build_chunk_preview(session: AsyncSession, *, document_version_id: int) -> ChunkPreviewResponse:
+async def _build_chunking_snapshot(
+    session: AsyncSession,
+    *,
+    document_version_id: int,
+) -> tuple[dict[str, Any], Any, ChunkingResult]:
     version = await session.scalar(
         select(DocumentVersion)
         .options(selectinload(DocumentVersion.document))
@@ -86,10 +156,15 @@ async def build_chunk_preview(session: AsyncSession, *, document_version_id: int
     )
     if version is None:
         raise NotFoundError(f"Không tìm thấy document version: {document_version_id}")
-    version_id = version.id
     canonical_path = version.canonical_markdown_path
     domain = version.document.domain
     audience = list(version.document.audience)
+    snapshot = {
+        "version_id": version.id,
+        "canonical_path": canonical_path,
+        "domain": domain,
+        "audience": audience,
+    }
     await session.rollback()
     markdown_document = await asyncio.to_thread(
         _read_document,
@@ -98,14 +173,98 @@ async def build_chunk_preview(session: AsyncSession, *, document_version_id: int
         audience,
     )
     result = await asyncio.to_thread(_chunking, markdown_document)
+    return snapshot, markdown_document, result
+
+
+async def build_chunk_preview(session: AsyncSession, *, document_version_id: int) -> ChunkPreviewResponse:
+    snapshot, _, result = await _build_chunking_snapshot(
+        session,
+        document_version_id=document_version_id,
+    )
     return ChunkPreviewResponse(
-        document_version_id=version_id,
+        document_version_id=snapshot["version_id"],
         parent_chunks=len(result.parent_chunks),
         child_chunks=len(result.child_chunks),
         total_chunks=len(result.parent_chunks) + len(result.child_chunks),
         chunks=[_preview_item(chunk) for chunk in _all_chunks(result)],
         warnings=[_report(item) for item in result.warnings],
         errors=[_report(item) for item in result.errors],
+    )
+
+
+async def approve_chunk_preview(
+    session: AsyncSession,
+    *,
+    document_version_id: int,
+) -> ChunkApprovalResponse:
+    snapshot, _, result = await _build_chunking_snapshot(
+        session,
+        document_version_id=document_version_id,
+    )
+    if result.errors:
+        raise ConflictError("Chunk preview có lỗi; chưa thể approve")
+
+    chunks = _all_chunks(result)
+    async with session.begin():
+        version = await session.scalar(
+            select(DocumentVersion)
+            .options(selectinload(DocumentVersion.document))
+            .where(DocumentVersion.id == document_version_id)
+            .with_for_update()
+        )
+        if version is None:
+            raise NotFoundError(
+                f"Không tìm thấy document version: {document_version_id}"
+            )
+        if version.ocr_status != "done" or version.review_status != "approved":
+            raise ConflictError(
+                "Chỉ approve chunks khi OCR done và Markdown đã approved"
+            )
+        if version.rag_status not in {"not_indexed", "failed"}:
+            raise ConflictError(
+                f"Không thể approve chunks khi rag_status={version.rag_status}"
+            )
+        if (
+            version.canonical_markdown_path != snapshot["canonical_path"]
+            or version.document.domain != snapshot["domain"]
+            or set(version.document.audience) != set(snapshot["audience"])
+        ):
+            raise ConflictError(
+                "Document đã thay đổi; vui lòng tạo chunk preview lại"
+            )
+
+        await replace_version_chunks(
+            session,
+            document_version_id=version.id,
+            chunks=chunks,
+        )
+        job = await _get_chunk_approval_job(
+            session,
+            version.id,
+            for_update=True,
+        )
+        if job is None:
+            job = IngestionJob(
+                document_version_id=version.id,
+                job_type="ingestion",
+                status="pending",
+                current_step="chunks_approved",
+                processed_chunks=0,
+            )
+            session.add(job)
+        job.status = "pending"
+        job.current_step = "chunks_approved"
+        job.total_chunks = len(chunks)
+        job.processed_chunks = 0
+        job.error_message = None
+
+    return ChunkApprovalResponse(
+        document_version_id=document_version_id,
+        approved=True,
+        parent_chunks=len(result.parent_chunks),
+        child_chunks=len(result.child_chunks),
+        total_chunks=len(chunks),
+        current_step="chunks_approved",
     )
 
 
@@ -145,6 +304,14 @@ async def start_index_document_version(
     if version.ocr_status != "done" or version.review_status != "approved":
         raise ConflictError("Chỉ index document version có ocr done và review approved")
 
+    approval_job = await _get_chunk_approval_job(session, version.id)
+    approved_rows = await get_version_chunks(session, version.id)
+    if approval_job is None or approval_job.current_step != "chunks_approved":
+        raise ConflictError("Chunks chưa được approve")
+    if approval_job.total_chunks != len(approved_rows) or not approved_rows:
+        raise ConflictError("Dữ liệu chunks đã duyệt không đầy đủ; vui lòng approve lại")
+    approved_signature = _approved_chunk_signature(approved_rows)
+
     canonical_path = version.canonical_markdown_path
     domain = version.document.domain
     audience = list(version.document.audience)
@@ -158,6 +325,10 @@ async def start_index_document_version(
     result = await asyncio.to_thread(_chunking, markdown_document)
     if result.errors:
         raise ConflictError("Chunking có lỗi, không thể index")
+    if approved_signature != _generated_chunk_signature(_all_chunks(result)):
+        raise ConflictError(
+            "Canonical Markdown đã thay đổi; vui lòng preview và approve chunks lại"
+        )
 
     async with session.begin():
         version = await session.scalar(
@@ -181,21 +352,28 @@ async def start_index_document_version(
         ):
             raise ConflictError("Document đã thay đổi; vui lòng tạo preview lại")
 
+        approval_job = await _get_chunk_approval_job(
+            session,
+            version.id,
+            for_update=True,
+        )
+        approved_rows = await get_version_chunks(session, version.id)
+        if approval_job is None or approval_job.current_step != "chunks_approved":
+            raise ConflictError("Chunks chưa được approve")
+        if approval_job.total_chunks != len(approved_rows):
+            raise ConflictError("Dữ liệu chunks đã duyệt đã thay đổi")
+        _assert_approved_chunks_match(approved_rows, _all_chunks(result))
+
         job = IngestionJob(
             document_version_id=version.id,
             job_type="indexing",
             status="processing",
-            current_step="persist_chunks",
+            current_step="embedding",
             total_chunks=len(result.child_chunks),
             processed_chunks=0,
             started_at=datetime.now(timezone.utc),
         )
         session.add(job)
-        await replace_version_chunks(
-            session,
-            document_version_id=version.id,
-            chunks=_all_chunks(result),
-        )
         version.rag_status = "chunked"
         await session.flush()
     return _progress(job, version)
@@ -246,10 +424,24 @@ async def run_indexing_job(ingestion_job_id: int) -> None:
             child_chunks = result.child_chunks
             if result.errors:
                 raise ValueError("Chunking có lỗi, không thể index")
+            approved_rows = await get_version_chunks(session, version_id)
+            _assert_approved_chunks_match(approved_rows, _all_chunks(result))
+            await session.rollback()
+
+            processed_chunks = 0
 
             async def record_batch(count: int) -> None:
-                job.processed_chunks = min(job.processed_chunks + count, job.total_chunks or 0)
-                await session.commit()
+                nonlocal processed_chunks
+                processed_chunks = min(processed_chunks + count, len(child_chunks))
+                async with session.begin():
+                    current_job = await session.scalar(
+                        select(IngestionJob)
+                        .where(IngestionJob.id == ingestion_job_id)
+                        .with_for_update()
+                    )
+                    if current_job is None or current_job.status != "processing":
+                        raise ConflictError("Indexing job đã thay đổi")
+                    current_job.processed_chunks = processed_chunks
 
             from app.embedding.embedder import embed_chunks_with_cache
 
@@ -259,8 +451,15 @@ async def run_indexing_job(ingestion_job_id: int) -> None:
                 progress_callback=record_batch,
             )
 
-            job.current_step = "qdrant_upsert"
-            await session.commit()
+            async with session.begin():
+                current_job = await session.scalar(
+                    select(IngestionJob)
+                    .where(IngestionJob.id == ingestion_job_id)
+                    .with_for_update()
+                )
+                if current_job is None or current_job.status != "processing":
+                    raise ConflictError("Indexing job đã thay đổi")
+                current_job.current_step = "qdrant_upsert"
             rows = await get_version_chunks(session, version_id)
             row_by_key = {row.chunk_key: row for row in rows}
             postgres_ids = {

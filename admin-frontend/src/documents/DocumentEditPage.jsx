@@ -291,6 +291,16 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
             OCR và RAG là kết quả của pipeline tự động, không sửa trực tiếp ở
             đây.
           </p>
+          {doc.rag_status === "published" && (
+            <button
+              type="button"
+              className="btn small ghost warn"
+              onClick={handleUnpublish}
+              disabled={busy}
+            >
+              {busy ? "Đang xử lý…" : "Unpublish"}
+            </button>
+          )}
           {requiresDeindex && (
             <aside className="banner" role="status">
               <strong>Có thể lưu trực tiếp, không tạo embedding mới:</strong>

@@ -113,7 +113,7 @@ export default function App() {
         metadata,
       },
       chunkPreview: null,
-      chunkApproved: false,
+      chunkApproved: Boolean(document.chunks_approved),
       ingest: null,
     }))
     setActive('chunks')

@@ -17,10 +17,11 @@ không ghi PostgreSQL/R2 trước khi admin review Markdown và bấm Lưu.
 3. Trang OCR hiển thị ngay form metadata dùng chung với nhánh upload; admin review/chỉnh Markdown và nhập metadata tại đây
 4. Admin bấm Lưu; `POST /api/v1/admin/canonical-markdown` lưu source + canonical Markdown vào R2 và document/version/job vào PostgreSQL
 5. Validate metadata và approve review
-6. Chunk with LangChain / langchain-text-splitters
-7. Embed with BAAI/bge-m3
-8. Upsert to Qdrant
-9. Set `rag_status = indexed`; publish là thao tác riêng
+6. Preview chunks (read-only), sau đó approve để lưu Parent/Child vào PostgreSQL và đặt `current_step = chunks_approved`
+7. Index chỉ dùng bộ chunks đã approve; canonical Markdown thay đổi thì phải preview/approve lại
+8. Embed Child chunks với BAAI/bge-m3
+9. Upsert Child vectors vào Qdrant
+10. Set `rag_status = indexed`; publish là thao tác riêng
 ```
 
 ## Yêu cầu canonical Markdown đầu vào

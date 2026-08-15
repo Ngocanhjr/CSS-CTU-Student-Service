@@ -5,8 +5,7 @@ import StatusBadge from '../components/StatusBadge.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 
 const STAGES = [
-  { key: 'chunked', label: 'Chunk parent/child', detail: 'Tạo cấu trúc parent và child chunk.' },
-  { key: 'chunked', label: 'Lưu PostgreSQL', detail: 'Ghi document_chunks; PostgreSQL là nguồn dữ liệu chuẩn.' },
+  { key: 'chunked', label: 'Chunks đã duyệt', detail: 'Đọc Parent/Child chunks đã approve trong PostgreSQL.' },
   { key: 'embedded', label: 'Tạo embedding', detail: 'Tạo vector cho các child chunk.' },
   { key: 'indexed', label: 'Upsert Qdrant', detail: 'Ghi vector và payload phục vụ tìm kiếm.' },
   { key: 'published', label: 'Publish riêng', detail: 'Chỉ publish sau khi kiểm tra index thành công.' },
@@ -15,7 +14,6 @@ const STAGES = [
 const RAG_ORDER = ['not_indexed', 'chunked', 'embedded', 'indexed', 'published']
 
 const STEP_LABELS = {
-  persist_chunks: 'Đang lưu chunks vào PostgreSQL',
   embedding: 'Đang tạo embedding',
   qdrant_upsert: 'Đang lưu vectors vào Qdrant',
   completed: 'Hoàn tất indexing',
@@ -119,14 +117,14 @@ export default function IngestStep({ pipeline, update, goTo }) {
   const canIngest = metadata?.ocr_status === 'done'
     && metadata?.review_status === 'approved'
     && pipeline.chunkApproved
-    && ['not_indexed', 'failed', 'chunked', 'embedded'].includes(ragStatus)
+    && ['not_indexed', 'failed'].includes(ragStatus)
 
   return (
     <>
       <PageHeader
         eyebrow="Ingestion / 04"
         title="Index document"
-        description="Chunk → PostgreSQL → embedding → Qdrant. Publish là bước riêng sau validation."
+        description="Chunks đã duyệt trong PostgreSQL → embedding → Qdrant. Publish là bước riêng sau validation."
       />
 
       {alreadyIndexed && (

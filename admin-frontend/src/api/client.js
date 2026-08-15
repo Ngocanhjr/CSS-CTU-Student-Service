@@ -91,6 +91,13 @@ export const api = {
     );
   },
 
+  approveChunks(versionId) {
+    return request(
+      `/api/v1/admin/document-versions/${versionId}/chunks/approve`,
+      { method: "POST" },
+    );
+  },
+
   listDocuments(filters = {}) {
     const query = new URLSearchParams(
       Object.entries(filters).filter(

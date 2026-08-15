@@ -26,6 +26,7 @@ class DocumentVersionSummary(StrictSchema):
     validity_status: str
     ocr_status: str
     rag_status: str
+    chunks_approved: bool = False
     updated_at: str | None = None
 
 

@@ -20,8 +20,13 @@ from app.ingestion.upload_service import (
     upload_canonical_document,
 )
 
-from app.schemas.ingestion.indexing import ChunkPreviewResponse, IndexingJobProgress
+from app.schemas.ingestion.indexing import (
+    ChunkApprovalResponse,
+    ChunkPreviewResponse,
+    IndexingJobProgress,
+)
 from app.ingestion.indexing_service import (
+    approve_chunk_preview,
     build_chunk_preview,
     get_indexing_job_progress,
     run_indexing_job,
@@ -81,6 +86,20 @@ async def preview_chunks(document_version_id: int, session: AsyncSession = Depen
         return await build_chunk_preview(session, document_version_id=document_version_id)
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/document-versions/{document_version_id}/chunks/approve",
+    response_model=ChunkApprovalResponse,
+)
+async def approve_chunks(
+    document_version_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> ChunkApprovalResponse:
+    return await approve_chunk_preview(
+        session,
+        document_version_id=document_version_id,
+    )
 
 
 @router.post(

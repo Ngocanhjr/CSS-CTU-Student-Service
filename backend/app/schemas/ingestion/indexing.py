@@ -32,6 +32,15 @@ class ChunkPreviewResponse(StrictSchema):
     errors: list[dict]
 
 
+class ChunkApprovalResponse(StrictSchema):
+    document_version_id: int
+    approved: bool
+    parent_chunks: int
+    child_chunks: int
+    total_chunks: int
+    current_step: str
+
+
 class IndexingJobProgress(StrictSchema):
     ingestion_job_id: int
     document_version_id: int

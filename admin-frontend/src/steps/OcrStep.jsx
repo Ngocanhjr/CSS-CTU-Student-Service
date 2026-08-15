@@ -141,22 +141,6 @@ export default function OcrStep({ onBack, update, goTo }) {
 
         {markdown && (
           <>
-            <section className="ocr-review" aria-labelledby="ocr-review-heading">
-              <header>
-                <h2 id="ocr-review-heading">Review Markdown</h2>
-                <p>Chỉnh lỗi OCR tại đây trước khi lưu tài liệu.</p>
-              </header>
-              <label className="field" htmlFor="ocr-markdown">
-                <span>Markdown sau OCR</span>
-                <LineNumberedTextarea
-                  id="ocr-markdown"
-                  className="markdown-editor large"
-                  value={markdown}
-                  onChange={(event) => setMarkdown(event.target.value)}
-                />
-              </label>
-            </section>
-
             <section className="ocr-metadata" aria-labelledby="ocr-metadata-heading">
               <header>
                 <h2 id="ocr-metadata-heading">Thông tin tài liệu</h2>
@@ -180,6 +164,22 @@ export default function OcrStep({ onBack, update, goTo }) {
                   idPrefix="ocr"
                 />
               </div>
+            </section>
+
+            <section className="ocr-review" aria-labelledby="ocr-review-heading">
+              <header>
+                <h2 id="ocr-review-heading">Review Markdown</h2>
+                <p>Chỉnh lỗi OCR tại đây trước khi lưu tài liệu.</p>
+              </header>
+              <label className="field" htmlFor="ocr-markdown">
+                <span>Markdown sau OCR</span>
+                <LineNumberedTextarea
+                  id="ocr-markdown"
+                  className="markdown-editor large"
+                  value={markdown}
+                  onChange={(event) => setMarkdown(event.target.value)}
+                />
+              </label>
             </section>
           </>
         )}
