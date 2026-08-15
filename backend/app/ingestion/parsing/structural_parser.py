@@ -19,7 +19,6 @@ ITEM_BLOCK_TYPES: set[BlockType] = {
     "bullet_item",
 }
 
-
 @dataclass(frozen=True)
 class StructuralBlock:
     block_type: BlockType  # heading | numbered_item | lettered_item | bullet_item | paragraph | table | code
@@ -63,6 +62,7 @@ class StructuralParseResult:
     reports: list[ValidationReport] = field(default_factory=list)
 
 def parse_page_blocks(page_blocks: list[PageBlock]) -> StructuralParseResult:
+    """Gộp nội dung có số trang và phân loại thành các block cấu trúc."""
     blocks: list[StructuralBlock] = []
     reports: list[ValidationReport] = []
     heading_stack: list[tuple[int, str]] = []
@@ -144,6 +144,7 @@ LineWithPage = tuple[int, str]
 
 
 def _consume_html_comment(lines: list[LineWithPage], index: int) -> int:
+    """Bỏ qua HTML comment và trả về vị trí dòng chưa đọc tiếp theo."""
     """Return index ngay sau closing comment, hoặc EOF nếu comment không đóng."""
     while index < len(lines):
         _, line = lines[index]
@@ -154,6 +155,7 @@ def _consume_html_comment(lines: list[LineWithPage], index: int) -> int:
 
 
 def _is_closing_fence(line: str, opening_fence: str) -> bool:
+    """Kiểm tra một dòng có đóng fenced code block hiện tại hay không."""
     candidate = line.strip()
     return (
         len(candidate) >= len(opening_fence)
@@ -167,6 +169,7 @@ def _consume_fenced_code(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> tuple[str, int, int, int, ValidationReport | None]:
+    """Đọc trọn fenced code block và báo lỗi nếu thiếu dòng đóng block."""
     start_page, opening_line = lines[index]
     opening_match = FENCE_START_RE.match(opening_line.strip())
     if opening_match is None:
@@ -207,10 +210,12 @@ def _consume_fenced_code(
 
 
 def _table_cells(line: str) -> list[str]:
+    """Tách một dòng bảng Markdown thành các ô đã được loại khoảng trắng."""
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
 
 def _is_table_separator(line: str) -> bool:
+    """Kiểm tra một dòng có phải là dòng phân cách của bảng Markdown không."""
     cells = _table_cells(line)
     return len(cells) >= 2 and all(
         TABLE_SEPARATOR_CELL_RE.fullmatch(cell) for cell in cells
@@ -218,10 +223,12 @@ def _is_table_separator(line: str) -> bool:
 
 
 def _is_table_row(line: str, expected_columns: int) -> bool:
+    """Kiểm tra dòng có đúng số lượng ô bảng được mong đợi không."""
     return "|" in line and len(_table_cells(line)) == expected_columns
 
 
 def _looks_like_table_start(lines: list[LineWithPage], index: int) -> bool:
+    """Nhận diện header bảng đi kèm một dòng phân cách hợp lệ."""
     if index + 1 >= len(lines):
         return False
     _, header = lines[index]
@@ -239,6 +246,7 @@ def _consume_table(
     lines: list[LineWithPage],
     index: int,
 ) -> tuple[str, int, int, int]:
+    """Đọc các dòng liên tiếp thuộc cùng một bảng Markdown."""
     expected_columns = len(_table_cells(lines[index][1]))
     consumed: list[str] = []
     pages: list[int] = []
@@ -262,6 +270,7 @@ def _consume_table(
 
 
 def _starts_structural_block(lines: list[LineWithPage], index: int) -> bool:
+    """Kiểm tra dòng hiện tại có bắt đầu một cấu trúc khác paragraph không."""
     _, line = lines[index]
     stripped = line.strip()
     return bool(
@@ -279,6 +288,7 @@ def _consume_paragraph(
     lines: list[LineWithPage],
     index: int,
 ) -> tuple[str, int, int, int]:
+    """Đọc các dòng văn bản liên tiếp đến dòng trống hoặc ranh giới cấu trúc."""
     consumed: list[str] = []
     pages: list[int] = []
 
@@ -298,6 +308,7 @@ def _current_paths(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> tuple[list[str], list[str]]:
+    """Lấy đường dẫn heading và item hiện tại để gắn vào block mới."""
     heading_path = [text for _, text in heading_stack]
     item_path = list(item_stack[-1].item_path) if item_stack else []
     return heading_path, item_path
@@ -311,6 +322,7 @@ def _make_code_block(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> StructuralBlock:
+    """Tạo StructuralBlock loại code cùng ngữ cảnh tài liệu hiện tại."""
     heading_path, item_path = _current_paths(heading_stack, item_stack)
     return StructuralBlock(
         block_type="code",
@@ -332,6 +344,7 @@ def _make_table_block(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> StructuralBlock:
+    """Tạo StructuralBlock loại table cùng ngữ cảnh tài liệu hiện tại."""
     heading_path, item_path = _current_paths(heading_stack, item_stack)
     return StructuralBlock(
         block_type="table",
@@ -353,6 +366,7 @@ def _make_paragraph_block(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> StructuralBlock:
+    """Tạo StructuralBlock loại paragraph cùng ngữ cảnh tài liệu hiện tại."""
     heading_path, item_path = _current_paths(heading_stack, item_stack)
     return StructuralBlock(
         block_type="paragraph",
@@ -366,6 +380,7 @@ def _make_paragraph_block(
 
 
 def _numbered_depth(marker: str) -> int:
+    """Tính độ sâu từ marker đánh số, ví dụ ``1.2.``."""
     normalized = marker.strip().lstrip("(").rstrip(".)/")
     return max(1, len([part for part in normalized.split(".") if part]))
 
@@ -375,6 +390,7 @@ def _resolve_item_level(
     marker: str,
     item_stack: list[StructuralBlock],
 ) -> int:
+    """Xác định cấp cấu trúc của item đánh số, ký tự hoặc bullet."""
     if block_type == "numbered_item":
         return _numbered_depth(marker)
 
@@ -399,6 +415,7 @@ def _has_legal_context(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> bool:
+    """Kiểm tra block hiện tại có nằm trong ngữ cảnh văn bản pháp quy không."""
     return any(
         text.casefold().startswith("điều ") for _, text in heading_stack
     ) or any(
@@ -414,6 +431,7 @@ def _classify_line(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> tuple[StructuralBlock, ValidationReport | None]:
+    """Phân loại một dòng và gắn ngữ cảnh heading/item cùng metadata kiểm tra."""
     candidate = line.strip()
 
     heading_match = MARKDOWN_HEADING_RE.match(candidate)
@@ -515,6 +533,7 @@ def _update_state(
     heading_stack: list[tuple[int, str]],
     item_stack: list[StructuralBlock],
 ) -> None:
+    """Cập nhật stack heading/item sau khi phân loại block hiện tại."""
     if block.block_type == "heading":
         if block.heading_level is None or block.heading_text is None:
             raise ValueError("Heading block is missing heading metadata")

@@ -18,3 +18,5 @@ langchain-openai>=0.2
 python-multipart
 
 boto3
+
+llama-cloud>=2.1

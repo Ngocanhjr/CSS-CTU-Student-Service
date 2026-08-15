@@ -147,6 +147,7 @@ FileType = Literal[
     "image",
     "xlsx",
     "pptx",
+    "ppt",
     "txt",
     "md",
     "html",
@@ -202,8 +203,8 @@ signer_name = Literal[
     "PHT", # Phó hiệu trưởng
     "TT", # Thứ trưởng
     "TP", # Trưởng phòng
-    "CT" # Chủ tịch
-    "GD" #Giám đốc
+    "CT", # Chủ tịch
+    "GD", # Giám đốc
 ]
 
 responsible_department = Literal[

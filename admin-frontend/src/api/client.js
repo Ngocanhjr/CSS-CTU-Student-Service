@@ -32,6 +32,15 @@ async function request(path, options) {
 }
 
 export const api = {
+  runOcr(file) {
+    const body = new FormData();
+    body.append("file", file);
+    return request("/api/v1/admin/ocr", {
+      method: "POST",
+      body,
+    });
+  },
+
   getDatabaseHealth() {
     return request("/api/v1/health/database");
   },

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from mimetypes import guess_type
 from pathlib import Path
 
 from sqlalchemy import select
@@ -50,6 +51,13 @@ SOURCE_TYPE_BY_EXTENSION = {
     ".docx": "docx",
     ".ppt": "ppt",
     ".pptx": "pptx",
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
+    ".tif": "image",
+    ".tiff": "image",
+    ".bmp": "image",
+    ".webp": "image",
     ".md": "md",
     ".markdown": "md",
 }
@@ -60,6 +68,7 @@ SOURCE_CONTENT_TYPES = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "ppt": "application/vnd.ms-powerpoint",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "image": "application/octet-stream",
     "md": "text/markdown; charset=utf-8",
 }
 
@@ -70,7 +79,7 @@ def get_source_type(filename: str, content: bytes) -> tuple[str, str]:
 
     if source_type is None:
         raise ValueError(
-            "File nguồn chỉ hỗ trợ PDF, DOC, DOCX, PPT, PPTX, MD hoặc Markdown"
+            "File nguồn chỉ hỗ trợ PDF, DOC, DOCX, PPT, PPTX, ảnh, MD hoặc Markdown"
         )
 
     if source_type == "pdf" and not content.startswith(b"%PDF-"):
@@ -97,6 +106,18 @@ def get_source_type(filename: str, content: bytes) -> tuple[str, str]:
             raise ValueError(
                 f"File nguồn {source_type.upper()} không hợp lệ"
             )
+
+    if source_type == "image":
+        image_signatures = (
+            b"\x89PNG\r\n\x1a\n",
+            b"\xff\xd8\xff",
+            b"II*\x00",
+            b"MM\x00*",
+            b"BM",
+        )
+        is_webp = content.startswith(b"RIFF") and content[8:12] == b"WEBP"
+        if not is_webp and not any(content.startswith(signature) for signature in image_signatures):
+            raise ValueError("File nguồn ảnh không hợp lệ")
 
     if source_type == "md":
         try:
@@ -210,11 +231,13 @@ async def upload_canonical_document(
             source_filename,
             source_content,
         )
+        source_content_type = guess_type(source_filename)[0] or SOURCE_CONTENT_TYPES[source_type]
         source_bytes = source_content
         source_checksum = sha256(source_content).hexdigest()
     else:
         source_type = "md"
         source_extension = ".md"
+        source_content_type = SOURCE_CONTENT_TYPES[source_type]
         source_bytes = content
         source_checksum = sha256(content).hexdigest()
 
@@ -267,7 +290,7 @@ async def upload_canonical_document(
             create_source_file,
             source_relative_path,
             source_bytes,
-            SOURCE_CONTENT_TYPES[source_type],
+            source_content_type,
         )
         source_created = True
 

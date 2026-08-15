@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileText, Loader2, Upload } from 'lucide-react'
+import { FileScan, FileText, Loader2, Upload } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
 import { useReferenceData } from '../hooks/useReferenceData.js'
@@ -10,7 +10,7 @@ import ResponsibleDepartmentPicker from '../components/ResponsibleDepartmentPick
 const MAX_MARKDOWN_SIZE_MB = 20
 const MAX_SOURCE_SIZE_MB = 100
 const ACCEPTED_EXTENSIONS = ['.md', '.markdown']
-const ACCEPTED_SOURCE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.md', '.markdown']
+const ACCEPTED_SOURCE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp', '.webp', '.md', '.markdown']
 
 function parseVietnameseDate(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
@@ -69,11 +69,14 @@ function getUploadErrorMessage({ name, message = '' }) {
   return message || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.'
 }
 
-export default function UploadStep({ update, goTo }) {
-  const [file, setFile] = useState(null)
-  const [sourceFile, setSourceFile] = useState(null)
+export default function UploadStep({ update, goTo, ocrDraft, onClearOcrDraft, onOpenOcr }) {
+  const [file, setFile] = useState(ocrDraft?.markdownFile || null)
+  const [sourceFile, setSourceFile] = useState(ocrDraft?.sourceFile || null)
   const [departmentCode, setDepartmentCode] = useState('')
-  const [metadata, setMetadata] = useState(EMPTY_METADATA)
+  const [metadata, setMetadata] = useState(() => ({
+    ...EMPTY_METADATA,
+    ...(ocrDraft?.metadata || {}),
+  }))
   const [drag, setDrag] = useState(false)
   const [sourceDrag, setSourceDrag] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -128,6 +131,8 @@ export default function UploadStep({ update, goTo }) {
       return
     }
     setFile(f)
+    setSourceFile(null)
+    onClearOcrDraft()
     setMetadata(EMPTY_METADATA)
 
     try {
@@ -184,6 +189,7 @@ export default function UploadStep({ update, goTo }) {
         }).filter(([, value]) => value !== ''),
       )
       const res = await api.uploadCanonicalMarkdown(file, sourceFile, departmentCode, uploadMetadata)
+      onClearOcrDraft()
       update('upload', res)
       update('review', null)
       update('chunkPreview', null)
@@ -212,11 +218,25 @@ export default function UploadStep({ update, goTo }) {
         {databaseStatus === 'unavailable' && 'Không thể kết nối PostgreSQL'}
       </p>
 
+      <aside className="ocr-entry card" aria-labelledby="ocr-entry-heading">
+        <span className="ocr-entry-icon" aria-hidden="true"><FileScan /></span>
+        <div>
+          <h2 id="ocr-entry-heading">Chưa có file Markdown?</h2>
+          <p>Chuyển PDF, Word, PowerPoint hoặc ảnh thành Markdown trước khi xử lý tài liệu.</p>
+        </div>
+        <button type="button" className="btn" onClick={onOpenOcr}>Mở OCR</button>
+      </aside>
+
       <form className="card upload-form" aria-labelledby="upload-file-heading" onSubmit={(event) => { event.preventDefault(); onUpload() }}>
         <header className="upload-card-head">
           <h2 id="upload-file-heading">Chọn file</h2>
           <span className="file-types">Markdown bắt buộc</span>
         </header>
+        {ocrDraft && (
+          <p className="banner info" role="status">
+            Markdown từ OCR đã sẵn sàng. Kiểm tra metadata rồi bấm Lưu để ghi PostgreSQL và R2.
+          </p>
+        )}
         <div className="upload-fields">
           <fieldset className="form-grid" disabled={referencesLoading}>
             <legend>Thông tin tài liệu</legend>
@@ -331,7 +351,7 @@ export default function UploadStep({ update, goTo }) {
             >
               <span className="dropzone-icon" aria-hidden="true"><FileText /></span>
               <strong>File nguồn <small>(tùy chọn)</small></strong>
-              {sourceFile ? <span className="selected-file"><strong>{sourceFile.name}</strong><small className="hint">{(sourceFile.size / 1024).toFixed(1)} KB</small></span> : <small className="dropzone-meta">PDF, DOC, DOCX, PPT, PPTX hoặc Markdown</small>}
+              {sourceFile ? <span className="selected-file"><strong>{sourceFile.name}</strong><small className="hint">{(sourceFile.size / 1024).toFixed(1)} KB</small></span> : <small className="dropzone-meta">PDF, Word, PowerPoint, ảnh hoặc Markdown</small>}
               <input type="file" className="sr-only" accept={ACCEPTED_SOURCE_EXTENSIONS.join(',')} onChange={(e) => pickSource(e.target.files)} />
             </label>
           </div>
@@ -358,10 +378,10 @@ export default function UploadStep({ update, goTo }) {
           </label>
           <button type="submit" className="btn" disabled={!uploadReady || busy} aria-busy={busy}>
             {busy ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-            {busy ? 'Đang tải lên...' : 'Tải lên'}
+            {busy ? 'Đang lưu...' : 'Lưu và tiếp tục'}
           </button>
           {file && !busy && (
-            <button type="button" className="btn ghost" onClick={() => { setFile(null); setSourceFile(null) }}>
+            <button type="button" className="btn ghost" onClick={() => { setFile(null); setSourceFile(null); onClearOcrDraft() }}>
               Bỏ chọn
             </button>
           )}

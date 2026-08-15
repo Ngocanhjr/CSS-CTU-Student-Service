@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Sidebar from './components/Sidebar.jsx'
 import UploadStep from './steps/UploadStep.jsx'
+import OcrStep from './steps/OcrStep.jsx'
 import ReviewStep from './steps/ReviewStep.jsx'
 import ChunkReviewStep from './steps/ChunkReviewStep.jsx'
 import IngestStep from './steps/IngestStep.jsx'
@@ -43,6 +44,7 @@ function toPipelineMetadata(document) {
 export default function App() {
   const [active, setActive] = useState('upload')
   const [pipeline, setPipeline] = useState(emptyPipeline)
+  const [ocrDraft, setOcrDraft] = useState(null)
   const [editingVersionId, setEditingVersionId] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -64,6 +66,7 @@ export default function App() {
   function reset() {
     setPipeline(emptyPipeline)
     setEditingVersionId(null)
+    setOcrDraft(null)
     setActive('upload')
   }
 
@@ -84,6 +87,11 @@ export default function App() {
   }
 
   const shared = { pipeline, update, goTo: goToWorkflow }
+
+  function continueFromOcr(draft) {
+    setOcrDraft(draft)
+    setActive('upload')
+  }
 
   function openEdit(versionId) {
     setEditingVersionId(versionId)
@@ -187,7 +195,15 @@ export default function App() {
             <WorkflowProgress steps={STEPS} active={active} done={done} locked={workflowLocked} onSelect={goToWorkflow} />
           </header>
           <section className="workspace-content" id="main-content" aria-label="Nội dung quản trị">
-          {active === 'upload' && <UploadStep {...shared} />}
+          {active === 'upload' && (
+            <UploadStep
+              {...shared}
+              ocrDraft={ocrDraft}
+              onClearOcrDraft={() => setOcrDraft(null)}
+              onOpenOcr={() => setActive('ocr')}
+            />
+          )}
+          {active === 'ocr' && <OcrStep onBack={() => setActive('upload')} onContinue={continueFromOcr} />}
           {active === 'review' && <ReviewStep {...shared} />}
           {active === 'chunks' && <ChunkReviewStep {...shared} />}
           {active === 'ingest' && <IngestStep {...shared} />}

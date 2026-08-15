@@ -37,6 +37,7 @@ class ChildUnit:
 
 
 def child_unit_from_item(block: StructuralBlock) -> ChildUnit:
+    """Chuyển item thành ChildUnit và giữ lại metadata cấu trúc."""
     return ChildUnit(
         content=block.raw_content.strip(),
         block_type=block.block_type,
@@ -52,6 +53,7 @@ def child_unit_from_item(block: StructuralBlock) -> ChildUnit:
 
 
 def child_unit_from_block(block: StructuralBlock) -> ChildUnit:
+    """Chuyển block độc lập như paragraph hoặc table thành ChildUnit."""
     if block.block_type not in {"paragraph", "table", "code"}:
         raise ValueError(
             f"Cannot create standalone child unit from {block.block_type!r}"
@@ -77,6 +79,7 @@ def append_block_to_unit(
     unit: ChildUnit,
     block: StructuralBlock,
 ) -> ChildUnit:
+    """Nối nội dung block tiếp theo vào ChildUnit item đang mở."""
     block_content = block.raw_content.strip()
     if not block_content:
         return unit
@@ -92,6 +95,7 @@ def append_block_to_unit(
 def make_heading_content_unit(
     heading: StructuralBlock,
 ) -> ChildUnit:
+    """Tạo ChildUnit tạm cho phần nội dung heading cần giữ làm ngữ cảnh."""
     return ChildUnit(
         content=heading.raw_content.strip(),
         block_type="heading",
@@ -109,6 +113,7 @@ def make_heading_content_unit(
 def build_structural_child_units(
     section: ParentSection,
 ) -> tuple[list[ChildUnit], list[ValidationReport]]:
+    """Gom StructuralBlock thành ChildUnit theo cấu trúc tài liệu."""
     units: list[ChildUnit] = []
     reports: list[ValidationReport] = []
     current_item: ChildUnit | None = None
@@ -180,6 +185,7 @@ def build_child_splitter(
     child_chunk_size: int,
     child_chunk_overlap: int,
 ) -> RecursiveCharacterTextSplitter:
+    """Tạo bộ tách text cho ChildUnit vượt giới hạn kích thước."""
     return RecursiveCharacterTextSplitter(
         chunk_size=child_chunk_size,
         chunk_overlap=child_chunk_overlap,
@@ -199,6 +205,7 @@ def split_long_child_unit(
     child_chunk_size: int,
     child_chunk_overlap: int,
 ) -> list[ChildUnit]:
+    """Tách ChildUnit dài thành nhiều phần và giữ metadata item."""
     if len(unit.content) <= child_chunk_size:
         return [unit]
 
@@ -229,6 +236,7 @@ def group_short_bullet_units(
     *,
     child_chunk_size: int,
 ) -> list[ChildUnit]:
+    """Gộp các bullet ngắn cùng nhóm khi chưa vượt giới hạn kích thước."""
     result: list[ChildUnit] = []
     group: list[ChildUnit] = []
 
@@ -300,6 +308,7 @@ def split_table_child_unit(
     *,
     child_chunk_size: int,
 ) -> list[ChildUnit]:
+    """Tách table lớn thành các ChildUnit nhỏ hơn."""
     contents = split_large_table_block(
         unit.content,
         max_size=child_chunk_size,
@@ -324,6 +333,7 @@ def split_table_child_unit(
 def parse_fenced_code(
     content: str,
 ) -> tuple[str, str, list[str], str]:
+    """Tách fenced code thành ngôn ngữ, nội dung và phần mở/đóng fence."""
     lines = content.strip().splitlines()
 
     if len(lines) < 2:
@@ -358,6 +368,7 @@ def group_complete_lines(
     *,
     max_size: int,
 ) -> list[list[str]]:
+    """Gom các dòng code hoàn chỉnh mà không cắt giữa một dòng."""
     if max_size <= 0:
         return [lines]
 
@@ -386,6 +397,7 @@ def split_code_child_unit(
     *,
     child_chunk_size: int,
 ) -> list[ChildUnit]:
+    """Tách code block dài theo các nhóm dòng hoàn chỉnh."""
     if len(unit.content) <= child_chunk_size:
         return [unit]
 
@@ -437,6 +449,7 @@ def build_child_units(
     child_chunk_size: int,
     child_chunk_overlap: int,
 ) -> tuple[list[ChildUnit], list[ValidationReport]]:
+    """Điều phối việc tạo, gộp và tách ChildUnit của một ParentSection."""
     units, reports = build_structural_child_units(section)
 
     units = group_short_bullet_units(
@@ -486,6 +499,7 @@ def make_child_chunks(
     child_start_index: int,
     chunk_start_index: int,
 ) -> list[Chunk]:
+    """Chuyển ChildUnit thành Chunk có thứ tự và liên kết tới Parent."""
     if parent_chunk.chunk_type != "parent":
         raise ValueError("Child chunks require a parent chunk")
 

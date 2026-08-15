@@ -1,0 +1,327 @@
+## STRUCTURAL HIERARCHY
+
+Infer the document's TRUE SEMANTIC HIERARCHY from numbering, numbering ancestry, siblings, surrounding structure, and document organization.
+
+Do not rely on typography alone.
+
+Determine parent-child relationships first, then assign Markdown heading levels according to RELATIVE structural depth.
+
+Structural hierarchy has higher priority than font size, boldness, italics, indentation, centering, visual prominence, and physical page position.
+
+Strong structural indicators include:
+
+* major document titles such as QUYẾT ĐỊNH, QUY ĐỊNH, QUY CHẾ, HƯỚNG DẪN, THÔNG BÁO, KẾ HOẠCH, NỘI QUY;
+* PHẦN;
+* CHƯƠNG;
+* Roman numeral sections such as I., II., III., IV.;
+* Điều;
+* hierarchical decimal identifiers such as 1.1, 1.2, 2.3;
+* parenthesized hierarchical identifiers such as (1.1), (1.2), (5.1);
+* deeper identifiers such as (1.3.1), (5.2.1), (5.2.6).
+
+Heading levels are RELATIVE to the actual parent-child structure.
+
+For example:
+
+DOCUMENT TITLE
+└── I.
+└── 1.
+└── (1.1)
+└── (1.1.1)
+
+should become:
+
+# DOCUMENT TITLE
+
+## I.
+
+### 1.
+
+#### (1.1)
+
+##### (1.1.1)
+
+However, do not permanently bind one numbering syntax to one Markdown heading level.
+
+For example, `Điều 1.` may be directly under a document title in one document, but may be under CHƯƠNG in another document.
+
+Assign heading levels from actual structural depth.
+
+## NUMERIC ANCESTRY
+
+Use numeric prefixes as one of the strongest signals for parent-child hierarchy.
+
+Examples:
+
+(1.3.1) is a direct child of (1.3).
+
+(5.2.1) is a direct child of (5.2).
+
+(5.2.6) is a sibling of (5.2.1).
+
+(5.1), (5.2), and (5.3) are siblings under section 5.
+
+(1.1), (1.2), and (1.3) are siblings under section 1 when the surrounding structure supports that interpretation.
+
+For a hierarchy such as:
+
+5.
+
+├── (5.1)
+│   ├── (5.1.1)
+│   └── (5.1.2)
+├── (5.2)
+│   ├── (5.2.1)
+│   └── (5.2.2)
+└── (5.3)
+├── (5.3.1)
+└── (5.3.2)
+
+all `(5.x)` nodes are siblings and MUST use the same Markdown heading level.
+
+All `(5.x.y)` nodes are children of their matching `(5.x)` parent.
+
+## STRICT PARENT-CHILD DEPTH
+
+A direct structural child MUST be exactly one Markdown heading level deeper than its direct structural parent.
+
+For example:
+
+If:
+
+#### (5.1)
+
+then its direct children must be:
+
+##### (5.1.1)
+
+##### (5.1.2)
+
+##### (5.1.3)
+
+If:
+
+#### (5.2)
+
+then its direct children must be:
+
+##### (5.2.1)
+
+##### (5.2.2)
+
+##### (5.2.3)
+
+If:
+
+#### (5.3)
+
+then its direct children must be:
+
+##### (5.3.1)
+
+##### (5.3.2)
+
+##### (5.3.3)
+
+Never output a direct parent and its numeric child at the same heading level.
+
+Incorrect:
+
+#### (5.2)
+
+#### (5.2.1)
+
+Correct:
+
+#### (5.2)
+
+##### (5.2.1)
+
+This rule applies consistently to any hierarchical numbering pattern.
+
+## SIBLING CONSISTENCY
+
+Structural siblings sharing the same parent and numbering family MUST use the same Markdown heading level.
+
+For example:
+
+(5.1)
+(5.2)
+(5.3)
+
+must use the same structural level when they are siblings under section 5.
+
+Likewise:
+
+(5.2.1)
+(5.2.2)
+(5.2.3)
+
+must use the same structural level.
+
+Never produce inconsistent sibling structures such as:
+
+#### (5.1)
+
+### (5.2)
+
+#### (5.3)
+
+when all three are siblings.
+
+If one item in a sequential sibling family has already established the structural level, preserve that level for the remaining matching siblings unless there is strong evidence of a different parent.
+
+## CROSS-PAGE SIBLING CONTINUITY
+
+A physical page boundary MUST NOT reset, promote, demote, or otherwise change an established hierarchy.
+
+If a numbered sibling sequence continues across a page boundary, the items after the page break MUST retain exactly the same Markdown heading level as the matching siblings before the page break.
+
+Example:
+
+##### (5.3.1)
+
+[PAGE BREAK]
+
+(5.3.2)
+(5.3.3)
+(5.3.4)
+
+MUST become:
+
+##### (5.3.1)
+
+##### (5.3.2)
+
+##### (5.3.3)
+
+##### (5.3.4)
+
+It is incorrect to output:
+
+##### (5.3.1)
+
+#### (5.3.2)
+
+or:
+
+##### (5.3.1)
+
+(5.3.2)
+
+A page break does not create a new parent and does not reset numbering ancestry.
+
+Before assigning a heading level to a numbered item after a page break, inspect the active hierarchy and its matching numbered siblings from the preceding page.
+
+## OPERATIVE ARTICLES
+
+A sequential group of Điều 1., Điều 2., Điều 3., ... containing operative provisions is structural.
+
+When multiple Điều siblings occur sequentially, represent them as Markdown headings at the same structural level.
+
+Their heading level must be determined RELATIVELY from their actual parent.
+
+For example, when Điều 1., Điều 2., Điều 3. are direct children of a QUYẾT ĐỊNH document, they should be sibling headings directly below that document.
+
+Administrative authority names, recipient blocks, dates, signatures, document numbers, or similar metadata do NOT automatically create a structural parent for an Điều sequence.
+
+Do not let visual formatting of administrative authority lines change the structural parent of Điều items.
+
+## AMBIGUOUS SIMPLE NUMBERING
+
+Patterns such as:
+
+1.
+2.
+3.
+
+A.
+B.
+a.
+
+may represent either structural headings or ordinary list items.
+
+Do NOT classify them solely from syntax.
+
+Treat them as structural headings only when surrounding evidence supports that interpretation.
+
+Useful structural evidence includes:
+
+* sequential sibling numbering;
+* subordinate numbered content;
+* an established parent section;
+* short section-like wording;
+* substantial content introduced below the item;
+* consistent formatting with sibling structural sections.
+
+A simple numbered item that contains subordinate identifiers is strong evidence that it is structural.
+
+For example:
+
+1. Tiêu chuẩn Đạo đức tốt
+
+(1.1) ...
+(1.2) ...
+(1.3) ...
+
+should be interpreted structurally as:
+
+### 1. Tiêu chuẩn Đạo đức tốt
+
+#### (1.1) ...
+
+#### (1.2) ...
+
+#### (1.3) ...
+
+Patterns such as:
+
+1.
+
+A)
+A/
+a)
+a/
+
+are ordinary list items by default.
+
+`a.` is also an ordinary item by default unless surrounding document structure provides unusually strong evidence that it is a structural section.
+
+Do not convert ordinary list items into headings merely because they are short, bold, indented, or visually emphasized.
+
+## PAGE FURNITURE
+
+Physical page numbers, headers, footers, and similar page furniture are not semantic structural nodes.
+
+Do not use them to reset hierarchy.
+
+Do not promote or demote surrounding headings because of page furniture.
+
+If an isolated printed page number is clearly only page furniture, do not treat it as document content or as a structural section.
+
+## TABLES
+
+Preserve actual tables as Markdown tables.
+
+Keep tables attached to the structural section or criterion that introduces them.
+
+Do not let a table interrupt or reset the active hierarchy.
+
+If a section continues after a table, preserve the same parent-child structure.
+
+## FINAL CONSISTENCY CHECK
+
+Before returning Markdown, verify the document hierarchy globally:
+
+1. Every structural child is deeper than its parent.
+2. A direct structural child is exactly one Markdown heading level deeper than its direct parent.
+3. Structural siblings use the same Markdown heading level.
+4. Numeric prefixes preserve parent-child ancestry.
+5. Page boundaries do not reset hierarchy.
+6. Continued numbered siblings after a page break retain the same heading level as siblings before the break.
+7. A numbering sequence is interpreted consistently throughout the document.
+8. Điều siblings are represented consistently when they form operative structural sections.
+9. Ambiguous simple numbering is promoted only when contextual evidence supports section status.
+10. Tables and page furniture do not alter the semantic hierarchy.
+
+Return the parsed document as Markdown.

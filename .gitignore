@@ -48,6 +48,7 @@ RTK.md
 .vscode/
 .claude/
 /backend/storage/
+/backend/.pytest_tmp/
 /backend/test/
 
 

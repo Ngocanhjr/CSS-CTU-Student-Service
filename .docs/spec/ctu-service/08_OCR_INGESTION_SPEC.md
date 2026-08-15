@@ -1,23 +1,26 @@
 # 08. Đặc Tả Ingestion Pipeline
 
-**Version:** 4.0
+**Version:** 5.0
 **Status:** Final
 
 ## Scope
 
-OCR/LlamaParse chạy **bên ngoài** backend này. Backend nhận canonical Markdown đã được
-OCR và review từ trước, sau đó tiến hành phần còn lại của RAG pipeline.
+Backend hỗ trợ hai đầu vào cho admin: upload Markdown có sẵn, hoặc upload file nguồn
+vào trang OCR riêng. OCR dùng `app/ocr` và chỉ giữ file tạm trong thời gian request;
+không ghi PostgreSQL/R2 trước khi admin review Markdown và bấm Lưu.
 
 ## Pipeline (backend scope)
 
 ```text
-1. Nhận canonical Markdown + YAML metadata (đã OCR và review bên ngoài)
-2. Create ingestion_jobs row
-3. Validate metadata
-4. Chunk with LangChain / langchain-text-splitters
-5. Embed with BAAI/bge-m3
-6. Upsert to Qdrant
-7. Set rag_status = published
+1. Nếu chưa có Markdown: admin upload file nguồn tại trang OCR
+2. `POST /api/v1/admin/ocr` gọi `app/ocr`, trả Markdown; chưa persistence
+3. Admin review/chỉnh Markdown, chuyển sang form metadata
+4. Admin bấm Lưu; `POST /api/v1/admin/canonical-markdown` lưu source + canonical Markdown vào R2 và document/version/job vào PostgreSQL
+5. Validate metadata và approve review
+6. Chunk with LangChain / langchain-text-splitters
+7. Embed with BAAI/bge-m3
+8. Upsert to Qdrant
+9. Set `rag_status = indexed`; publish là thao tác riêng
 ```
 
 ## Yêu cầu canonical Markdown đầu vào
