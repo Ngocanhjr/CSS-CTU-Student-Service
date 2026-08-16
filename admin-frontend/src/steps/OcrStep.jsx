@@ -1,10 +1,11 @@
-import { ArrowLeft, FileCheck2, FileScan, Loader2, Upload } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft, ExternalLink, FileCheck2, FileScan, Loader2, Upload } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
 import { useReferenceData } from '../hooks/useReferenceData.js'
 import DocumentMetadataForm, {
   EMPTY_METADATA,
+  formatVietnameseDate,
   getMetadataValidation,
   getUploadErrorMessage,
   prepareUploadMetadata,
@@ -23,10 +24,23 @@ export default function OcrStep({ onBack, update, goTo }) {
   const [saving, setSaving] = useState(false)
   const [markdown, setMarkdown] = useState('')
   const [metadata, setMetadata] = useState(EMPTY_METADATA)
+  const [ocrMetadata, setOcrMetadata] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState('')
   const [departmentCode, setDepartmentCode] = useState('')
   const { documentTypes, departments, enumOptions, loading: referencesLoading } = useReferenceData()
   const { complete: metadataComplete } = getMetadataValidation(metadata)
   const saveReady = Boolean(markdown.trim() && file && departmentCode && metadataComplete)
+
+  useEffect(() => {
+    if (!markdown) {
+      setPreviewUrl('')
+      return undefined
+    }
+
+    const url = URL.createObjectURL(new Blob([markdown], { type: 'text/plain;charset=utf-8' }))
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [markdown])
 
   function selectFile(selectedFile) {
     if (!selectedFile) return
@@ -42,6 +56,7 @@ export default function OcrStep({ onBack, update, goTo }) {
     setFile(selectedFile)
     setMarkdown('')
     setMetadata(EMPTY_METADATA)
+    setOcrMetadata(null)
     setDepartmentCode('')
   }
 
@@ -52,6 +67,27 @@ export default function OcrStep({ onBack, update, goTo }) {
     try {
       const result = await api.runOcr(file)
       setMarkdown(result.markdown)
+      const suggested = result.metadata || {}
+      setOcrMetadata(suggested)
+      setMetadata({
+        ...EMPTY_METADATA,
+        title: suggested.title || '',
+        document_key: suggested.document_key || '',
+        version_key: suggested.version_key || '',
+        document_type: documentTypes.some(({ code }) => code === suggested.document_type)
+          ? suggested.document_type
+          : '',
+        domain: enumOptions.domains.includes(suggested.domain) ? suggested.domain : 'unknown',
+        audience: Array.isArray(suggested.audience) ? suggested.audience : [],
+        responsible_department: Array.isArray(suggested.responsible_department)
+          ? suggested.responsible_department
+          : [],
+        code: suggested.code || '',
+        issued_date: formatVietnameseDate(suggested.issued_date),
+        effective_date: formatVietnameseDate(suggested.effective_date),
+        source_url: suggested.source_url || '',
+        notes: suggested.notes || '',
+      })
       toast.success('OCR hoàn tất. Hãy kiểm tra Markdown và nhập thông tin tài liệu.')
     } catch (error) {
       toast.error(error.message || 'OCR thất bại; vui lòng thử lại.')
@@ -146,6 +182,24 @@ export default function OcrStep({ onBack, update, goTo }) {
                 <h2 id="ocr-metadata-heading">Thông tin tài liệu</h2>
                 <p>Nhập metadata để lưu file nguồn, canonical Markdown và tạo version tài liệu.</p>
               </header>
+              <div className="ocr-result-tools">
+                <dl className="ocr-technical-metadata">
+                  <div>
+                    <dt>Checksum SHA-256</dt>
+                    <dd><code>{ocrMetadata?.checksum || 'Chưa có'}</code></dd>
+                  </div>
+                </dl>
+                {previewUrl && (
+                  <a
+                    className="btn ghost"
+                    href={previewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink size={16} /> Xem nhanh bản OCR đầy đủ
+                  </a>
+                )}
+              </div>
               <div className="upload-fields">
                 <DocumentMetadataForm
                   metadata={metadata}

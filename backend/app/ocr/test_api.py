@@ -10,7 +10,12 @@ def test_ocr_endpoint_returns_markdown_without_persistence(monkeypatch) -> None:
 
     def fake_ocr_document(path, *, source_filename):
         assert path.read_bytes() == b"%PDF-test"
-        return OcrDocumentResponse(source_filename=source_filename, markdown="# OCR\n")
+        assert path.name == "Phiếu đăng ký.pdf"
+        return OcrDocumentResponse(
+            source_filename=source_filename,
+            markdown="---\ndocument_key: ctu-phieu-dang-ky\n---\n# OCR\n",
+            metadata={"document_key": "ctu-phieu-dang-ky"},
+        )
 
     monkeypatch.setattr("app.api.ocr.ocr_document", fake_ocr_document)
     app = FastAPI()
@@ -18,8 +23,9 @@ def test_ocr_endpoint_returns_markdown_without_persistence(monkeypatch) -> None:
 
     response = TestClient(app).post(
         "/api/v1/admin/ocr",
-        files={"file": ("source.pdf", b"%PDF-test", "application/pdf")},
+        files={"file": ("Phiếu đăng ký.pdf", b"%PDF-test", "application/pdf")},
     )
 
     assert response.status_code == 200
-    assert response.json()["markdown"] == "# OCR\n"
+    assert response.json()["source_filename"] == "Phiếu đăng ký.pdf"
+    assert response.json()["metadata"]["document_key"] == "ctu-phieu-dang-ky"

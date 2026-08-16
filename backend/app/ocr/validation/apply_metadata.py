@@ -142,7 +142,7 @@ def now_iso() -> str:
 
 
 def strip_accents(value: str) -> str:
-    normalized = unicodedata.normalize("NFD", value)
+    normalized = unicodedata.normalize("NFD", value.replace("Đ", "D").replace("đ", "d"))
     without_marks = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
     return unicodedata.normalize("NFC", without_marks)
 

@@ -11,6 +11,54 @@ GET /api/v1/health/database
 Returns `{"status":"available"}` when PostgreSQL answers `SELECT 1`, otherwise
 `{"status":"unavailable"}`. This endpoint is informational and always returns HTTP 200.
 
+## Admin OCR
+
+```http
+POST /api/v1/admin/ocr
+```
+
+- Multipart input: one supported source file.
+- The temporary file keeps the sanitized original basename so generated keys
+  are based on the real filename.
+- Response: `source_filename`, complete `markdown` with YAML front matter,
+  parsed `metadata`, `parser`, `ocr_engine`, and `language`.
+- Generated technical metadata includes `document_key`, `version_key`, and the
+  SHA-256 `checksum` of the source file.
+- The endpoint does not write PostgreSQL or R2. Canonical paths and checksum
+  are validated/generated again when the admin saves the document.
+
+## Admin OCR
+
+```http
+POST /api/v1/admin/ocr
+```
+
+- Multipart input: one supported source file.
+- The temporary file keeps the sanitized original basename so generated keys
+  are based on the real filename.
+- Response: `source_filename`, complete `markdown` with YAML front matter,
+  parsed `metadata`, `parser`, `ocr_engine`, and `language`.
+- Generated technical metadata includes `document_key`, `version_key`, and the
+  SHA-256 `checksum` of the source file.
+- The endpoint does not write PostgreSQL or R2. Canonical paths and checksum
+  are validated/generated again when the admin saves the document.
+
+## Admin OCR
+
+```http
+POST /api/v1/admin/ocr
+```
+
+- Multipart input: one supported source file.
+- The temporary file keeps the sanitized original basename so generated keys
+  are based on the real filename.
+- Response: `source_filename`, complete `markdown` with YAML front matter,
+  parsed `metadata`, `parser`, `ocr_engine`, and `language`.
+- Generated technical metadata includes `document_key`, `version_key`, and the
+  SHA-256 `checksum` of the source file.
+- The endpoint does not write PostgreSQL or R2. Canonical paths and checksum
+  are validated/generated again when the admin saves the document.
+
 ## RAG answer
 
 ```http

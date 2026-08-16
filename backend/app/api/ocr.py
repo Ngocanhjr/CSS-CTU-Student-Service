@@ -19,7 +19,8 @@ async def run_ocr(file: UploadFile = File(...)) -> OcrDocumentResponse:
     if not file.filename:
         raise HTTPException(status_code=400, detail="Tên file OCR bị thiếu")
 
-    suffix = Path(file.filename).suffix.lower()
+    source_filename = Path(file.filename).name
+    suffix = Path(source_filename).suffix.lower()
     if suffix not in SUPPORTED_INPUT_EXTENSIONS:
         supported = ", ".join(sorted(SUPPORTED_INPUT_EXTENSIONS))
         raise HTTPException(status_code=422, detail=f"Định dạng OCR không hỗ trợ. Dùng: {supported}")
@@ -35,12 +36,13 @@ async def run_ocr(file: UploadFile = File(...)) -> OcrDocumentResponse:
             raise ValueError(f"File OCR vượt quá {MAX_SOURCE_BYTES // 1024 // 1024} MB")
 
         with TemporaryDirectory(prefix="ctu-ocr-") as temporary_directory:
-            input_path = Path(temporary_directory) / f"source{suffix}"
+            # Giữ basename gốc để apply_metadata sinh document_key đúng.
+            input_path = Path(temporary_directory) / source_filename
             input_path.write_bytes(content)
             return await run_in_threadpool(
                 ocr_document,
                 input_path,
-                source_filename=Path(file.filename).name,
+                source_filename=source_filename,
             )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
