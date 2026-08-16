@@ -1129,40 +1129,6 @@ textarea {
   border-top: 1px solid var(--border);
 }
 
-.ocr-metadata {
-  display: grid;
-  gap: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-}
-
-.ocr-result-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--panel-2);
-}
-
-.ocr-technical-metadata,
-.ocr-technical-metadata div,
-.ocr-technical-metadata dd {
-  margin: 0;
-}
-
-.ocr-technical-metadata dt {
-  color: var(--muted);
-  font-size: var(--text-sm);
-}
-
-.ocr-technical-metadata dd {
-  overflow-wrap: anywhere;
-}
-
 .ocr-save-actions {
   display: flex;
   flex: 1;

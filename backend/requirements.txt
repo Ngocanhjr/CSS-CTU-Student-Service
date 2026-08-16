@@ -20,3 +20,4 @@ python-multipart
 boto3
 
 llama-cloud>=2.1
+llama-cloud

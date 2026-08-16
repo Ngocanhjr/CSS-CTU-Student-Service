@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -12,6 +13,7 @@ from app.schemas.ocr import OcrDocumentResponse
 
 
 router = APIRouter(prefix="/admin/ocr", tags=["admin-ocr"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("", response_model=OcrDocumentResponse)
@@ -49,6 +51,7 @@ async def run_ocr(file: UploadFile = File(...)) -> OcrDocumentResponse:
     except HTTPException:
         raise
     except Exception as exc:
+        logger.exception("OCR failed for source file %s", source_filename)
         raise HTTPException(status_code=502, detail="OCR thất bại; vui lòng thử lại") from exc
     finally:
         await file.close()

@@ -1,14 +1,10 @@
-import { ArrowLeft, ExternalLink, FileCheck2, FileScan, Loader2, Upload } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, FileCheck2, FileScan, Loader2, Upload } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'react-toastify'
 import { api } from '../api/client.js'
 import { useReferenceData } from '../hooks/useReferenceData.js'
-import DocumentMetadataForm, {
-  EMPTY_METADATA,
-  formatVietnameseDate,
-  getMetadataValidation,
+import {
   getUploadErrorMessage,
-  prepareUploadMetadata,
   SourceDepartmentField,
 } from '../components/DocumentMetadataForm.jsx'
 import LineNumberedTextarea from '../components/LineNumberedTextarea.jsx'
@@ -23,24 +19,9 @@ export default function OcrStep({ onBack, update, goTo }) {
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
   const [markdown, setMarkdown] = useState('')
-  const [metadata, setMetadata] = useState(EMPTY_METADATA)
-  const [ocrMetadata, setOcrMetadata] = useState(null)
-  const [previewUrl, setPreviewUrl] = useState('')
   const [departmentCode, setDepartmentCode] = useState('')
-  const { documentTypes, departments, enumOptions, loading: referencesLoading } = useReferenceData()
-  const { complete: metadataComplete } = getMetadataValidation(metadata)
-  const saveReady = Boolean(markdown.trim() && file && departmentCode && metadataComplete)
-
-  useEffect(() => {
-    if (!markdown) {
-      setPreviewUrl('')
-      return undefined
-    }
-
-    const url = URL.createObjectURL(new Blob([markdown], { type: 'text/plain;charset=utf-8' }))
-    setPreviewUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [markdown])
+  const { departments, loading: referencesLoading } = useReferenceData()
+  const saveReady = Boolean(markdown.trim() && file && departmentCode)
 
   function selectFile(selectedFile) {
     if (!selectedFile) return
@@ -55,8 +36,6 @@ export default function OcrStep({ onBack, update, goTo }) {
     }
     setFile(selectedFile)
     setMarkdown('')
-    setMetadata(EMPTY_METADATA)
-    setOcrMetadata(null)
     setDepartmentCode('')
   }
 
@@ -67,37 +46,12 @@ export default function OcrStep({ onBack, update, goTo }) {
     try {
       const result = await api.runOcr(file)
       setMarkdown(result.markdown)
-      const suggested = result.metadata || {}
-      setOcrMetadata(suggested)
-      setMetadata({
-        ...EMPTY_METADATA,
-        title: suggested.title || '',
-        document_key: suggested.document_key || '',
-        version_key: suggested.version_key || '',
-        document_type: documentTypes.some(({ code }) => code === suggested.document_type)
-          ? suggested.document_type
-          : '',
-        domain: enumOptions.domains.includes(suggested.domain) ? suggested.domain : 'unknown',
-        audience: Array.isArray(suggested.audience) ? suggested.audience : [],
-        responsible_department: Array.isArray(suggested.responsible_department)
-          ? suggested.responsible_department
-          : [],
-        code: suggested.code || '',
-        issued_date: formatVietnameseDate(suggested.issued_date),
-        effective_date: formatVietnameseDate(suggested.effective_date),
-        source_url: suggested.source_url || '',
-        notes: suggested.notes || '',
-      })
-      toast.success('OCR hoàn tất. Hãy kiểm tra Markdown và nhập thông tin tài liệu.')
+      toast.success('OCR hoàn tất. Hãy kiểm tra YAML và nội dung Markdown.')
     } catch (error) {
       toast.error(error.message || 'OCR thất bại; vui lòng thử lại.')
     } finally {
       setBusy(false)
     }
-  }
-
-  function setMetadataField(key, value) {
-    setMetadata((current) => ({ ...current, [key]: value }))
   }
 
   async function saveAndContinue() {
@@ -110,9 +64,8 @@ export default function OcrStep({ onBack, update, goTo }) {
     )
     setSaving(true)
     try {
-      const uploadMetadata = prepareUploadMetadata(metadata)
-      if (ocrMetadata?.parser) uploadMetadata.parser = ocrMetadata.parser
-      if (ocrMetadata?.ocr_engine) uploadMetadata.ocr_engine = ocrMetadata.ocr_engine
+      const preview = await api.previewMarkdownMetadata(markdownFile)
+      const uploadMetadata = preview.metadata || {}
 
       const result = await api.uploadCanonicalMarkdown(
         markdownFile,
@@ -181,49 +134,13 @@ export default function OcrStep({ onBack, update, goTo }) {
 
         {markdown && (
           <>
-            <section className="ocr-metadata" aria-labelledby="ocr-metadata-heading">
-              <header>
-                <h2 id="ocr-metadata-heading">Thông tin tài liệu</h2>
-                <p>Nhập metadata để lưu file nguồn, canonical Markdown và tạo version tài liệu.</p>
-              </header>
-              <div className="ocr-result-tools">
-                <dl className="ocr-technical-metadata">
-                  <div>
-                    <dt>Checksum SHA-256</dt>
-                    <dd><code>{ocrMetadata?.checksum || 'Chưa có'}</code></dd>
-                  </div>
-                </dl>
-                {previewUrl && (
-                  <a
-                    className="btn ghost"
-                    href={previewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <ExternalLink size={16} /> Xem nhanh bản OCR đầy đủ
-                  </a>
-                )}
-              </div>
-              <div className="upload-fields">
-                <DocumentMetadataForm
-                  metadata={metadata}
-                  onChange={setMetadataField}
-                  documentTypes={documentTypes}
-                  departments={departments}
-                  enumOptions={enumOptions}
-                  loading={referencesLoading}
-                  idPrefix="ocr"
-                />
-                <SourceDepartmentField
-                  departments={departments}
-                  value={departmentCode}
-                  onChange={setDepartmentCode}
-                  loading={referencesLoading}
-                  idPrefix="ocr"
-                />
-              </div>
-            </section>
-
+            <SourceDepartmentField
+              departments={departments}
+              value={departmentCode}
+              onChange={setDepartmentCode}
+              loading={referencesLoading}
+              idPrefix="ocr"
+            />
             <section className="ocr-review" aria-labelledby="ocr-review-heading">
               <header>
                 <h2 id="ocr-review-heading">Review Markdown</h2>
@@ -258,11 +175,6 @@ export default function OcrStep({ onBack, update, goTo }) {
                 {saving ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
                 {saving ? 'Đang lưu...' : 'Lưu và tiếp tục'}
               </button>
-              {!saveReady && (
-                <span className="hint">
-                  Nhập các trường bắt buộc, ít nhất một ngày ban hành/ngày hiệu lực, phòng ban phụ trách và phòng ban nguồn để lưu.
-                </span>
-              )}
             </div>
           )}
         </nav>
