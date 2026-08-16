@@ -110,11 +110,15 @@ export default function OcrStep({ onBack, update, goTo }) {
     )
     setSaving(true)
     try {
+      const uploadMetadata = prepareUploadMetadata(metadata)
+      if (ocrMetadata?.parser) uploadMetadata.parser = ocrMetadata.parser
+      if (ocrMetadata?.ocr_engine) uploadMetadata.ocr_engine = ocrMetadata.ocr_engine
+
       const result = await api.uploadCanonicalMarkdown(
         markdownFile,
         file,
         departmentCode,
-        prepareUploadMetadata(metadata),
+        uploadMetadata,
       )
       update('upload', result)
       update('review', null)
