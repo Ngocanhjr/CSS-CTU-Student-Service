@@ -43,9 +43,20 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
     }
   }
 
-  function approvePreview() {
-    update('chunkApproved', true)
-    goTo('ingest')
+  async function approvePreview() {
+    if (!preview || errors.length > 0) return
+    setBusy(true)
+    try {
+      const approval = await api.approveChunks(upload.document_version_id)
+      update('chunkApproved', approval.approved)
+      toast.success(`Đã lưu và approve ${approval.total_chunks} chunks vào PostgreSQL.`)
+      goTo('ingest')
+    } catch (err) {
+      update('chunkApproved', false)
+      toast.error(err.message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   function openCanonical(event) {
@@ -75,6 +86,11 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
         <button type="button" className="btn" disabled={busy} onClick={createPreview}>
           {busy ? 'Đang tạo preview…' : preview ? 'Tạo lại preview' : 'Tạo chunk preview'}
         </button>
+        {pipeline.chunkApproved && !preview && (
+          <button type="button" className="btn ghost" onClick={() => goTo('ingest')}>
+            Tiếp tục Index & publish →
+          </button>
+        )}
       </section>
 
       {preview && (
@@ -146,7 +162,9 @@ export default function ChunkReviewStep({ pipeline, update, goTo }) {
 
           <nav className="foot-nav" aria-label="Duyệt chunk preview">
             <button type="button" className="btn ghost" onClick={() => goTo('review')}>← Sửa Markdown</button>
-            <button type="button" className="btn" disabled={errors.length > 0} onClick={approvePreview}>Approve chunks và tiếp tục →</button>
+            <button type="button" className="btn" disabled={busy || errors.length > 0} onClick={approvePreview}>
+              {busy ? 'Đang lưu chunks…' : 'Lưu và approve chunks →'}
+            </button>
           </nav>
         </>
       )}

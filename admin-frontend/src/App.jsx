@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Sidebar from './components/Sidebar.jsx'
 import UploadStep from './steps/UploadStep.jsx'
+import OcrStep from './steps/OcrStep.jsx'
 import ReviewStep from './steps/ReviewStep.jsx'
 import ChunkReviewStep from './steps/ChunkReviewStep.jsx'
 import IngestStep from './steps/IngestStep.jsx'
@@ -112,7 +113,7 @@ export default function App() {
         metadata,
       },
       chunkPreview: null,
-      chunkApproved: false,
+      chunkApproved: Boolean(document.chunks_approved),
       ingest: null,
     }))
     setActive('chunks')
@@ -187,7 +188,13 @@ export default function App() {
             <WorkflowProgress steps={STEPS} active={active} done={done} locked={workflowLocked} onSelect={goToWorkflow} />
           </header>
           <section className="workspace-content" id="main-content" aria-label="Nội dung quản trị">
-          {active === 'upload' && <UploadStep {...shared} />}
+          {active === 'upload' && (
+            <UploadStep
+              {...shared}
+              onOpenOcr={() => setActive('ocr')}
+            />
+          )}
+          {active === 'ocr' && <OcrStep {...shared} onBack={() => setActive('upload')} />}
           {active === 'review' && <ReviewStep {...shared} />}
           {active === 'chunks' && <ChunkReviewStep {...shared} />}
           {active === 'ingest' && <IngestStep {...shared} />}

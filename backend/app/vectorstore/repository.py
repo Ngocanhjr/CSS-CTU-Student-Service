@@ -104,17 +104,11 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
     conditions = [
         FieldCondition(key="review_status", match=MatchValue(value="approved")),
         FieldCondition(key="rag_status", match=MatchValue(value="published")),
+        FieldCondition(key="is_latest", match=MatchValue(value=True)),
         FieldCondition(key="audience_student", match=MatchValue(value=True)),
         FieldCondition(key="chunk_type", match=MatchValue(value="child")),
     ]
 
-    if filters.audience:
-        conditions.append(
-            FieldCondition(
-                key="audience",
-                match=MatchValue(value=filters.audience),
-            )
-        )
     if filters.document_type:
         conditions.append(
             FieldCondition(
@@ -173,9 +167,6 @@ def build_context_filter(filters: RetrievalFilter | None = None) -> Filter | Non
                 match=MatchValue(value=filters.audience),
             )
         )
-
-    if not conditions:
-        return None
 
     return Filter(must=conditions)
 
@@ -295,24 +286,33 @@ def delete_points_by_version(
     *,
     version_key: str,
     collection_name: str = COLLECTION_NAME,
-) -> None:
+) -> int:
     collections = client.get_collections().collections
     if collection_name not in {collection.name for collection in collections}:
-        return
+        return 0
+
+    version_filter = Filter(
+        must=[
+            FieldCondition(
+                key="version_key",
+                match=MatchValue(value=version_key),
+            )
+        ]
+    )
+    count = client.count(
+        collection_name=collection_name,
+        count_filter=version_filter,
+        exact=True,
+    ).count
 
     client.delete(
         collection_name=collection_name,
         points_selector=FilterSelector(
-            filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="version_key",
-                        match=MatchValue(value=version_key),
-                    )
-                ]
-            )
+            filter=version_filter
         ),
+        wait=True,
     )
+    return count
 
 
 def set_version_rag_status(
@@ -324,18 +324,57 @@ def set_version_rag_status(
 ) -> None:
     if rag_status not in {"indexed", "published"}:
         raise ValueError(f"Qdrant rag_status không hợp lệ: {rag_status}")
+    _set_payload_by_key(
+        client,
+        key="version_key",
+        value=version_key,
+        payload={"rag_status": rag_status},
+        collection_name=collection_name,
+    )
+
+
+def set_document_metadata_payload(
+    client: QdrantClient,
+    *,
+    document_key: str,
+    domain: str,
+    audience: list[str],
+    collection_name: str = COLLECTION_NAME,
+) -> None:
+    """Sync document-level filter metadata without rebuilding embeddings."""
+    _set_payload_by_key(
+        client,
+        key="document_key",
+        value=document_key,
+        payload={
+            "domain": domain,
+            "audience": audience,
+            "audience_student": "sinh_vien" in audience,
+        },
+        collection_name=collection_name,
+    )
+
+
+def _set_payload_by_key(
+    client: QdrantClient,
+    *,
+    key: str,
+    value: str,
+    payload: dict,
+    collection_name: str,
+) -> None:
     if not client.collection_exists(collection_name):
         raise ValueError(f"Qdrant collection không tồn tại: {collection_name}")
 
     client.set_payload(
         collection_name=collection_name,
-        payload={"rag_status": rag_status},
+        payload=payload,
         points=FilterSelector(
             filter=Filter(
                 must=[
                     FieldCondition(
-                        key="version_key",
-                        match=MatchValue(value=version_key),
+                        key=key,
+                        match=MatchValue(value=value),
                     )
                 ]
             )
@@ -343,7 +382,6 @@ def set_version_rag_status(
         wait=True,
     )
 
-# 
 def search_points(
     client: QdrantClient,
     *,
@@ -352,7 +390,7 @@ def search_points(
     top_k: int = 5,
     filters: RetrievalFilter | None = None,
     query_filter: Filter | None = None,
-    ) -> list[QdrantSearchResult]:
+) -> list[QdrantSearchResult]:
     if filters is not None and query_filter is not None:
         raise ValueError("Pass either filters or query_filter, not both")
 
@@ -375,49 +413,3 @@ def search_points(
     ]
 
 
-def delete_vectors_by_chunk_ids(
-    client: QdrantClient,
-    collection_name: str,
-    postgres_chunk_ids: list[int],
-) -> int:
-    """Delete vectors by their postgres chunk IDs. Returns count deleted."""
-
-    if not postgres_chunk_ids:
-        return 0
-
-    # Check if collection exists
-    collections = client.get_collections().collections
-    if collection_name not in [c.name for c in collections]:
-        return 0
-
-    deleted_count = 0
-
-    for chunk_id in postgres_chunk_ids:
-        # Count before delete
-        count_result = client.count(
-            collection_name=collection_name,
-            count_filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="postgres_chunk_id",
-                        match=MatchValue(value=chunk_id),
-                    )
-                ]
-            ),
-        )
-        deleted_count += count_result.count
-
-        # Delete vectors matching this chunk_id
-        client.delete(
-            collection_name=collection_name,
-            points_selector=Filter(
-                must=[
-                    FieldCondition(
-                        key="postgres_chunk_id",
-                        match=MatchValue(value=chunk_id),
-                    )
-                ]
-            ),
-        )
-
-    return deleted_count

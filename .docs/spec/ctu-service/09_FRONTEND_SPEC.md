@@ -154,8 +154,9 @@ Select file → Upload → Show OCR status → Preview Markdown
 **Purpose:** _[Review OCR Markdown output]_
 
 **UI Components:**
-- Markdown preview
-- Raw Markdown editor
+- Một Raw Markdown editor duy nhất cho YAML front matter và nội dung OCR
+- YAML trong editor là nguồn metadata duy nhất; không hiển thị form metadata trùng lặp
+- Trường chọn phòng ban lưu file nguồn chỉ xác định namespace R2 dưới `sources/`
 - Page marker validation
 - Table structure check
 - Approve/reject buttons

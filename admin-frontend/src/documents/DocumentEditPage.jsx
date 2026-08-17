@@ -5,8 +5,13 @@ import StatusBadge from "../components/StatusBadge.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import LineNumberedTextarea from "../components/LineNumberedTextarea.jsx";
 import { useReferenceData } from "../hooks/useReferenceData.js";
-import { Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
+import AudiencePicker from "../components/AudiencePicker.jsx";
+import ResponsibleDepartmentPicker from "../components/ResponsibleDepartmentPicker.jsx";
+import {
+  replaceMarkdownBody,
+  splitCanonicalMarkdown,
+} from "../utils/markdown.js";
 
 const editableAssets = (items = []) => items.map(({ title, url, asset_type }) => ({
   title,
@@ -27,6 +32,7 @@ function toForm(doc) {
     effective_date: doc.effective_date,
     expiry_date: doc.expiry_date,
     validity_status: doc.validity_status,
+    is_latest: doc.is_latest,
   };
 }
 
@@ -40,11 +46,12 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
 
   const [doc, setDoc] = useState(null);
   const [form, setForm] = useState(null);
-  const [markdown, setMarkdown] = useState("");
+  const [markdownBody, setMarkdownBody] = useState("");
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [assetBusy, setAssetBusy] = useState(false);
+  const [previewBusy, setPreviewBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +62,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
         if (cancelled) return;
         setDoc(d);
         setForm(d ? toForm(d) : null);
-        setMarkdown(d ? d.canonical_markdown : "");
+        setMarkdownBody(d ? splitCanonicalMarkdown(d.canonical_markdown).body : "");
         setAssets(editableAssets(d?.assets));
         setLoading(false);
       })
@@ -101,38 +108,6 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function toggleAudience(a) {
-    setForm((f) => ({
-      ...f,
-      audience: f.audience.includes(a)
-        ? f.audience.filter((x) => x !== a)
-        : [...f.audience, a],
-    }));
-  }
-
-  function setResponsibleDepartment(index, value) {
-    setForm((current) => ({
-      ...current,
-      responsible_department: current.responsible_department.map((item, currentIndex) => (
-        currentIndex === index ? value : item
-      )),
-    }));
-  }
-
-  function addResponsibleDepartment() {
-    setForm((current) => ({
-      ...current,
-      responsible_department: [...current.responsible_department, ""],
-    }));
-  }
-
-  function removeResponsibleDepartment(index) {
-    setForm((current) => ({
-      ...current,
-      responsible_department: current.responsible_department.filter((_, currentIndex) => currentIndex !== index),
-    }));
-  }
-
   async function saveAssets() {
     setAssetBusy(true);
     try {
@@ -152,11 +127,14 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
     try {
       const res = await api.updateDocument(documentId, {
         metadata: form,
-        canonical_markdown: markdown,
+        canonical_markdown: replaceMarkdownBody(
+          doc.canonical_markdown,
+          markdownBody,
+        ),
       });
       setDoc(res.document);
       setForm(toForm(res.document));
-      setMarkdown(res.document.canonical_markdown);
+      setMarkdownBody(splitCanonicalMarkdown(res.document.canonical_markdown).body);
       toast.success(res.updated ? "Đã lưu thay đổi." : "Không có thay đổi để lưu.");
       return res;
     } catch (err) {
@@ -179,6 +157,29 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
       toast.error(err.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function openCanonicalMarkdown() {
+    const previewWindow = window.open("", "_blank");
+    if (!previewWindow) {
+      toast.error("Trình duyệt đã chặn tab xem canonical Markdown.");
+      return;
+    }
+
+    previewWindow.opener = null;
+    setPreviewBusy(true);
+    try {
+      const { url } = await api.getDocumentPreviewUrl(
+        doc.version_key,
+        "canonical_markdown",
+      );
+      previewWindow.location.replace(url);
+    } catch (err) {
+      previewWindow.close();
+      toast.error(err.message);
+    } finally {
+      setPreviewBusy(false);
     }
   }
 
@@ -206,8 +207,22 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
       const updated = await api.getDocument(documentId);
       setDoc(updated);
       setForm(toForm(updated));
-      setMarkdown(updated.canonical_markdown);
+      setMarkdownBody(splitCanonicalMarkdown(updated.canonical_markdown).body);
       toast.success(`Đã deindex: xóa ${res.chunks_deleted} chunks và ${res.vectors_deleted} vectors.`);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteRetry() {
+    if (!confirm("Thử lại việc xóa tài liệu?")) return;
+    setBusy(true);
+    try {
+      await api.deleteDocument(documentId);
+      toast.success("Đã xóa tài liệu.");
+      onBack();
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -219,7 +234,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
     && form.document_type_id
     && form.responsible_department.length
     && form.responsible_department.every(Boolean);
-  const editable = doc.rag_status === "not_indexed";
+  const requiresDeindex = doc.rag_status !== "not_indexed";
   const assetsReady = assets.every((asset) => (
     asset.title.trim() && asset.url.trim() && asset.asset_type
   ));
@@ -272,17 +287,49 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
             <dd>
               <StatusBadge status={doc.rag_status} />
             </dd>
+            <dt>Phiên bản mới nhất</dt>
+            <dd>
+              <label className="checkbox-field">
+                <input type="checkbox" checked={Boolean(form.is_latest)} disabled={requiresDeindex} onChange={(e) => set("is_latest", e.target.checked)} />
+                <span>Đặt là version mới nhất</span>
+              </label>
+            </dd>
           </dl>
           <p className="hint">
             OCR và RAG là kết quả của pipeline tự động, không sửa trực tiếp ở
             đây.
           </p>
+          {doc.rag_status === "published" && (
+            <button
+              type="button"
+              className="btn small ghost warn"
+              onClick={handleUnpublish}
+              disabled={busy}
+            >
+              {busy ? "Đang xử lý…" : "Unpublish"}
+            </button>
+          )}
+          {requiresDeindex && (
+            <aside className="banner" role="status">
+              <strong>Có thể lưu trực tiếp, không tạo embedding mới:</strong>
+              <p>
+                Số hiệu, ngày ban hành/hiệu lực/hết hiệu lực, tình trạng hiệu
+                lực, domain và audience. Domain/audience được đồng bộ vào
+                payload Qdrant tự động.
+              </p>
+              <p>Đổi phiên bản mới nhất cần Deindex trước.</p>
+            </aside>
+          )}
           {doc.rag_status === "failed" && (
             <aside className="banner warn" role="alert">
-              <strong>Index thất bại — không sửa trực tiếp version này.</strong>
+              <strong>Index thất bại.</strong>
               <p>
                 Bước lỗi:{" "}
                 <span className="mono">{doc.last_job_step || "unknown"}</span>
+              </p>
+              <p>
+                Vẫn có thể sửa các metadata không ảnh hưởng embedding. Muốn sửa
+                nội dung hoặc phân loại, hãy xử lý dữ liệu index lỗi trước.
               </p>
               {doc.last_job_error && (
                 <p className="mono error-detail">{doc.last_job_error}</p>
@@ -296,21 +343,37 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
               </button>
             </aside>
           )}
-          {["chunked", "embedded", "indexed", "published"].includes(
+          {["chunked", "embedded", "indexed", "published", "deactivated"].includes(
             doc.rag_status,
           ) && (
             <aside className="banner warn" role="status">
               <p>
-                Version đã có dữ liệu RAG. Muốn sửa phải deindex và dọn
-                chunks/vector trước.
+                {doc.rag_status === "deactivated"
+                  ? doc.last_job_type === "delete"
+                    ? "Delete trước đó chưa hoàn tất. Tài liệu đã bị loại khỏi retrieval; chạy lại để dọn nốt Qdrant/R2 rồi xóa PostgreSQL."
+                    : "Deindex trước đó chưa hoàn tất. Tài liệu đã bị loại khỏi retrieval; chạy lại để dọn nốt Qdrant và PostgreSQL."
+                  : "Tiêu đề, loại tài liệu, phòng ban phụ trách và nội dung canonical Markdown ảnh hưởng embedding nên đang bị khóa. Chỉ Deindex khi cần sửa các mục này."}
               </p>
+              {doc.rag_status === "deactivated" && doc.last_job_error && (
+                <p className="mono error-detail">{doc.last_job_error}</p>
+              )}
               <button
                 type="button"
                 className="btn small ghost warn"
-                onClick={handleDeindex}
+                onClick={
+                  doc.last_job_type === "delete"
+                    ? handleDeleteRetry
+                    : handleDeindex
+                }
                 disabled={busy}
               >
-                {busy ? "Đang xử lý…" : "Deindex"}
+                {busy
+                  ? "Đang xử lý…"
+                  : doc.rag_status === "deactivated"
+                    ? doc.last_job_type === "delete"
+                      ? "Thử lại Delete"
+                      : "Thử lại Deindex"
+                    : "Deindex"}
               </button>
             </aside>
           )}
@@ -328,6 +391,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
               <input
                 value={form.title}
                 onChange={(e) => set("title", e.target.value)}
+                disabled={requiresDeindex}
               />
             </label>
             <label className="field">
@@ -337,6 +401,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
                 onChange={(e) =>
                   set("document_type_id", Number(e.target.value))
                 }
+                disabled={requiresDeindex}
               >
                 {documentTypes.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -346,6 +411,12 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
               </select>
             </label>
           </fieldset>
+          {requiresDeindex && (
+            <p className="hint">
+              Tiêu đề và loại tài liệu tham gia tạo embedding; cần Deindex để
+              sửa.
+            </p>
+          )}
           <fieldset className="form-grid">
             <legend className="sr-only">Đơn vị và lĩnh vực tài liệu</legend>
             <label className="field">
@@ -363,42 +434,29 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
               </select>
             </label>
           </fieldset>
-          <fieldset className="audience-fieldset">
-            <legend>Audience (JSONB)</legend>
-            <menu className="pill-row">
-              {enumOptions.audiences.map((a) => (
-                <li key={a}>
-                  <button
-                    type="button"
-                    className="tag"
-                    aria-pressed={form.audience.includes(a)}
-                    onClick={() => toggleAudience(a)}
-                  >
-                    {form.audience.includes(a) ? "✓ " : ""}
-                    {a}
-                  </button>
-                </li>
-              ))}
-            </menu>
-          </fieldset>
-          <fieldset className="responsible-departments review-metadata-section">
-            <legend>Phòng ban phụ trách <b aria-hidden="true">*</b></legend>
-            {form.responsible_department.map((selectedCode, index) => (
-              <div className="responsible-department-row" key={`${index}-${selectedCode}`}>
-                <label className="field" htmlFor={`edit-responsible-department-${index}`}>
-                  <span className="sr-only">Phòng ban phụ trách {index + 1}</span>
-                  <select id={`edit-responsible-department-${index}`} value={selectedCode} onChange={(event) => setResponsibleDepartment(index, event.target.value)} required>
-                    <option value="">— Chọn phòng ban —</option>
-                    {departments.filter((department) => department.is_active && (department.code === selectedCode || !form.responsible_department.includes(department.code))).map((department) => (
-                      <option key={department.code} value={department.code}>{department.code} — {department.name}</option>
-                    ))}
-                  </select>
-                </label>
-                {form.responsible_department.length > 1 && <button type="button" className="btn ghost small danger-icon" onClick={() => removeResponsibleDepartment(index)} aria-label={`Bỏ phòng ban phụ trách ${index + 1}`} title="Bỏ phòng ban"><Trash2 aria-hidden="true" /></button>}
-              </div>
-            ))}
-            <button type="button" className="btn ghost small" onClick={addResponsibleDepartment} disabled={form.responsible_department.some((item) => !item)}>+ Thêm phòng ban</button>
-          </fieldset>
+          <AudiencePicker
+            options={enumOptions.audiences}
+            value={form.audience}
+            onChange={(value) => set("audience", value)}
+          />
+          <p className="hint">
+            Domain và audience có thể sửa trực tiếp; backend cập nhật payload
+            Qdrant của mọi version thuộc tài liệu này mà không gọi lại mô hình
+            embedding.
+          </p>
+          <ResponsibleDepartmentPicker
+            departments={departments}
+            value={form.responsible_department}
+            onChange={(value) => set("responsible_department", value)}
+            idPrefix="edit-responsible-department"
+            disabled={requiresDeindex}
+            className="review-metadata-section"
+          />
+          {requiresDeindex && (
+            <p className="hint">
+              Phòng ban phụ trách nằm trong text embedding; cần Deindex để sửa.
+            </p>
+          )}
         </section>
 
         <section className="card" aria-labelledby="version-information-heading">
@@ -450,26 +508,39 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           </fieldset>
           <p id="version-key-hint" className="hint">
             Version key là định danh provenance, không sửa trong workflow này.
+            Số hiệu và các mốc thời gian chỉ cập nhật PostgreSQL/canonical
+            Markdown, không cần Deindex.
           </p>
         </section>
 
         <section className="card" aria-labelledby="canonical-markdown-heading">
           <h2 id="canonical-markdown-heading">Nội dung canonical Markdown</h2>
+          <nav className="document-file-actions" aria-label="Xem file canonical Markdown">
+            <button
+              type="button"
+              className="text-link"
+              onClick={openCanonicalMarkdown}
+              disabled={previewBusy}
+            >
+              {previewBusy ? "Đang mở file…" : "Mở file đầy đủ từ R2"}
+            </button>
+          </nav>
           <label className="field" htmlFor="document-markdown">
-            Canonical Markdown và YAML frontmatter
+            Nội dung Markdown
           </label>
           <LineNumberedTextarea
             id="document-markdown"
             className="markdown-editor"
-            value={markdown}
+            value={markdownBody}
+            disabled={requiresDeindex}
             onChange={(e) => {
-              setMarkdown(e.target.value);
+              setMarkdownBody(e.target.value);
             }}
           />
           <p className="hint">
-            Lưu thay đổi cập nhật canonical Markdown và metadata trong
-            PostgreSQL. Review, duyệt và tạo chunks thực hiện trong workflow
-            ingestion.
+            {requiresDeindex
+              ? "Nội dung ảnh hưởng trực tiếp chunks và embedding; cần Deindex để sửa."
+              : "Chỉ chỉnh phần nội dung; YAML frontmatter được cập nhật từ các trường metadata ở trên."}
           </p>
         </section>
 
@@ -479,12 +550,12 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           <AssetEditor
             assets={assets}
             assetTypes={enumOptions.asset_types || []}
-            disabled={refLoading || assetBusy}
+            disabled={refLoading || assetBusy || doc.rag_status === "deactivated"}
             idPrefix="edit-asset"
             legend="Danh sách asset"
             onChange={setAssets}
           >
-            <button type="button" className="btn small" onClick={saveAssets} disabled={assetBusy || !assetsReady || !assetsChanged}>
+            <button type="button" className="btn small" onClick={saveAssets} disabled={assetBusy || !assetsReady || !assetsChanged || doc.rag_status === "deactivated"}>
               {assetBusy ? "Đang lưu…" : "Lưu asset"}
             </button>
           </AssetEditor>
@@ -497,7 +568,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
           <button
             type="submit"
             className="btn"
-            disabled={!valid || busy || !editable}
+            disabled={!valid || busy || doc.rag_status === "deactivated"}
           >
             {busy ? "Đang lưu…" : "Lưu thay đổi"}
           </button>

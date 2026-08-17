@@ -1,5 +1,13 @@
+const DEFAULT_PRODUCTION_API_URL =
+  "https://css-ctu-student-service-api.onrender.com";
+
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : "")
+).replace(/\/$/, "");
+
 async function request(path, options) {
-  const response = await fetch(path, options);
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
   const text = await response.text();
   const data =
     text && response.headers.get("content-type")?.includes("application/json")
@@ -24,6 +32,15 @@ async function request(path, options) {
 }
 
 export const api = {
+  runOcr(file) {
+    const body = new FormData();
+    body.append("file", file);
+    return request("/api/v1/admin/ocr", {
+      method: "POST",
+      body,
+    });
+  },
+
   getDatabaseHealth() {
     return request("/api/v1/health/database");
   },
@@ -59,17 +76,24 @@ export const api = {
     return request(`/api/v1/admin/ingestion-jobs/${jobId}`);
   },
 
-  reviewCanonicalMarkdown(versionId, canonicalMarkdown, assets) {
+  reviewCanonicalMarkdown(versionId, markdownBody, metadata, assets) {
     return request(`/api/v1/admin/canonical-markdown/${versionId}/review`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ canonical_markdown: canonicalMarkdown, assets }),
+      body: JSON.stringify({ markdown_body: markdownBody, metadata, assets }),
     });
   },
 
   previewChunks(versionId) {
     return request(
       `/api/v1/admin/document-versions/${versionId}/chunk-preview`,
+      { method: "POST" },
+    );
+  },
+
+  approveChunks(versionId) {
+    return request(
+      `/api/v1/admin/document-versions/${versionId}/chunks/approve`,
       { method: "POST" },
     );
   },
@@ -85,6 +109,13 @@ export const api = {
 
   getDocument(versionId) {
     return request(`/api/v1/versions/${versionId}`);
+  },
+
+  getDocumentPreviewUrl(versionKey, fileType = "canonical_markdown") {
+    const query = new URLSearchParams({ file_type: fileType });
+    return request(
+      `/api/v1/versions/preview-url/${encodeURIComponent(versionKey)}?${query}`,
+    );
   },
 
   updateDocument(versionId, payload) {

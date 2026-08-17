@@ -17,7 +17,7 @@ class ReviewCanonicalResponse(StrictSchema):
     rag_status: RagStatus
     markdown: str
     metadata: DocumentMetadata
-    
+
 
 class MarkdownMetadataPreviewResponse(StrictSchema):
     metadata: dict[str, Any]

@@ -91,6 +91,13 @@ async def hydrate_langchain_documents(
                 DocumentType.id == Document.document_type_id,
             )
             .where(DocumentChunk.id.in_(set(chunk_ids)))
+            .where(
+                DocumentChunk.chunk_type == "child",
+                DocumentChunk.index_status == "indexed",
+                DocumentVersion.review_status == "approved",
+                DocumentVersion.rag_status == "published",
+                DocumentVersion.is_latest.is_(True),
+            )
         )
     ).all()
 

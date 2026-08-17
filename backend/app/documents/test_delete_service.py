@@ -1,16 +1,9 @@
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from app.documents.service import delete_document_version
-
-
-class _Result:
-    def __init__(self, value):
-        self.value = value
-
-    def scalar_one_or_none(self):
-        return self.value
 
 
 class _Session:
@@ -18,53 +11,82 @@ class _Session:
         self.version = SimpleNamespace(
             id=7,
             document_id=3,
+            version_key="version-7",
             rag_status="not_indexed",
-            canonical_markdown_path=None,
-            source_path=None,
+            canonical_markdown_path="canonical/test.md",
+            source_path="source/test.md",
         )
-        self.has_other_versions = has_other_versions
+        self._scalars = iter(
+            [self.version, self.version, has_other_versions]
+        )
+        self.added = []
         self.executed = []
-        self.committed = False
+        self.deleted = []
+        self.commits = 0
+
+    async def scalar(self, _statement):
+        return next(self._scalars)
+
+    def add(self, value):
+        self.added.append(value)
 
     async def execute(self, statement):
         self.executed.append(statement)
-        return _Result(self.version) if len(self.executed) == 1 else None
 
-    async def scalar(self, _statement):
-        if not hasattr(self, "version_reloaded"):
-            self.version_reloaded = True
-            return self.version
-        return self.has_other_versions
+    async def delete(self, value):
+        self.deleted.append(value)
+
+    async def flush(self):
+        if self.added and self.added[-1].id is None:
+            self.added[-1].id = 11
+
+    async def commit(self):
+        self.commits += 1
 
     async def rollback(self):
         pass
 
-    async def delete(self, _value):
-        pass
-
-    async def flush(self):
-        pass
-
-    async def commit(self):
-        self.committed = True
+    @asynccontextmanager
+    async def begin(self):
+        yield
 
 
 class DeleteDocumentVersionTest(IsolatedAsyncioTestCase):
-    async def test_parent_is_deleted_only_with_last_version(self):
-        last_version = _Session(has_other_versions=None)
-        last_version.version.canonical_markdown_path = "canonical/test.md"
-        last_version.version.source_path = "source/test.md"
-        with (
-            patch("app.documents.service.delete_canonical_markdown") as delete_canonical,
-            patch("app.documents.service.delete_source_file") as delete_source,
-        ):
-            await delete_document_version(last_version, 7)
-        delete_canonical.assert_called_once_with("canonical/test.md")
-        delete_source.assert_called_once_with("source/test.md")
-        self.assertIn("DELETE FROM css.documents", str(last_version.executed[-1]))
-        self.assertTrue(last_version.committed)
+    async def test_external_cleanup_precedes_database_delete(self):
+        session = _Session(has_other_versions=None)
 
-        has_history = _Session(has_other_versions=8)
-        await delete_document_version(has_history, 7)
-        self.assertNotIn("DELETE FROM css.documents", str(has_history.executed[-1]))
-        self.assertTrue(has_history.committed)
+        with patch(
+            "app.documents.service._cleanup_deleted_version_artifacts",
+            new=AsyncMock(),
+        ) as cleanup:
+            await delete_document_version(session, 7)
+
+        cleanup.assert_awaited_once_with(
+            version_key="version-7",
+            object_paths=["canonical/test.md", "source/test.md"],
+        )
+        self.assertEqual(session.version.rag_status, "deactivated")
+        self.assertEqual(session.commits, 1)
+        self.assertEqual(session.deleted, [session.version])
+        self.assertTrue(
+            any(
+                "DELETE FROM css.documents" in str(item)
+                for item in session.executed
+            )
+        )
+
+    async def test_parent_remains_when_another_version_exists(self):
+        session = _Session(has_other_versions=8)
+
+        with patch(
+            "app.documents.service._cleanup_deleted_version_artifacts",
+            new=AsyncMock(),
+        ):
+            await delete_document_version(session, 7)
+
+        self.assertFalse(
+            any(
+                "DELETE FROM css.documents" in str(item)
+                for item in session.executed
+            )
+        )

@@ -1,63 +1,192 @@
 from __future__ import annotations
 
-import json
+import asyncio
+import logging
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import (
+    ApplicationError,
+    ConflictError,
+    ExternalServiceError,
+    InvalidRequestError,
+    NotFoundError,
+)
 from app.databases.asset_repository import replace_document_assets
 from app.databases.models.documents import (
-    Department,
     Document,
-    DocumentRecipient,
     DocumentType,
     DocumentVersion,
 )
 from app.databases.models.ingestion import IngestionJob
+from app.databases.repositories.chunks import delete_chunks_by_version
 from app.ingestion.canonical_storage import (
     MAX_MARKDOWN_BYTES,
-    read_canonical_markdown,
-    replace_canonical_markdown,
+    create_canonical_markdown,
+    delete_object,
+    make_canonical_revision_path,
 )
 
 from app.ingestion.markdown_reader import (
     render_markdown_document,
-    split_frontmatter,
+)
+from app.ingestion.metadata_persistence import (
+    persist_document_metadata,
+    validate_shared_document_metadata,
 )
 
 from app.schemas.documents import DocumentMetadata
 from app.schemas.ingestion.responses import ReviewCanonicalResponse
 from app.schemas.assets import AssetWrite
 
+REVIEW_METADATA_FIELDS = {
+    "title",
+    "document_type",
+    "domain",
+    "audience",
+    "responsible_department",
+    "code",
+    "issuing_authority",
+    "signer_name",
+    "issued_date",
+    "effective_date",
+    "expiry_date",
+    "validity_status",
+    "is_latest",
+    "source_url",
+    "language",
+    "accessed_date",
+    "parser",
+    "ocr_engine",
+    "notes",
+}
+
+logger = logging.getLogger(__name__)
+
 async def review_canonical_document(
     session: AsyncSession,
     *,
     document_version_id: int,
-    canonical_markdown: str,
+    markdown_body: str,
+    metadata: DocumentMetadata,
     assets: list[AssetWrite] | None = None,
 ) -> ReviewCanonicalResponse:
-    previous_markdown: str | None = None
-    canonical_path: str | None = None
-    file_replaced = False
+    try:
+        return await _review_canonical_document(
+            session,
+            document_version_id=document_version_id,
+            markdown_body=markdown_body,
+            submitted_metadata=metadata,
+            assets=assets,
+        )
+    except ApplicationError:
+        raise
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    except RuntimeError as exc:
+        raise ExternalServiceError(str(exc)) from exc
+
+
+async def _review_canonical_document(
+    session: AsyncSession,
+    *,
+    document_version_id: int,
+    markdown_body: str,
+    submitted_metadata: DocumentMetadata,
+    assets: list[AssetWrite] | None = None,
+) -> ReviewCanonicalResponse:
+    # Phase 1: validate and snapshot using only a short PostgreSQL transaction.
+    async with session.begin():
+        version = await session.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.id == document_version_id)
+            .with_for_update()
+        )
+        if version is None:
+            raise NotFoundError(
+                f"Không tìm thấy document version: {document_version_id}"
+            )
+        if version.rag_status != "not_indexed":
+            raise ValueError(
+                "Không thể review version đã được đưa vào RAG; "
+                "cần deindex trước"
+            )
+
+        document = await session.scalar(
+            select(Document)
+            .where(Document.id == version.document_id)
+            .with_for_update()
+        )
+        if document is None:
+            raise RuntimeError(
+                "DocumentVersion không có Document tương ứng"
+            )
+
+        previous_canonical_path = version.canonical_markdown_path
+        next_canonical_path = make_canonical_revision_path(
+            previous_canonical_path
+        )
+        reviewed_markdown, metadata = _prepare_reviewed_markdown(
+            markdown_body=markdown_body,
+            submitted_metadata=submitted_metadata,
+            stored_document_key=document.document_key,
+            stored_version_key=version.version_key,
+            stored_checksum=version.checksum,
+            stored_source_path=version.source_path,
+            stored_file_type=version.file_type,
+            canonical_markdown_path=next_canonical_path,
+        )
+        document_type = await session.scalar(
+            select(DocumentType).where(
+                DocumentType.code == metadata.document_type,
+                DocumentType.is_active.is_(True),
+            )
+        )
+        if document_type is None:
+            raise ValueError(
+                f"document_type chưa được seed hoặc đã bị khóa: "
+                f"{metadata.document_type}"
+            )
+        await validate_shared_document_metadata(
+            session,
+            document=document,
+            version=version,
+            document_type_id=document_type.id,
+            metadata=metadata,
+        )
+
+    # Phase 2: create a new immutable R2 object outside PostgreSQL.
+    try:
+        await asyncio.to_thread(
+            create_canonical_markdown,
+            next_canonical_path,
+            reviewed_markdown,
+        )
+    except Exception as exc:
+        raise ExternalServiceError(
+            f"Không thể lưu canonical Markdown lên R2: {exc}"
+        ) from exc
 
     try:
+        # Phase 3: atomically point PostgreSQL at the completed object.
         async with session.begin():
             version = await session.scalar(
                 select(DocumentVersion)
                 .where(DocumentVersion.id == document_version_id)
                 .with_for_update()
             )
-
             if version is None:
-                raise LookupError(
-                    f"Không tìm thấy document version: "
-                    f"{document_version_id}"
+                raise NotFoundError(
+                    f"Không tìm thấy document version: {document_version_id}"
                 )
-
-            if version.rag_status != "not_indexed":
-                raise ValueError(
-                    "Không thể review version đã được đưa vào RAG; "
-                    "cần deindex trước"
+            if (
+                version.rag_status != "not_indexed"
+                or version.canonical_markdown_path
+                != previous_canonical_path
+            ):
+                raise ConflictError(
+                    "Document version đã thay đổi; vui lòng tải lại trang"
                 )
 
             document = await session.scalar(
@@ -65,38 +194,31 @@ async def review_canonical_document(
                 .where(Document.id == version.document_id)
                 .with_for_update()
             )
-
             if document is None:
                 raise RuntimeError(
                     "DocumentVersion không có Document tương ứng"
                 )
 
-            reviewed_markdown, metadata = _prepare_reviewed_markdown(
-                canonical_markdown=canonical_markdown,
-                stored_document_key=document.document_key,
-                stored_version_key=version.version_key,
-                stored_checksum=version.checksum,
-                canonical_markdown_path=(
-                    version.canonical_markdown_path
-                ),
-            )
-
             document_type = await session.scalar(
                 select(DocumentType).where(
-                    DocumentType.code == metadata.document_type
+                    DocumentType.code == metadata.document_type,
+                    DocumentType.is_active.is_(True),
                 )
             )
-
             if document_type is None:
                 raise ValueError(
-                    f"document_type chưa được seed: "
+                    f"document_type chưa được seed hoặc đã bị khóa: "
                     f"{metadata.document_type}"
                 )
 
-            await _sync_recipients(
+            version.canonical_markdown_path = next_canonical_path
+            await persist_document_metadata(
                 session,
-                document_version_id=version.id,
+                document=document,
+                version=version,
+                document_type_id=document_type.id,
                 metadata=metadata,
+                review_status="approved",
             )
 
             if assets is not None:
@@ -106,56 +228,19 @@ async def review_canonical_document(
                     assets=assets,
                 )
 
-            if metadata.is_latest:
-                await session.execute(
-                    update(DocumentVersion)
-                    .where(
-                        DocumentVersion.document_id
-                        == document.id,
-                        DocumentVersion.id != version.id,
-                        DocumentVersion.is_latest.is_(True),
-                    )
-                    .values(is_latest=False)
-                )
-
-            document.title = metadata.title
-            document.domain = metadata.domain
-            document.audience = list(metadata.audience)
-            document.document_type_id = document_type.id
-
-            version.title = metadata.title
-            version.code = metadata.code
-            version.issued_date = metadata.issued_date
-            version.issuing_authority = (
-                metadata.issuing_authority
-            )
-            version.signer_name = metadata.signer_name
-            version.is_latest = metadata.is_latest
-            version.source_url = metadata.source_url
-            version.source_path = metadata.source_path or ""
-            version.file_type = metadata.file_type
-            version.language = metadata.language
-            version.accessed_date = metadata.accessed_date
-            version.extra_metadata = _build_extra_metadata(
-                metadata
-            )
-            version.ocr_status = "done"
-            version.review_status = "approved"
-            version.rag_status = "not_indexed"
-            version.status_note = None
+            # A canonical revision invalidates any previously approved chunk snapshot.
+            await delete_chunks_by_version(session, version.id)
 
             job = await session.scalar(
                 select(IngestionJob)
                 .where(
-                    IngestionJob.document_version_id
-                    == version.id,
+                    IngestionJob.document_version_id == version.id,
                     IngestionJob.job_type == "ingestion",
                 )
                 .order_by(IngestionJob.id.desc())
                 .limit(1)
                 .with_for_update()
             )
-
             if job is None:
                 job = IngestionJob(
                     document_version_id=version.id,
@@ -168,22 +253,11 @@ async def review_canonical_document(
             else:
                 job.status = "pending"
                 job.current_step = "chunking"
+                job.total_chunks = None
+                job.processed_chunks = 0
                 job.error_message = None
 
-            # Phát hiện lỗi constraint trước khi thay file.
             await session.flush()
-
-            canonical_path = version.canonical_markdown_path
-            previous_markdown = read_canonical_markdown(
-                canonical_path
-            )
-
-            replace_canonical_markdown(
-                canonical_path,
-                reviewed_markdown,
-            )
-            file_replaced = True
-
             response = ReviewCanonicalResponse(
                 document_version_id=version.id,
                 review_status="approved",
@@ -191,65 +265,57 @@ async def review_canonical_document(
                 markdown=reviewed_markdown,
                 metadata=metadata,
             )
-
-        return response
-
     except BaseException:
-        # PostgreSQL rollback thì khôi phục canonical file cũ.
-        if (
-            file_replaced
-            and previous_markdown is not None
-            and canonical_path is not None
-        ):
-            try:
-                replace_canonical_markdown(
-                    canonical_path,
-                    previous_markdown,
-                )
-            except OSError as restore_error:
-                raise RuntimeError(
-                    "Review thất bại và không thể khôi phục "
-                    "canonical Markdown"
-                ) from restore_error
-
+        try:
+            await asyncio.to_thread(delete_object, next_canonical_path)
+        except Exception:
+            logger.warning(
+                "Không thể dọn canonical revision sau review lỗi: %s",
+                next_canonical_path,
+                exc_info=True,
+            )
         raise
+
+    # The database now points at the new object; old-object cleanup is harmless
+    # and retryable, so it must not turn a successful review into an error.
+    if previous_canonical_path != next_canonical_path:
+        try:
+            await asyncio.to_thread(delete_object, previous_canonical_path)
+        except Exception:
+            logger.warning(
+                "Không thể dọn canonical revision cũ: %s",
+                previous_canonical_path,
+                exc_info=True,
+            )
+
+    return response
 
 
 def _prepare_reviewed_markdown(
     *,
-    canonical_markdown: str,
+    markdown_body: str,
+    submitted_metadata: DocumentMetadata,
     stored_document_key: str,
     stored_version_key: str,
     stored_checksum: str,
+    stored_source_path: str,
+    stored_file_type: str,
     canonical_markdown_path: str,
 ) -> tuple[str, DocumentMetadata]:
-    if not canonical_markdown.strip():
-        raise ValueError("Canonical Markdown rỗng")
+    if not markdown_body.strip():
+        raise ValueError("Nội dung Markdown rỗng")
 
-    if (
-        len(canonical_markdown.encode("utf-8"))
-        > MAX_MARKDOWN_BYTES
-    ):
-        raise ValueError(f"Canonical Markdown vượt quá {MAX_MARKDOWN_BYTES // 1024 // 1024} MB")
-
-    frontmatter, body = split_frontmatter(
-        canonical_markdown
+    frontmatter = submitted_metadata.model_dump(
+        mode="json",
+        include=REVIEW_METADATA_FIELDS,
     )
-
-    immutable_fields = {
-        "document_key": stored_document_key,
-        "version_key": stored_version_key,
-        "checksum": stored_checksum,
-    }
-
-    for field, expected_value in immutable_fields.items():
-        if frontmatter.get(field) != expected_value:
-            raise ValueError(
-                f"Không được thay đổi {field} khi review"
-            )
-
     frontmatter.update(
         {
+            "document_key": stored_document_key,
+            "version_key": stored_version_key,
+            "checksum": stored_checksum,
+            "source_path": stored_source_path,
+            "file_type": stored_file_type,
             "canonical_markdown_path": (
                 canonical_markdown_path
             ),
@@ -269,101 +335,14 @@ def _prepare_reviewed_markdown(
 
     reviewed_markdown = render_markdown_document(
         metadata,
-        body,
+        markdown_body,
     )
+    if len(reviewed_markdown.encode("utf-8")) > MAX_MARKDOWN_BYTES:
+        raise ValueError(
+            "Canonical Markdown vượt quá "
+            f"{MAX_MARKDOWN_BYTES // 1024 // 1024} MB"
+        )
 
     return reviewed_markdown, metadata
 
 
-def _build_extra_metadata(
-    metadata: DocumentMetadata,
-) -> dict:
-    extra_fields = set(metadata.model_extra or {}) | {
-        "parser",
-        "ocr_engine",
-        "notes",
-        "effective_date",
-        "responsible_department",
-    }
-
-    return json.loads(
-        metadata.model_dump_json(
-            include=extra_fields
-        )
-    )
-
-
-async def _sync_recipients(
-    session: AsyncSession,
-    *,
-    document_version_id: int,
-    metadata: DocumentMetadata,
-) -> None:
-    department_codes = list(
-        dict.fromkeys(metadata.responsible_department)
-    )
-
-    effective_date = (
-        metadata.effective_date
-        or metadata.issued_date
-    )
-
-    if department_codes and effective_date is None:
-        raise ValueError(
-            "responsible_department yêu cầu "
-            "effective_date hoặc issued_date"
-        )
-
-    departments: list[Department] = []
-
-    if department_codes:
-        departments = list(
-            (
-                await session.scalars(
-                    select(Department).where(
-                        Department.code.in_(
-                            department_codes
-                        ),
-                        Department.is_active.is_(True),
-                    )
-                )
-            ).all()
-        )
-
-        found_codes = {
-            department.code
-            for department in departments
-        }
-
-        missing_codes = [
-            code
-            for code in department_codes
-            if code not in found_codes
-        ]
-
-        if missing_codes:
-            raise ValueError(
-                "Department chưa được seed hoặc đã bị khóa: "
-                + ", ".join(missing_codes)
-            )
-
-    await session.execute(
-        delete(DocumentRecipient).where(
-            DocumentRecipient.document_version_id
-            == document_version_id
-        )
-    )
-
-    if effective_date is None:
-        return
-
-    session.add_all(
-        [
-            DocumentRecipient(
-                document_version_id=document_version_id,
-                department_id=department.id,
-                effective_date=effective_date,
-            )
-            for department in departments
-        ]
-    )

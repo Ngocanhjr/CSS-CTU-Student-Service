@@ -1,6 +1,6 @@
 # định nghĩa tài liệu nào được phép đưa vào tìm kiếm retrieval (dense+sparse)
 # Cần kiểm tra: Tên field trong Qdrant payload phải đúng với dữ liệu upsert thực tế.
-# Không dùng is_latest để làm điều kiện 
+# Retrieval chỉ đọc phiên bản mới nhất đã được duyệt và publish.
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ class EligibilityPolicy:
         conditions: list[Any] = [
             DocumentVersion.review_status == "approved",
             DocumentVersion.rag_status == "published",
+            DocumentVersion.is_latest.is_(True),
         ]
 
         if context.audience:
@@ -58,6 +59,10 @@ class EligibilityPolicy:
             qmodels.FieldCondition(
                 key="rag_status",
                 match=qmodels.MatchValue(value="published"),
+            ),
+            qmodels.FieldCondition(
+                key="is_latest",
+                match=qmodels.MatchValue(value=True),
             ),
             qmodels.FieldCondition(
                 key="chunk_type",

@@ -32,7 +32,7 @@ class DocumentBaseMetadata(StrictSchema):
     document_key: str = Field(min_length=1)
     title: str = ""
     document_type: DocumentType
-    domain: str = "" #hoc_vu, tai_chinh, nhan_su, phap_ly, ky_thuat, quy_trinh, bieu_mau, hoi_dap, unknown
+    domain: Domain = "unknown"
     audience: list[Audience] = Field(default_factory=list)
     responsible_department: list[str] = Field(default_factory=list)
     
@@ -93,7 +93,7 @@ class DocumentVersionMetadata(DocumentVersionStatusFields):
     source_url: str = "" # URL nguồn gốc trên web
     source_path: str | None = None #đường dẫn lưu file gốc trên server
     canonical_markdown_path: str = "" #đường dẫn tới file Markdown chính thức đã OCR/làm sạch/review, tức file dùng làm nguồn chính để chunk/index vào RAG
-    file_type: str = "md"
+    file_type: FileType = "md"
     accessed_date: date | None = None
     
     language: str = "vi"

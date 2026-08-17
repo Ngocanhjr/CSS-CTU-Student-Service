@@ -3,10 +3,12 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     File,
+    Form,
     HTTPException,
-    Query,
     UploadFile,
 )
+from pathlib import Path
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases.session import get_session
@@ -18,29 +20,18 @@ from app.ingestion.upload_service import (
     upload_canonical_document,
 )
 
-from app.schemas.ingestion.responses import (
-    CanonicalUploadResponse,
-    ReviewCanonicalResponse,
+from app.schemas.ingestion.indexing import (
+    ChunkApprovalResponse,
+    ChunkPreviewResponse,
+    IndexingJobProgress,
 )
-from pydantic import ValidationError
-from app.schemas.ingestion.indexing import ChunkPreviewResponse, IndexingJobProgress
 from app.ingestion.indexing_service import (
+    approve_chunk_preview,
     build_chunk_preview,
     get_indexing_job_progress,
     run_indexing_job,
     start_index_document_version,
 )
-from app.admin.debug_service import (
-    get_chunks_debug,
-    get_vectors_debug,
-    search_test,
-)
-from app.schemas.admin_debug import (
-    ChunksDebugResponse,
-    VectorsDebugResponse,
-    SearchTestResponse,
-)
-
 from app.ingestion.markdown_reader import split_frontmatter
 from app.schemas.ingestion.responses import (
     CanonicalUploadResponse,
@@ -48,20 +39,11 @@ from app.schemas.ingestion.responses import (
     ReviewCanonicalResponse,
 )
 
-from fastapi import Form
-from app.ingestion.canonical_storage import MAX_MARKDOWN_BYTES, MAX_SOURCE_BYTES, get_source_preview_url
+from app.ingestion.canonical_storage import MAX_MARKDOWN_BYTES, MAX_SOURCE_BYTES
 from app.schemas.ingestion.requests import (
     RawMarkdownUploadMetadata,
     ReviewCanonicalRequest,
 )
-
-from fastapi.responses import RedirectResponse
-
-from app.databases.models.documents import DocumentVersion
-
-from pathlib import Path
-
-from sqlalchemy import select
 
 router = APIRouter(
     prefix="/admin",
@@ -102,10 +84,22 @@ def _upload_error_detail(exc: Exception) -> dict:
 async def preview_chunks(document_version_id: int, session: AsyncSession = Depends(get_session)):
     try:
         return await build_chunk_preview(session, document_version_id=document_version_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/document-versions/{document_version_id}/chunks/approve",
+    response_model=ChunkApprovalResponse,
+)
+async def approve_chunks(
+    document_version_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> ChunkApprovalResponse:
+    return await approve_chunk_preview(
+        session,
+        document_version_id=document_version_id,
+    )
 
 
 @router.post(
@@ -118,15 +112,13 @@ async def index_version(
     background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
 ):
-    try:
-        job = await start_index_document_version(session, document_version_id=document_version_id)
-        # ponytail: in-process job; use a queue when restart-safe workers are required.
-        background_tasks.add_task(run_indexing_job, job.ingestion_job_id)
-        return job
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    job = await start_index_document_version(
+        session,
+        document_version_id=document_version_id,
+    )
+    # ponytail: in-process job; use a queue when restart-safe workers are required.
+    background_tasks.add_task(run_indexing_job, job.ingestion_job_id)
+    return job
 
 
 @router.get("/ingestion-jobs/{ingestion_job_id}", response_model=IndexingJobProgress)
@@ -134,10 +126,10 @@ async def get_indexing_job(
     ingestion_job_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    try:
-        return await get_indexing_job_progress(session, ingestion_job_id=ingestion_job_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return await get_indexing_job_progress(
+        session,
+        ingestion_job_id=ingestion_job_id,
+    )
 
 PREVIEW_METADATA_KEYS = set(RawMarkdownUploadMetadata.model_fields)
 
@@ -174,7 +166,7 @@ async def preview_markdown_metadata(
             metadata={
                 key: value
                 for key, value in frontmatter.items()
-                if key in PREVIEW_METADATA_KEYS
+                if key in PREVIEW_METADATA_KEYS and value is not None
             }
         )
 
@@ -263,15 +255,10 @@ async def review_canonical_markdown(
         return await review_canonical_document(
             session,
             document_version_id=document_version_id,
-            canonical_markdown=payload.canonical_markdown,
+            markdown_body=payload.markdown_body,
+            metadata=payload.metadata,
             assets=payload.assets,
         )
-
-    except LookupError as exc:
-        raise HTTPException(
-            status_code=404,
-            detail=str(exc),
-        ) from exc
 
     except FileNotFoundError as exc:
         raise HTTPException(
@@ -282,97 +269,3 @@ async def review_canonical_markdown(
             ),
         ) from exc
 
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=str(exc),
-        ) from exc
-
-
-@router.get(
-    "/chunks/{document_version_id}",
-    response_model=ChunksDebugResponse,
-)
-async def debug_chunks(
-    document_version_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    """Get all chunks for a document version (debug endpoint)."""
-    try:
-        return await get_chunks_debug(session, document_version_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@router.get(
-    "/vectors/{document_version_id}",
-    response_model=VectorsDebugResponse,
-)
-async def debug_vectors(
-    document_version_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    """Get vectors from Qdrant for a document version (debug endpoint)."""
-    try:
-        # Verify document version exists first
-        from app.databases.models.documents import DocumentVersion
-        version = await session.get(DocumentVersion, document_version_id)
-        if not version:
-            raise HTTPException(status_code=404, detail=f"Document version {document_version_id} not found")
-        return await get_vectors_debug(document_version_id)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="Qdrant unavailable") from exc
-
-
-@router.get(
-    "/search-test",
-    response_model=SearchTestResponse,
-)
-async def test_search(
-    q: str = Query(..., min_length=1),
-    top_k: int = Query(default=5, ge=1, le=20),
-    department_id: int | None = Query(default=None),
-):
-    """Test vector search without LLM generation (debug endpoint)."""
-    try:
-        return await search_test(
-            query=q,
-            top_k=top_k,
-            department_id=department_id,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    
-    
-@router.get(
-    "/document-versions/{document_version_id}/source-preview",
-    response_class=RedirectResponse,
-)
-async def preview_source_file(
-    document_version_id: int,
-    session: AsyncSession = Depends(get_session),
-) -> RedirectResponse:
-    version = await session.scalar(
-        select(DocumentVersion).where(
-            DocumentVersion.id == document_version_id
-        )
-    )
-
-    if version is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Không tìm thấy document version",
-        )
-
-    if not version.source_path:
-        raise HTTPException(
-            status_code=404,
-            detail="Version này không có file nguồn",
-        )
-
-    return RedirectResponse(
-        url=get_source_preview_url(version.source_path),
-        status_code=307,
-    )

@@ -147,6 +147,7 @@ FileType = Literal[
     "image",
     "xlsx",
     "pptx",
+    "ppt",
     "txt",
     "md",
     "html",
@@ -202,7 +203,8 @@ signer_name = Literal[
     "PHT", # Phó hiệu trưởng
     "TT", # Thứ trưởng
     "TP", # Trưởng phòng
-    "CT" # Chủ tịch
+    "CT", # Chủ tịch
+    "GD", # Giám đốc
 ]
 
 responsible_department = Literal[
@@ -235,13 +237,15 @@ responsible_department = Literal[
     "DVQLN", # đơn vị quản lý ngành
     "HDXMCNDHP", # hội đồng xét miễn và công nhận điểm học phần
     "HDDGNLNN", # hội đồng đánh giá năng lực ngoại ngữ
+    "HSV", # hội sinh viên
+
     "BGDDT", # bộ giáo dục và đào tạo
-    
     "BO", # các bộ
     "CQNB", # cơ quan ngang bộ
     "CQCP", # cơ quan thuộc Chính phủ
     "UBND-TT", # ủy ban nhân dân tỉnh, thành phố trực thuộc trung ương
     "NHCSXH", # ngân hàng Chính sách xã hội
+
 ]
 
 BlockType = Literal[

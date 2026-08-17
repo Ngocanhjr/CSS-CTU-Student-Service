@@ -1,23 +1,27 @@
 # 08. Đặc Tả Ingestion Pipeline
 
-**Version:** 4.0
+**Version:** 5.1
 **Status:** Final
 
 ## Scope
 
-OCR/LlamaParse chạy **bên ngoài** backend này. Backend nhận canonical Markdown đã được
-OCR và review từ trước, sau đó tiến hành phần còn lại của RAG pipeline.
+Backend hỗ trợ hai đầu vào cho admin: upload Markdown có sẵn, hoặc upload file nguồn
+vào trang OCR riêng. OCR dùng `app/ocr` và chỉ giữ file tạm trong thời gian request;
+không ghi PostgreSQL/R2 trước khi admin review Markdown và bấm Lưu.
 
 ## Pipeline (backend scope)
 
 ```text
-1. Nhận canonical Markdown + YAML metadata (đã OCR và review bên ngoài)
-2. Create ingestion_jobs row
-3. Validate metadata
-4. Chunk with LangChain / langchain-text-splitters
-5. Embed with BAAI/bge-m3
-6. Upsert to Qdrant
-7. Set rag_status = published
+1. Nếu chưa có Markdown: admin upload file nguồn tại trang OCR
+2. `POST /api/v1/admin/ocr` giữ basename file gốc trong vùng tạm, gọi `app/ocr`, gắn YAML metadata vào đầu Markdown và trả cả Markdown hoàn chỉnh lẫn metadata; chưa persistence
+3. Trang OCR hiển thị trường chọn phòng ban lưu file nguồn và một editor Review Markdown chứa YAML + nội dung OCR; YAML là nguồn metadata nghiệp vụ duy nhất
+4. Admin bấm Lưu; frontend đọc metadata từ YAML, dùng phòng ban đã chọn để tạo R2 key dưới `sources/`, rồi `POST /api/v1/admin/canonical-markdown` lưu source + canonical Markdown vào R2 và document/version/job vào PostgreSQL
+5. Validate metadata và approve review
+6. Preview chunks (read-only), sau đó approve để lưu Parent/Child vào PostgreSQL và đặt `current_step = chunks_approved`
+7. Index chỉ dùng bộ chunks đã approve; canonical Markdown thay đổi thì phải preview/approve lại
+8. Embed Child chunks với BAAI/bge-m3
+9. Upsert Child vectors vào Qdrant
+10. Set `rag_status = indexed`; publish là thao tác riêng
 ```
 
 ## Yêu cầu canonical Markdown đầu vào

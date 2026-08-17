@@ -38,6 +38,25 @@ UNDERSPECIFIED_QUERIES = {
     "cần giấy gì",
 }
 
+# Những câu này chỉ có nghĩa khi đặt trong mạch hội thoại trước đó. Không được
+# đưa nguyên văn vào retrieval toàn kho vì các từ như "tiếp" hay "còn" không
+# mô tả nghiệp vụ sinh viên nào.
+CONTINUATION_QUERIES = {
+    "tiếp",
+    "tiếp đi",
+    "nói tiếp",
+    "trả lời tiếp",
+    "còn gì",
+    "còn gì không",
+    "còn nữa không",
+    "còn không",
+    "có gì thêm không",
+}
+
+FOLLOW_UP_CLARIFICATION = (
+    "Bạn muốn hỏi tiếp về nội dung nào? Vui lòng nêu lại chủ đề hoặc câu hỏi trước đó."
+)
+
 # Chuẩn hóa câu hỏi 
 def normalize_query(query: str) -> str:
     #viết thường
@@ -99,13 +118,23 @@ def complete_or_clarify_query(
     context = context or RetrievalContext()
     
     # Nếu câu hỏi là câu hỏi nghiệp vụ nhưng chưa rõ ràng thì yêu cầu người dùng nhập thêm thông tin
-    is_ambiguous = expanded_query.lower() in UNDERSPECIFIED_QUERIES
+    is_continuation = expanded_query in CONTINUATION_QUERIES
+    is_ambiguous = expanded_query in UNDERSPECIFIED_QUERIES
 
     has_context = bool(
         context.current_document_key
         or context.current_version_key
         or context.recent_topic
     )
+
+    # Follow-up không có chủ đề là vô nghĩa. Dừng ở đây để tránh retrieval
+    # toàn kho và một câu trả lời lạc đề.
+    if is_continuation and not has_context:
+        return QueryDecision(
+            should_search=False,
+            query=expanded_query,
+            clarification_question=FOLLOW_UP_CLARIFICATION,
+        )
 
     # Nếu câu hỏi chưa rõ ràng và không có ngữ cảnh thì yêu cầu người dùng nhập thêm thông tin
     if is_ambiguous and not has_context:
@@ -117,10 +146,16 @@ def complete_or_clarify_query(
             ),
         )
 
-    resolved_query = expanded_query
+    # Với follow-up, chủ đề trước là truy vấn có ngữ nghĩa duy nhất. Document
+    # và version từ context bên dưới tiếp tục giới hạn phạm vi retrieval.
+    if is_continuation:
+        resolved_query = context.recent_topic or expanded_query
+    else:
+        resolved_query = expanded_query
     
-    # Nếu câu hỏi chưa rõ ràng nhưng có ngữ cảnh thì bổ sung ngữ cảnh vào câu hỏi
-    if is_ambiguous and context.recent_topic:
+    # Nếu câu hỏi chưa rõ ràng nhưng có ngữ cảnh thì bổ sung ngữ cảnh vào câu hỏi.
+    # Follow-up đã dùng recent_topic làm toàn bộ truy vấn ở trên.
+    if is_ambiguous and not is_continuation and context.recent_topic:
         resolved_query = f"{expanded_query} cho {context.recent_topic}"
 
     return QueryDecision(
@@ -128,4 +163,5 @@ def complete_or_clarify_query(
         query=resolved_query, #gọi retrieval engine để tìm kiếm câu trả lời
         document_key=context.current_document_key,
         version_key=context.current_version_key,
+        is_follow_up=is_continuation,
     )

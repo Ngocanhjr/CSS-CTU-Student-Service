@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "name": "CT239H End-to-End RAG Evaluation",
+    "language": "vi",
+    "pipeline": "production",
+    "recommended_top_k": 5,
+    "query_rewrite": "use_production_setting",
+    "reranker": "use_production_setting",
+    "metrics": [
+      "answer_correctness",
+      "faithfulness",
+      "citation_precision",
+      "no_answer_accuracy",
+      "mean_latency",
+      "p95_latency"
+    ],
+    "scoring_note": "E01-E08: score answer correctness against reference_facts, faithfulness against retrieved context, and citation precision against supporting sources. E09-E10: score no-answer behavior. Measure latency around POST /api/v1/rag/answer."
+  },
+  "cases": [
+    {
+      "id": "E01",
+      "question": "Em đang ở KTX từ học kỳ 3 năm học 2025-2026, sang học kỳ 1 năm học 2026-2027 có phải đăng ký lại không và đóng phí khi nào?",
+      "answerable": true,
+      "expected_document_keys": [
+        "ctu-ctsv-072026-tb-dk1-2627"
+      ],
+      "reference_facts": [
+        "Sinh viên đang ở cũ từ học kỳ 3 năm học 2025-2026 không cần đăng ký lại cho học kỳ 1 năm học 2026-2027.",
+        "Sinh viên phải nộp phí trong thời gian từ 04/8 đến 07/8/2026."
+      ],
+      "type": "hard_temporal"
+    },
+    {
+      "id": "E02",
+      "question": "Sinh viên đăng ký mới ở KTX học kỳ 3 năm học 2025-2026 cần đăng ký trước ngày nào và có thể nhận chỗ từ khi nào?",
+      "answerable": true,
+      "expected_document_keys": [
+        "ctu-ctsv-tbdk-hk32526"
+      ],
+      "reference_facts": [
+        "Thời hạn đăng ký tập trung là đến ngày 10/4/2026.",
+        "Sinh viên đăng ký mới có thể nhận chỗ ở từ ngày 04/5/2026."
+      ],
+      "type": "multi_fact"
+    },
+    {
+      "id": "E03",
+      "question": "Nếu học sinh xét tuyển thẳng nghỉ hơn 20% số tiết của một môn thì có được thi môn đó không? Điều kiện cuối năm để được xét vào đại học là gì?",
+      "answerable": true,
+      "expected_document_keys": [
+        "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020"
+      ],
+      "reference_facts": [
+        "Nghỉ vượt quá 20% số tiết của môn học thì không được dự thi cuối học kỳ môn đó.",
+        "Phải thi đủ 4 môn cuối mỗi học kỳ.",
+        "Điểm trung bình chung năm học phải đạt từ 5,0 điểm trở lên.",
+        "Điểm tổng kết từng môn phải trên 1,0 điểm.",
+        "Xếp loại rèn luyện cả năm phải từ Khá trở lên."
+      ],
+      "type": "multi_fact"
+    },
+    {
+      "id": "E04",
+      "question": "Sinh viên năm nhất muốn vay vốn theo Quyết định 29 cần đáp ứng điều kiện học tập nào?",
+      "answerable": true,
+      "expected_document_keys": [
+        "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29"
+      ],
+      "reference_facts": [
+        "Sinh viên năm nhất đáp ứng một trong hai nhóm điều kiện.",
+        "Có đồng thời cả ba năm THPT được đánh giá kết quả học tập từ mức Khá trở lên.",
+        "Hoặc điểm trung bình môn lớp 12 của các môn Toán, Vật lý, Hóa học, Sinh học từ 8 điểm trở lên."
+      ],
+      "type": "conditional"
+    },
+    {
+      "id": "E05",
+      "question": "Sinh viên chính quy muốn vay vốn theo Quyết định 29 thì xin giấy xác nhận ở đâu và nộp hồ sơ vay ở đâu?",
+      "answerable": true,
+      "expected_document_keys": [
+        "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29"
+      ],
+      "reference_facts": [
+        "Sinh viên chính quy thực hiện thủ tục cấp giấy xác nhận tại văn phòng Phòng Công tác Sinh viên.",
+        "Hồ sơ vay vốn được nộp tại Ngân hàng Chính sách xã hội ở địa phương."
+      ],
+      "type": "multi_step"
+    },
+    {
+      "id": "E06",
+      "question": "Một năm học 3 học kỳ chính ở CTU được bố trí thế nào và mỗi học kỳ kéo dài bao lâu?",
+      "answerable": true,
+      "expected_document_keys": [
+        "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024"
+      ],
+      "reference_facts": [
+        "Một năm học được tổ chức thành 3 học kỳ chính: Học kỳ 1, Học kỳ 2 và Học kỳ 3.",
+        "Mỗi học kỳ kéo dài 15 tuần.",
+        "Học kỳ 1 từ tuần 37 đến tuần 51.",
+        "Học kỳ 2 từ tuần 01 đến tuần 17.",
+        "Học kỳ 3 từ tuần 20 đến tuần 34."
+      ],
+      "type": "multi_fact"
+    },
+    {
+      "id": "E07",
+      "question": "CTU áp dụng công nghệ thông tin như thế nào trong công tác phòng chống bạo lực học đường và tệ nạn xã hội?",
+      "answerable": true,
+      "expected_document_keys": [
+        "ctu-ctsv-02-1470khth-06-05-2024"
+      ],
+      "reference_facts": [
+        "Tăng cường chuyển đổi số gắn với các giải pháp hỗ trợ quản lý việc sử dụng internet và mạng xã hội an toàn.",
+        "Ứng dụng công nghệ thông tin để tăng cường kết nối thường xuyên, liên tục và an toàn giữa các bên liên quan.",
+        "Tăng cường kiểm soát các luồng thông tin không chính thống có tính chất kích động bạo lực hoặc lôi kéo hành vi vi phạm."
+      ],
+      "type": "semantic"
+    },
+    {
+      "id": "E08",
+      "question": "So sánh thời gian đóng phí KTX của học kỳ 3 năm học 2025-2026 và học kỳ 1 năm học 2026-2027.",
+      "answerable": true,
+      "expected_document_keys": [
+        "ctu-ctsv-tbdk-hk32526",
+        "ctu-ctsv-072026-tb-dk1-2627"
+      ],
+      "reference_facts": [
+        "Học kỳ 3 năm học 2025-2026: nộp phí từ 23/4 đến 29/4/2026.",
+        "Học kỳ 1 năm học 2026-2027: nộp phí từ 04/8 đến 07/8/2026."
+      ],
+      "type": "multi_document_hard"
+    },
+    {
+      "id": "E09",
+      "question": "Mật khẩu Wi-Fi dành cho sinh viên trong KTX Đại học Cần Thơ là gì?",
+      "answerable": false,
+      "expected_document_keys": [],
+      "reference_facts": [],
+      "type": "unanswerable",
+      "expected_behavior": "abstain_or_no_context_without_fabricated_citation"
+    },
+    {
+      "id": "E10",
+      "question": "Hôm nay căn tin Đại học Cần Thơ có món gì và giá bao nhiêu?",
+      "answerable": false,
+      "expected_document_keys": [],
+      "reference_facts": [],
+      "type": "unanswerable",
+      "expected_behavior": "abstain_or_no_context_without_fabricated_citation"
+    }
+  ]
+}

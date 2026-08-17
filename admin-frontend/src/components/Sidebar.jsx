@@ -8,7 +8,7 @@ export default function Sidebar({
   onReset,
   collapsed,
 }) {
-  const processingActive = steps.some((step) => step.key === active);
+  const processingActive = active === "ocr" || steps.some((step) => step.key === active);
 
   return (
     <aside

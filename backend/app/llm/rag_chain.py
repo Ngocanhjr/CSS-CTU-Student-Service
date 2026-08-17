@@ -5,14 +5,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from langchain_core.output_parsers import StrOutputParser
+from pydantic import Field
 
 from app.llm.generator import get_chat_model
 from app.llm.prompts import RAG_ANSWER_PROMPT
 from app.retrieval.models import RetrievalResult
 from app.retrieval.s11_context_builder import build_retrieval_context
+from app.schemas.base import StrictSchema
 from app.schemas.rag import CitationResponse, RagAnswer
 
 
@@ -20,6 +21,21 @@ NO_CONTEXT_ANSWER = (
     "Tôi không tìm thấy thông tin phù hợp "
     "trong tài liệu đã được duyệt."
 )
+
+
+class GeneratedAnswer(StrictSchema):
+    """Structured decision returned by the LLM for a non-empty context."""
+
+    answer: str = Field(
+        description="Vietnamese answer grounded only in the supplied context."
+    )
+    answer_status: Literal["answered", "insufficient_evidence"] = Field(
+        description=(
+            "Use 'answered' only when the context directly supports the answer. "
+            "Use 'insufficient_evidence' when the context is missing or does not "
+            "contain enough evidence for the question, even if it is related."
+        )
+    )
 
 
 def build_answer_citations(
@@ -88,6 +104,7 @@ def generate_rag_answer(
         return RagAnswer(
             answer=NO_CONTEXT_ANSWER,
             citations=[],
+            answer_status="insufficient_evidence",
         )
 
     chat_model = (
@@ -96,22 +113,16 @@ def generate_rag_answer(
         else get_chat_model()
     )
 
-    chain = (
-        RAG_ANSWER_PROMPT
-        | chat_model
-        | StrOutputParser()
+    chain = RAG_ANSWER_PROMPT | chat_model.with_structured_output(GeneratedAnswer)
+    generated = chain.invoke(
+        {
+            "question": question.strip(),
+            "context": context,
+        }
     )
 
-    answer = str(
-        chain.invoke(
-            {
-                "question": question.strip(),
-                "context": context,
-            }
-        )
-    ).strip()
-
     return RagAnswer(
-        answer=answer,
+        answer=generated.answer.strip(),
         citations=build_answer_citations(results),
+        answer_status=generated.answer_status,
     )
