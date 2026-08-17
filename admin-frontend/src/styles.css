@@ -744,6 +744,24 @@ legend {
   font-weight: var(--font-medium);
 }
 
+.checkbox-field,
+.field.checkbox-field {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+  accent-color: var(--primary-600);
+}
+
 input,
 select,
 textarea {

@@ -1,0 +1,540 @@
+{
+  "meta": {
+    "name": "CT239H Retrieval Benchmark",
+    "language": "vi",
+    "top_k": 5,
+    "query_rewrite": false,
+    "evaluate_direct_hits_before_structural_expansion": true,
+    "configurations": [
+      "dense_only",
+      "sparse_only",
+      "hybrid_rrf",
+      "hybrid_rrf_jina"
+    ],
+    "metrics": [
+      "precision@5",
+      "recall@5",
+      "mrr"
+    ],
+    "gold_note": "gold_chunk_keys are intentionally empty because chunk keys depend on current production ingestion. Resolve once from PostgreSQL using expected_version_key, page_hint and gold_evidence_contains, then reuse the same resolved gold chunk keys for all four configurations."
+  },
+  "cases": [
+    {
+      "id": "R01",
+      "question": "Học kỳ 3 năm học 2025-2026 sinh viên được ở KTX trong khoảng thời gian nào?",
+      "expected_document_key": "ctu-ctsv-tbdk-hk32526",
+      "expected_version_key": "ctu-ctsv-tbdk-hk32526-a42b92f1401a",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "04/5/2026",
+        "21/8/2026",
+        "3,5 tháng"
+      ],
+      "gold_chunk_keys": [],
+      "type": "exact"
+    },
+    {
+      "id": "R02",
+      "question": "Sinh viên phải đóng phí KTX học kỳ 3 năm học 2025-2026 khi nào?",
+      "expected_document_key": "ctu-ctsv-tbdk-hk32526",
+      "expected_version_key": "ctu-ctsv-tbdk-hk32526-a42b92f1401a",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "23/4",
+        "29/4/2026",
+        "nộp phí"
+      ],
+      "gold_chunk_keys": [],
+      "type": "temporal"
+    },
+    {
+      "id": "R03",
+      "question": "Khi chuyển khoản tiền KTX học kỳ 3, nội dung chuyển khoản phải ghi theo cú pháp nào?",
+      "expected_document_key": "ctu-ctsv-tbdk-hk32526",
+      "expected_version_key": "ctu-ctsv-tbdk-hk32526-a42b92f1401a",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "Mã số SV",
+        "Tên SV",
+        "Số điện thoại",
+        "KTX"
+      ],
+      "gold_chunk_keys": [],
+      "type": "exact"
+    },
+    {
+      "id": "R04",
+      "question": "Hạn đăng ký ở KTX học kỳ 3 năm học 2025-2026 là ngày nào?",
+      "expected_document_key": "ctu-ctsv-tbdk-hk32526",
+      "expected_version_key": "ctu-ctsv-tbdk-hk32526-a42b92f1401a",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "10/4/2026",
+        "đăng ký ở KTX"
+      ],
+      "gold_chunk_keys": [],
+      "type": "temporal"
+    },
+    {
+      "id": "R05",
+      "question": "Sinh viên đăng ký mới ở KTX học kỳ 3 năm học 2025-2026 có thể nhận chỗ từ ngày nào?",
+      "expected_document_key": "ctu-ctsv-tbdk-hk32526",
+      "expected_version_key": "ctu-ctsv-tbdk-hk32526-a42b92f1401a",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "đăng ký mới",
+        "04/5/2026",
+        "nhận chỗ"
+      ],
+      "gold_chunk_keys": [],
+      "type": "temporal_hard"
+    },
+    {
+      "id": "R06",
+      "question": "Thời gian ở KTX học kỳ 1 năm học 2026-2027 kéo dài từ ngày nào đến ngày nào?",
+      "expected_document_key": "ctu-ctsv-072026-tb-dk1-2627",
+      "expected_version_key": "ctu-ctsv-072026-tb-dk1-2627-cd5b6c899955",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "07/9/2026",
+        "18/12/2026",
+        "3,5 tháng"
+      ],
+      "gold_chunk_keys": [],
+      "type": "temporal"
+    },
+    {
+      "id": "R07",
+      "question": "Học kỳ 1 năm học 2026-2027 phải nộp phí KTX trong thời gian nào?",
+      "expected_document_key": "ctu-ctsv-072026-tb-dk1-2627",
+      "expected_version_key": "ctu-ctsv-072026-tb-dk1-2627-cd5b6c899955",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "04/8",
+        "07/8/2026",
+        "nộp phí"
+      ],
+      "gold_chunk_keys": [],
+      "type": "temporal_hard"
+    },
+    {
+      "id": "R08",
+      "question": "Sinh viên đã ở KTX từ học kỳ 3 năm học 2025-2026 có phải đăng ký lại cho học kỳ 1 năm học 2026-2027 không?",
+      "expected_document_key": "ctu-ctsv-072026-tb-dk1-2627",
+      "expected_version_key": "ctu-ctsv-072026-tb-dk1-2627-cd5b6c899955",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "đang ở cũ",
+        "không cần phải đăng ký lại",
+        "chỉ thực hiện nộp phí"
+      ],
+      "gold_chunk_keys": [],
+      "type": "semantic_hard"
+    },
+    {
+      "id": "R09",
+      "question": "Phí gửi xe KTX học kỳ 1 năm học 2026-2027 được nộp trong khoảng thời gian nào?",
+      "expected_document_key": "ctu-ctsv-072026-tb-dk1-2627",
+      "expected_version_key": "ctu-ctsv-072026-tb-dk1-2627-cd5b6c899955",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "04/8",
+        "14/8/2026",
+        "phí gửi xe"
+      ],
+      "gold_chunk_keys": [],
+      "type": "temporal"
+    },
+    {
+      "id": "R10",
+      "question": "Sinh viên đăng ký mới KTX học kỳ 1 năm học 2026-2027 được nhận chỗ từ ngày nào?",
+      "expected_document_key": "ctu-ctsv-072026-tb-dk1-2627",
+      "expected_version_key": "ctu-ctsv-072026-tb-dk1-2627-cd5b6c899955",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "đăng ký ở mới",
+        "07/9/2026",
+        "nhận chỗ"
+      ],
+      "gold_chunk_keys": [],
+      "type": "temporal_hard"
+    },
+    {
+      "id": "R11",
+      "question": "Học sinh xét tuyển thẳng phải học bổ sung kiến thức trong bao lâu?",
+      "expected_document_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020",
+      "expected_version_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020-f3e6c45c208a",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "một năm",
+        "2 học kỳ"
+      ],
+      "gold_chunk_keys": [],
+      "type": "semantic"
+    },
+    {
+      "id": "R12",
+      "question": "Chương trình bổ sung kiến thức cho học sinh xét tuyển thẳng gồm bao nhiêu tín chỉ?",
+      "expected_document_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020",
+      "expected_version_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020-f3e6c45c208a",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "Tổng cộng",
+        "40",
+        "tín chỉ"
+      ],
+      "gold_chunk_keys": [],
+      "type": "exact_table"
+    },
+    {
+      "id": "R13",
+      "question": "Nếu học sinh nghỉ quá 20% số tiết của một môn thì có được thi cuối học kỳ môn đó không?",
+      "expected_document_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020",
+      "expected_version_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020-f3e6c45c208a",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "vượt quá 20%",
+        "không được dự thi"
+      ],
+      "gold_chunk_keys": [],
+      "type": "paraphrase"
+    },
+    {
+      "id": "R14",
+      "question": "Điểm tổng kết môn học của học sinh xét tuyển thẳng được tính với hệ số kiểm tra và thi như thế nào?",
+      "expected_document_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020",
+      "expected_version_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020-f3e6c45c208a",
+      "page_hint": [
+        2,
+        3
+      ],
+      "gold_evidence_contains": [
+        "kiểm tra",
+        "hệ số 1",
+        "thi",
+        "hệ số 2"
+      ],
+      "gold_chunk_keys": [],
+      "type": "multi_fact"
+    },
+    {
+      "id": "R15",
+      "question": "Điều kiện để học sinh sau năm bổ sung kiến thức được xét tuyển vào đại học là gì?",
+      "expected_document_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020",
+      "expected_version_key": "ctu-pdt-2020-qd2734-quy-dinh-to-chuc-boi-duong-xtt2020-f3e6c45c208a",
+      "page_hint": [
+        3,
+        3
+      ],
+      "gold_evidence_contains": [
+        "Thi đủ 4 môn",
+        "5,0 điểm",
+        "trên 1,0 điểm",
+        "Khá"
+      ],
+      "gold_chunk_keys": [],
+      "type": "multi_fact"
+    },
+    {
+      "id": "R16",
+      "question": "Sinh viên được vay vốn theo Quyết định 29 để chi trả những khoản nào?",
+      "expected_document_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29",
+      "expected_version_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29-86d69ccd57ab",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "học phí",
+        "sinh hoạt phí",
+        "chi phí học tập khác"
+      ],
+      "gold_chunk_keys": [],
+      "type": "semantic"
+    },
+    {
+      "id": "R17",
+      "question": "Sinh viên ngành máy tính và công nghệ thông tin có thuộc đối tượng của chương trình tín dụng theo Quyết định 29 không?",
+      "expected_document_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29",
+      "expected_version_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29-86d69ccd57ab",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "Máy tính và công nghệ thông tin",
+        "748"
+      ],
+      "gold_chunk_keys": [],
+      "type": "semantic_table"
+    },
+    {
+      "id": "R18",
+      "question": "Sinh viên năm nhất muốn vay vốn theo Quyết định 29 phải đáp ứng điều kiện học tập nào?",
+      "expected_document_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29",
+      "expected_version_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29-86d69ccd57ab",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "ba năm học trung học phổ thông",
+        "mức khá",
+        "Toán",
+        "Vật lý",
+        "Hóa học",
+        "Sinh học",
+        "8 điểm"
+      ],
+      "gold_chunk_keys": [],
+      "type": "multi_condition"
+    },
+    {
+      "id": "R19",
+      "question": "Sinh viên từ năm thứ hai trở đi cần kết quả học tập thế nào để vay vốn?",
+      "expected_document_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29",
+      "expected_version_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29-86d69ccd57ab",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "năm thứ hai trở đi",
+        "loại giỏi",
+        "năm trước liền kề"
+      ],
+      "gold_chunk_keys": [],
+      "type": "paraphrase"
+    },
+    {
+      "id": "R20",
+      "question": "Sinh viên chính quy xin giấy xác nhận vay vốn ở đâu?",
+      "expected_document_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29",
+      "expected_version_key": "ctu-ctsv-3481-29-9-2025-thong-bao-trien-khai-vay-von-theo-qd-29-86d69ccd57ab",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "sinh viên hình thức chính quy",
+        "văn phòng Phòng Công tác Sinh viên"
+      ],
+      "gold_chunk_keys": [],
+      "type": "exact"
+    },
+    {
+      "id": "R21",
+      "question": "Đại học Cần Thơ bắt đầu tổ chức 3 học kỳ chính từ thời điểm nào?",
+      "expected_document_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024",
+      "expected_version_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024-33dd83224118",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "Học kỳ 2 năm học 2024 - 2025",
+        "03 học kỳ chính"
+      ],
+      "gold_chunk_keys": [],
+      "type": "temporal"
+    },
+    {
+      "id": "R22",
+      "question": "Một học kỳ chính theo kế hoạch 3 học kỳ của CTU kéo dài bao nhiêu tuần?",
+      "expected_document_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024",
+      "expected_version_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024-33dd83224118",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "15 tuần"
+      ],
+      "gold_chunk_keys": [],
+      "type": "exact"
+    },
+    {
+      "id": "R23",
+      "question": "15 tuần của một học kỳ chính được phân bổ như thế nào?",
+      "expected_document_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024",
+      "expected_version_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024-33dd83224118",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "11 tuần dạy và học",
+        "01 tuần dự trữ",
+        "thi",
+        "01 tuần xử lý kết quả"
+      ],
+      "gold_chunk_keys": [],
+      "type": "multi_fact"
+    },
+    {
+      "id": "R24",
+      "question": "Học kỳ 1, 2 và 3 của CTU tương ứng với các khoảng tuần nào trong năm?",
+      "expected_document_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024",
+      "expected_version_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024-33dd83224118",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "tuần thứ 37",
+        "tuần thứ 51",
+        "tuần thứ 01",
+        "tuần thứ 17",
+        "tuần thứ 20",
+        "tuần thứ 34"
+      ],
+      "gold_chunk_keys": [],
+      "type": "multi_fact"
+    },
+    {
+      "id": "R25",
+      "question": "Sinh viên đại học đang học được khuyến nghị không đăng ký quá bao nhiêu tín chỉ mỗi học kỳ?",
+      "expected_document_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024",
+      "expected_version_key": "ctu-ctsv-cv-dhct-ve-viec-to-chuc-giang-day-3-hoc-ky-chinh-trong-mot-nam-hoc-01-08-2024-33dd83224118",
+      "page_hint": [
+        2,
+        2
+      ],
+      "gold_evidence_contains": [
+        "không quá 20 tín chỉ/học kỳ"
+      ],
+      "gold_chunk_keys": [],
+      "type": "semantic"
+    },
+    {
+      "id": "R26",
+      "question": "Kế hoạch 1470 của CTU hướng đến mục tiêu gì trong phòng chống bạo lực học đường?",
+      "expected_document_key": "ctu-ctsv-02-1470khth-06-05-2024",
+      "expected_version_key": "ctu-ctsv-02-1470khth-06-05-2024-2ddca77b7987",
+      "page_hint": [
+        1,
+        1
+      ],
+      "gold_evidence_contains": [
+        "phối hợp giữa nhà trường, gia đình và xã hội",
+        "phòng chống bạo lực học đường",
+        "môi trường giáo dục an toàn"
+      ],
+      "gold_chunk_keys": [],
+      "type": "semantic"
+    },
+    {
+      "id": "R27",
+      "question": "CTU sử dụng những hình thức nào để tuyên truyền và giáo dục phòng chống bạo lực học đường?",
+      "expected_document_key": "ctu-ctsv-02-1470khth-06-05-2024",
+      "expected_version_key": "ctu-ctsv-02-1470khth-06-05-2024-2ddca77b7987",
+      "page_hint": [
+        1,
+        2
+      ],
+      "gold_evidence_contains": [
+        "hội nghị",
+        "hội thảo",
+        "triển lãm",
+        "cuộc thi",
+        "truyền thông"
+      ],
+      "gold_chunk_keys": [],
+      "type": "multi_fact"
+    },
+    {
+      "id": "R28",
+      "question": "Nhà trường yêu cầu phối hợp những lực lượng nào trong công tác phòng chống bạo lực học đường và tệ nạn xã hội?",
+      "expected_document_key": "ctu-ctsv-02-1470khth-06-05-2024",
+      "expected_version_key": "ctu-ctsv-02-1470khth-06-05-2024-2ddca77b7987",
+      "page_hint": [
+        2,
+        3
+      ],
+      "gold_evidence_contains": [
+        "gia đình",
+        "nhà trường",
+        "xã hội"
+      ],
+      "gold_chunk_keys": [],
+      "type": "semantic"
+    },
+    {
+      "id": "R29",
+      "question": "Công nghệ thông tin và chuyển đổi số được sử dụng như thế nào để phòng chống bạo lực học đường?",
+      "expected_document_key": "ctu-ctsv-02-1470khth-06-05-2024",
+      "expected_version_key": "ctu-ctsv-02-1470khth-06-05-2024-2ddca77b7987",
+      "page_hint": [
+        3,
+        3
+      ],
+      "gold_evidence_contains": [
+        "chuyển đổi số",
+        "internet",
+        "mạng xã hội",
+        "kết nối",
+        "kiểm soát các luồng thông tin"
+      ],
+      "gold_chunk_keys": [],
+      "type": "paraphrase"
+    },
+    {
+      "id": "R30",
+      "question": "Phòng Công tác Sinh viên có trách nhiệm gì trong việc triển khai kế hoạch phòng chống bạo lực học đường?",
+      "expected_document_key": "ctu-ctsv-02-1470khth-06-05-2024",
+      "expected_version_key": "ctu-ctsv-02-1470khth-06-05-2024-2ddca77b7987",
+      "page_hint": [
+        3,
+        4
+      ],
+      "gold_evidence_contains": [
+        "tổ chức thực hiện",
+        "kiểm tra",
+        "giám sát",
+        "đánh giá",
+        "giao ban công tác an ninh"
+      ],
+      "gold_chunk_keys": [],
+      "type": "semantic"
+    }
+  ]
+}

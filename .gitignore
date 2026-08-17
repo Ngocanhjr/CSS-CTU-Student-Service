@@ -50,6 +50,12 @@ RTK.md
 /backend/storage/
 /backend/.pytest_tmp/
 /backend/test/
+!/backend/test/
+!/backend/test/benchmarks/
+!/backend/test/benchmarks/**
+/backend/test/benchmarks/__pycache__/
+!/backend/test/file_test/
+!/backend/test/file_test/**
 
 
 backend/.cache/
@@ -61,3 +67,4 @@ backend/answer.txt
 /storage/
 .cache/
 .tmp
+.venv-ev/

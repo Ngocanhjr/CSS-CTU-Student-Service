@@ -359,6 +359,7 @@ async def _update_document_version(
             "effective_date": _iso(metadata.effective_date),
             "expiry_date": _iso(metadata.expiry_date),
             "validity_status": metadata.validity_status,
+            "is_latest": metadata.is_latest,
             "ocr_status": "done",
             "review_status": "approved",
             "rag_status": "not_indexed",
@@ -410,6 +411,7 @@ async def _update_indexed_version_metadata(
         "ocr_status": version.ocr_status,
         "code": version.code,
         "issued_date": version.issued_date,
+        "is_latest": version.is_latest,
         "canonical_path": version.canonical_markdown_path,
         "extra_metadata": dict(version.extra_metadata or {}),
     }
@@ -431,6 +433,8 @@ async def _update_indexed_version_metadata(
         restricted_changes.append("phòng ban phụ trách")
     if submitted_body.strip() != current_body.strip():
         restricted_changes.append("nội dung canonical Markdown")
+    if metadata.is_latest != snapshot["is_latest"]:
+        restricted_changes.append("phiên bản mới nhất")
     if restricted_changes:
         raise InvalidRequestError(
             "Các trường sau ảnh hưởng embedding và cần Deindex trước: "

@@ -70,6 +70,8 @@ class DocumentVersionUpdateMetadata(StrictSchema):
     effective_date: date | None = None
     expiry_date: date | None = None
     validity_status: str = "unknown"
+    is_latest: bool = False
+    is_latest: bool = False
 
 
 class DocumentVersionUpdateRequest(StrictSchema):

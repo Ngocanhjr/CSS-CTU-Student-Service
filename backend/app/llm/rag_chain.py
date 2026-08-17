@@ -88,6 +88,7 @@ def generate_rag_answer(
         return RagAnswer(
             answer=NO_CONTEXT_ANSWER,
             citations=[],
+            answer_status="insufficient_evidence",
         )
 
     chat_model = (
@@ -114,4 +115,5 @@ def generate_rag_answer(
     return RagAnswer(
         answer=answer,
         citations=build_answer_citations(results),
+        answer_status="answered",
     )

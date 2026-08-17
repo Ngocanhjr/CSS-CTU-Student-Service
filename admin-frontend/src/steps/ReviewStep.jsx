@@ -213,6 +213,10 @@ export default function ReviewStep({ pipeline, update, goTo }) {
             <span>Ghi chú</span>
             <textarea className="metadata-notes" id="review-notes" value={reviewMetadata.notes || ''} onChange={(event) => setMetadataField('notes', event.target.value)} rows={1} />
           </label>
+          <label className="field checkbox-field" htmlFor="review-is-latest">
+            <input id="review-is-latest" type="checkbox" checked={Boolean(reviewMetadata.is_latest)} onChange={(event) => setMetadataField('is_latest', event.target.checked)} />
+            <span>Phiên bản mới nhất</span>
+          </label>
         </fieldset>
 
         <AudiencePicker

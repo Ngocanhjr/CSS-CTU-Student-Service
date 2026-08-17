@@ -12,6 +12,7 @@ export const EMPTY_METADATA = {
   code: '',
   issued_date: '',
   effective_date: '',
+  is_latest: false,
   source_url: '',
   notes: '',
 }
@@ -217,6 +218,10 @@ export default function DocumentMetadataForm({
           value={metadata.audience}
           onChange={(value) => onChange('audience', value)}
         />
+        <label className="field checkbox-field" htmlFor={fieldId('is-latest')}>
+          <input id={fieldId('is-latest')} type="checkbox" checked={Boolean(metadata.is_latest)} onChange={(event) => onChange('is_latest', event.target.checked)} />
+          <span>Phiên bản mới nhất</span>
+        </label>
       </fieldset>
     </>
   )

@@ -20,4 +20,7 @@ python-multipart
 boto3
 
 llama-cloud>=2.1
-llama-cloud
+
+ir-measures==0.3.7
+ragas>=0.3,<0.4
+matplotlib==3.10.9

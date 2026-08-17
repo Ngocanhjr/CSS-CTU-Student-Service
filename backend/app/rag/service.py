@@ -67,7 +67,13 @@ class RagService:
         question: str,
         top_k: int,
         context: RetrievalContext | None = None,
-    ) -> tuple[bool, str, RagAnswer | None, ConversationContext]:
+    ) -> tuple[
+        bool,
+        str,
+        RagAnswer | None,
+        ConversationContext,
+        str,
+    ]:
         context = context or RetrievalContext()
         decision = complete_or_clarify_query(question, context=context)
         if not decision.should_search:
@@ -82,6 +88,7 @@ class RagService:
                     topic=decision.query,
                     answer=None,
                 ),
+                "insufficient_evidence",
             )
 
         try:
@@ -125,6 +132,7 @@ class RagService:
                     answer=None,
                     results=[],
                 ),
+                "insufficient_evidence",
             )
         # generate_rag_answer gọi LLM đồng bộ (chain.invoke).
         # Chạy trong thread để không chặn event loop của FastAPI.
@@ -143,4 +151,5 @@ class RagService:
                 answer=answer,
                 results=results,
             ),
+            answer.answer_status,
         )

@@ -34,7 +34,7 @@ async def answer_question(
             else ()
         ),
     )
-    should_search, direct_answer, rag_answer, response_context = await rag_service.answer(
+    should_search, direct_answer, rag_answer, response_context, answer_status = await rag_service.answer(
         session,
         question=request.question,
         top_k=request.top_k,
@@ -46,6 +46,7 @@ async def answer_question(
             answer=direct_answer,
             citations=[],
             should_search=False,
+            answer_status=answer_status,
             recent_topic=response_context.recent_topic,
             conversation_context=response_context,
         )
@@ -56,6 +57,7 @@ async def answer_question(
         answer=rag_answer.answer,
         citations=rag_answer.citations,
         should_search=True,
+        answer_status=answer_status,
         recent_topic=response_context.recent_topic,
         conversation_context=response_context,
     )

@@ -32,6 +32,7 @@ function toForm(doc) {
     effective_date: doc.effective_date,
     expiry_date: doc.expiry_date,
     validity_status: doc.validity_status,
+    is_latest: doc.is_latest,
   };
 }
 
@@ -286,6 +287,13 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
             <dd>
               <StatusBadge status={doc.rag_status} />
             </dd>
+            <dt>Phiên bản mới nhất</dt>
+            <dd>
+              <label className="checkbox-field">
+                <input type="checkbox" checked={Boolean(form.is_latest)} disabled={requiresDeindex} onChange={(e) => set("is_latest", e.target.checked)} />
+                <span>Đặt là version mới nhất</span>
+              </label>
+            </dd>
           </dl>
           <p className="hint">
             OCR và RAG là kết quả của pipeline tự động, không sửa trực tiếp ở
@@ -309,6 +317,7 @@ export default function DocumentEditPage({ documentId, onBack, onContinue }) {
                 lực, domain và audience. Domain/audience được đồng bộ vào
                 payload Qdrant tự động.
               </p>
+              <p>Đổi phiên bản mới nhất cần Deindex trước.</p>
             </aside>
           )}
           {doc.rag_status === "failed" && (

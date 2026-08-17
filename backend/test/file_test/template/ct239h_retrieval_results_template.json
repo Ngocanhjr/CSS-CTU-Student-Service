@@ -1,0 +1,45 @@
+{
+  "benchmark": "ct239h_retrieval_benchmark_30",
+  "input": "test/file_test/ct239h_retrieval_benchmark_30.json",
+  "configs": {
+    "dense_only": {
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "mrr": null,
+      "cases": [
+        {
+          "id": "R01",
+          "expected": {
+            "document_key": "ctu-ctsv-tbdk-hk32526",
+            "version_key": "ctu-ctsv-tbdk-hk32526-a42b92f1401a",
+            "page_hint": [1, 1],
+            "gold_answer_spans": [],
+            "resolved_gold_chunk_keys": []
+          },
+          "actual": [],
+          "precision_at_5": null,
+          "recall_at_5": null,
+          "reciprocal_rank": null
+        }
+      ]
+    },
+    "sparse_only": {
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "mrr": null,
+      "cases": []
+    },
+    "hybrid_rrf": {
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "mrr": null,
+      "cases": []
+    },
+    "hybrid_rrf_jina": {
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "mrr": null,
+      "cases": []
+    }
+  }
+}

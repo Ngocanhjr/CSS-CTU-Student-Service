@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from pydantic import Field
 
@@ -57,11 +58,13 @@ class CitationResponse(StrictSchema):
 class RagAnswer(StrictSchema):
     answer: str
     citations: list[CitationResponse] = Field(default_factory=list)
+    answer_status: Literal["answered", "insufficient_evidence"]
 
 
 class AnswerResponse(StrictSchema):
     answer: str
     citations: list[CitationResponse] = Field(default_factory=list)
     should_search: bool
+    answer_status: Literal["answered", "insufficient_evidence"]
     recent_topic: str | None = None
     conversation_context: ConversationContext | None = None

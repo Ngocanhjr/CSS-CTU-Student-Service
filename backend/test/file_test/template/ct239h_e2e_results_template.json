@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "name": "CT239H End-to-End RAG Results",
+    "source_test_file": "ct239h_end_to_end_10.json",
+    "note": "Run the production RAG pipeline. Expected fields are fixed before execution; actual fields are produced by the benchmark runner."
+  },
+
+  "summary": {
+    "answer_correctness": null,
+    "faithfulness": null,
+    "citation_precision": null,
+    "no_answer_accuracy": null,
+    "mean_latency_seconds": null,
+    "p95_latency_seconds": null
+  },
+
+  "cases": [
+    {
+      "id": "E01",
+
+      "input": {
+        "question": "Em đang ở KTX từ học kỳ 3 năm học 2025-2026, sang học kỳ 1 năm học 2026-2027 có phải đăng ký lại không và đóng phí khi nào?"
+      },
+
+      "expected": {
+        "answerable": true,
+
+        "document_keys": ["ctu-ctsv-072026-tb-dk1-2627"],
+
+        "reference_facts": [
+          "Sinh viên đang ở cũ từ học kỳ 3 năm học 2025-2026 không cần đăng ký lại cho học kỳ 1 năm học 2026-2027.",
+          "Sinh viên phải nộp phí trong thời gian từ 04/8 đến 07/8/2026."
+        ],
+
+        "expected_behavior": null
+      },
+
+      "actual": {
+        "http_status": null,
+        "should_search": null,
+        "answer_status": null,
+        "answer": null,
+        "citations": [],
+        "response_latency_seconds": null,
+
+        "answer_correctness": null,
+        "faithfulness": null,
+        "citation_precision": null,
+        "no_answer_correct": null,
+
+        "notes": null
+      }
+    },
+
+    {
+      "id": "E09",
+
+      "input": {
+        "question": "Mật khẩu Wi-Fi dành cho sinh viên trong KTX Đại học Cần Thơ là gì?"
+      },
+
+      "expected": {
+        "answerable": false,
+        "document_keys": [],
+        "reference_facts": [],
+        "expected_behavior": "abstain_or_no_context_without_fabricated_citation"
+      },
+
+      "actual": {
+        "http_status": null,
+        "should_search": null,
+        "answer_status": null,
+        "answer": null,
+        "citations": [],
+        "response_latency_seconds": null,
+
+        "answer_correctness": null,
+        "faithfulness": null,
+        "citation_precision": null,
+        "no_answer_correct": null,
+
+        "notes": null
+      }
+    }
+  ]
+}
