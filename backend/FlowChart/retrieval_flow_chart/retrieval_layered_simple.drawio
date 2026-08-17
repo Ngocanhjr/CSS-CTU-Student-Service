@@ -1,0 +1,62 @@
+<mxfile host="app.diagrams.net" modified="2026-08-16T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="retrieval-layered-simple" name="Retrieval Layered Simple">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="1000">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="SIMPLIFIED LAYERED RETRIEVAL FLOW" style="text;html=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;align=center" vertex="1" parent="1"><mxGeometry x="350" y="20" width="700" height="35" as="geometry"/></mxCell>
+
+        <mxCell id="retrieval" value="RETRIEVAL LAYER – orchestration &amp; policy" style="swimlane;html=1;horizontal=0;startSize=34;fillColor=#eaf2fb;strokeColor=#6c8ebf;fontStyle=1" vertex="1" parent="1"><mxGeometry x="40" y="70" width="1320" height="220" as="geometry"/></mxCell>
+        <mxCell id="llm" value="LLM LAYER – query transformation &amp; ranking" style="swimlane;html=1;horizontal=0;startSize=34;fillColor=#fff4df;strokeColor=#d68b00;fontStyle=1" vertex="1" parent="1"><mxGeometry x="40" y="290" width="1320" height="150" as="geometry"/></mxCell>
+        <mxCell id="qdrant" value="QDRANT LAYER – dense retrieval only" style="swimlane;html=1;horizontal=0;startSize=34;fillColor=#e9f7f8;strokeColor=#149da8;fontStyle=1" vertex="1" parent="1"><mxGeometry x="40" y="440" width="1320" height="140" as="geometry"/></mxCell>
+        <mxCell id="postgres" value="POSTGRESQL LAYER – sparse retrieval &amp; canonical content" style="swimlane;html=1;horizontal=0;startSize=34;fillColor=#f5effb;strokeColor=#7e57c2;fontStyle=1" vertex="1" parent="1"><mxGeometry x="40" y="580" width="1320" height="160" as="geometry"/></mxCell>
+        <mxCell id="result" value="RESULT / CONTEXT LAYER" style="swimlane;html=1;horizontal=0;startSize=34;fillColor=#eef8eb;strokeColor=#6aa84f;fontStyle=1" vertex="1" parent="1"><mxGeometry x="40" y="740" width="1320" height="170" as="geometry"/></mxCell>
+
+        <mxCell id="start" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" vertex="1" parent="retrieval"><mxGeometry x="45" y="75" width="110" height="45" as="geometry"/></mxCell>
+        <mxCell id="input" value="Question + conversation context" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" vertex="1" parent="retrieval"><mxGeometry x="190" y="65" width="210" height="65" as="geometry"/></mxCell>
+        <mxCell id="policy" value="Resolve query + metadata + eligibility policy" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="retrieval"><mxGeometry x="450" y="65" width="250" height="65" as="geometry"/></mxCell>
+        <mxCell id="decision" value="Retrieval-eligible?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450" vertex="1" parent="retrieval"><mxGeometry x="760" y="55" width="180" height="85" as="geometry"/></mxCell>
+        <mxCell id="dispatch" value="Dispatch hybrid search&#xa;and collect candidates" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="retrieval"><mxGeometry x="1010" y="65" width="240" height="65" as="geometry"/></mxCell>
+        <mxCell id="noSearch" value="Non-retrieval response" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" vertex="1" parent="retrieval"><mxGeometry x="760" y="160" width="180" height="45" as="geometry"/></mxCell>
+
+        <mxCell id="rewrite" value="Optional query rewrite&#xa;LLM variants or original-query fallback" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fce5cd;strokeColor=#d68b00" vertex="1" parent="llm"><mxGeometry x="220" y="55" width="270" height="65" as="geometry"/></mxCell>
+        <mxCell id="rerank" value="Rerank hydrated direct hits" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fce5cd;strokeColor=#d68b00" vertex="1" parent="llm"><mxGeometry x="820" y="55" width="240" height="65" as="geometry"/></mxCell>
+
+        <mxCell id="dense" value="Embed query → Qdrant filter → dense top-k child chunks" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d9ead3;strokeColor=#6aa84f" vertex="1" parent="qdrant"><mxGeometry x="180" y="50" width="330" height="60" as="geometry"/></mxCell>
+        <mxCell id="denseOut" value="Dense candidates" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" vertex="1" parent="qdrant"><mxGeometry x="900" y="50" width="190" height="60" as="geometry"/></mxCell>
+
+        <mxCell id="sparse" value="PostgreSQL FTS/BM25 + shared eligibility conditions" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5f3;strokeColor=#7e57c2" vertex="1" parent="postgres"><mxGeometry x="180" y="55" width="330" height="60" as="geometry"/></mxCell>
+        <mxCell id="hydrate" value="Hydrate canonical DocumentChunk content" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5f3;strokeColor=#7e57c2" vertex="1" parent="postgres"><mxGeometry x="680" y="55" width="300" height="60" as="geometry"/></mxCell>
+
+        <mxCell id="fusion" value="RRF fusion + dedupe&#xa;Dense + sparse candidates" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="result"><mxGeometry x="140" y="55" width="240" height="65" as="geometry"/></mxCell>
+        <mxCell id="expand" value="Structural expansion&#xa;parent / children / siblings / split neighbors" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="result"><mxGeometry x="470" y="55" width="280" height="65" as="geometry"/></mxCell>
+        <mxCell id="context" value="Build bounded retrieval context&#xa;source order + character budget" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d9ead3;strokeColor=#6aa84f" vertex="1" parent="result"><mxGeometry x="840" y="55" width="260" height="65" as="geometry"/></mxCell>
+        <mxCell id="output" value="RetrievalResult / context → RAG LLM" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" vertex="1" parent="result"><mxGeometry x="1170" y="55" width="150" height="65" as="geometry"/></mxCell>
+        <mxCell id="end" value="End" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" vertex="1" parent="result"><mxGeometry x="610" y="130" width="120" height="35" as="geometry"/></mxCell>
+
+        <mxCell id="env" value="Environment configuration&#xa;QUERY_REWRITE_ENABLED, LLM model/API, Qdrant collection/vector, retrieval candidate_k/top_k" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#444444" vertex="1" parent="1"><mxGeometry x="900" y="920" width="400" height="65" as="geometry"/></mxCell>
+        <mxCell id="legend" value="Oval = Start/End | Parallelogram = Input/Output | Rectangle = Process | Diamond = Decision | Dashed rounded rectangle = Environment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=12" vertex="1" parent="1"><mxGeometry x="50" y="925" width="700" height="45" as="geometry"/></mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="start" target="input"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="input" target="policy"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="policy" target="decision"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="decision" target="noSearch"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="decision" target="dispatch"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="dispatch" target="rewrite"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="rewrite" target="dense"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="rewrite" target="sparse"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="dense" target="denseOut"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="sparse" target="fusion"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="denseOut" target="fusion"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="fusion" target="hydrate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="hydrate" target="rerank"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="rerank" target="expand"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="expand" target="context"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="context" target="output"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="output" target="end"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e18" style="dashed=1;dashPattern=5 5;edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;strokeColor=#666666" edge="1" parent="1" source="env" target="rewrite"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e19" style="dashed=1;dashPattern=5 5;edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;strokeColor=#666666" edge="1" parent="1" source="env" target="dense"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e20" style="dashed=1;dashPattern=5 5;edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;strokeColor=#666666" edge="1" parent="1" source="env" target="output"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

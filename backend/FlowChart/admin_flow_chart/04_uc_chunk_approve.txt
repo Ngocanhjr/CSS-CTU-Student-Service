@@ -1,0 +1,190 @@
+[Start]
+    ↓
+[Canonical Markdown reviewed and approved]
+
+Initial conditions:
+ocr_status = done
+review_status = approved
+rag_status = not_indexed
+ingestion_job.current_step = chunking
+    ↓
+[Admin opens Review chunks page]
+    ↓
+{Canonical Markdown approved?}
+
+ ├── No
+ │     ↓
+ │  [Block Review chunks]
+ │     ↓
+ │  [Require returning to Review & approve]
+ │
+ └── Yes
+       ↓
+    [Admin clicks “Generate chunk preview”]
+       ↓
+    [POST /document-versions/{id}/chunk-preview]
+       ↓
+    [Backend reads document version details]
+     ├── canonical_markdown_path
+     ├── domain
+     └── audience
+       ↓
+    [Close PostgreSQL transaction]
+       ↓
+    [Read canonical Markdown from R2]
+       ↓
+    [Override domain/audience from PostgreSQL]
+       ↓
+    [Parse canonical Markdown]
+       ↓
+    [Generate chunks using current configuration]
+     ├── Parent chunks
+     └── Child chunks
+       ↓
+    [Validate chunks]
+     ├── Parent/Child relations
+     ├── Chunk key
+     ├── Chunk index
+     ├── Heading path
+     ├── Item path
+     ├── Page marker
+     ├── Token count
+     └── Content
+       ↓
+    [Return chunk preview to frontend]
+
+Note at this stage:
+- document_chunks not saved yet
+- Embeddings not created yet
+- Qdrant not written yet
+    ↓
+[Frontend displays]
+ ├── Parent chunk count
+ ├── Child chunk count
+ ├── Total chunk count
+ ├── Chunk list
+ ├── Warnings
+ └── Errors
+    ↓
+{Has errors?}
+
+ ├── Yes
+ │     ↓
+ │  [Disable “Save and approve chunks” button]
+ │     ↓
+ │  [Admin returns to edit Markdown]
+ │     ↓
+ │  [Re-review and approve canonical Markdown]
+ │     ↓
+ │  [Old chunks deleted and old approval revoked]
+ │     ↓
+ │  [Generate new chunk preview]
+ │
+ └── No
+       ↓
+    {Has warnings?}
+
+       ├── Yes
+       │     ↓
+       │  [Admin reviews warnings]
+       │     ↓
+       │  [Admin decides to proceed or edit Markdown]
+       │
+       └── No
+             ↓
+          [Continue approval]
+       ↓
+    [Admin clicks “Save and approve chunks”]
+       ↓
+    [POST /document-versions/{id}/chunks/approve]
+       ↓
+    [Backend generates and re-validates chunks]
+       ↓
+    {New chunking errors?}
+
+       ├── Yes
+       │     ↓
+       │  [Reject approval]
+       │  [Return error to frontend]
+       │
+       └── No
+             ↓
+          [Lock document version]
+             ↓
+          [Re-verify status]
+           ├── ocr_status = done
+           ├── review_status = approved
+           └── rag_status = not_indexed or failed
+             ↓
+          {Document modified since preview?}
+
+             ├── Yes
+             │     ↓
+             │  [Reject approval]
+             │     ↓
+             │  [Require generating preview again]
+             │
+             └── No
+                   ↓
+                [PostgreSQL Transaction]
+                   ↓
+                [Delete old chunks for version if any]
+                   ↓
+                [Save Parent chunks first]
+                 ├── content
+                 ├── chunk_key
+                 ├── chunk_index
+                 ├── heading_path
+                 ├── page_start/page_end
+                 ├── token_count
+                 └── index_status = not_indexed
+                   ↓
+                [Flush to obtain parent_chunk_id]
+                   ↓
+                [Save Child chunks]
+                 ├── parent_chunk_id
+                 ├── content
+                 ├── chunk_key
+                 ├── chunk_index
+                 ├── heading_path
+                 ├── page_start/page_end
+                 ├── token_count
+                 └── index_status = not_indexed
+                   ↓
+                [Update ingestion job]
+                 ├── status = pending
+                 ├── current_step = chunks_approved
+                 ├── total_chunks = Parent + Child
+                 ├── processed_chunks = 0
+                 └── error_message = null
+                   ↓
+                [Commit PostgreSQL]
+                   ↓
+                [Return approval result]
+                 ├── approved = true
+                 ├── parent_chunks
+                 ├── child_chunks
+                 ├── total_chunks
+                 └── current_step = chunks_approved
+                   ↓
+                [Frontend sets chunkApproved = true]
+                   ↓
+                [Proceed to Index & publish]
+                   ↓
+                [End]
+
+
+
+
+
+------
+PostgreSQL:
+- Parent/Child chunks saved
+- index_status = not_indexed
+- current_step = chunks_approved
+
+Qdrant:
+- No new vectors yet
+
+Frontend:
+- chunkApproved = true

@@ -1,0 +1,38 @@
+<mxfile host="app.diagrams.net" modified="2026-08-16T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="preview-approve-chunks" name="Preview and Approve Chunks">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="1200">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="CHUNK PREVIEW &amp; APPROVAL FLOW" style="text;html=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;align=center" vertex="1" parent="1"><mxGeometry x="350" y="20" width="700" height="40" as="geometry"/></mxCell>
+        <mxCell id="start" value="Bắt đầu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" vertex="1" parent="1"><mxGeometry x="610" y="80" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="preview" value="Tạo chunk preview" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="1"><mxGeometry x="500" y="180" width="400" height="65" as="geometry"/></mxCell>
+        <mxCell id="outputPreview" value="Hiển thị Parent và Child chunks để preview" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" vertex="1" parent="1"><mxGeometry x="490" y="285" width="420" height="65" as="geometry"/></mxCell>
+        <mxCell id="review" value="Admin kiểm tra chunks" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="1"><mxGeometry x="500" y="390" width="400" height="65" as="geometry"/></mxCell>
+        <mxCell id="approve" value="Admin bấm Approve chunks" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="1"><mxGeometry x="500" y="495" width="400" height="65" as="geometry"/></mxCell>
+        <mxCell id="rebuild" value="Backend tạo và validate lại đúng bộ chunks" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="1"><mxGeometry x="470" y="600" width="460" height="65" as="geometry"/></mxCell>
+        <mxCell id="errors" value="Có errors?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="1"><mxGeometry x="585" y="705" width="230" height="100" as="geometry"/></mxCell>
+        <mxCell id="reject" value="Không cho approve&#xa;Trả danh sách errors" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" vertex="1" parent="1"><mxGeometry x="980" y="720" width="260" height="70" as="geometry"/></mxCell>
+        <mxCell id="transaction" value="Transaction PostgreSQL&#xa;Replace Parent chunks&#xa;Replace Child chunks&#xa;index_status = not_indexed&#xa;Lưu tổng số chunks&#xa;current_step = chunks_approved" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" vertex="1" parent="1"><mxGeometry x="470" y="855" width="460" height="125" as="geometry"/></mxCell>
+        <mxCell id="result" value="Trả kết quả approve" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" vertex="1" parent="1"><mxGeometry x="500" y="1020" width="400" height="65" as="geometry"/></mxCell>
+        <mxCell id="next" value="Chuyển sang Index &amp; Publish" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#d9ead3;strokeColor=#6aa84f;fontStyle=1" vertex="1" parent="1"><mxGeometry x="500" y="1125" width="400" height="65" as="geometry"/></mxCell>
+        <mxCell id="end" value="Kết thúc" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" vertex="1" parent="1"><mxGeometry x="610" y="1230" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="env" value="Environment Configuration (nét đứt)&#xa;Chunking rules • PostgreSQL transaction&#xa;Parent/child chunk schema • validation limits" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#444444" vertex="1" parent="1"><mxGeometry x="70" y="800" width="330" height="105" as="geometry"/></mxCell>
+        <mxCell id="legend" value="Oval = Start/End | Bình hành = Input/Output | Chữ nhật = Process | Thoi = Decision | Bo góc nét đứt = Environment Configuration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=12" vertex="1" parent="1"><mxGeometry x="60" y="1080" width="380" height="100" as="geometry"/></mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="start" target="preview"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="preview" target="outputPreview"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="outputPreview" target="review"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="review" target="approve"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="approve" target="rebuild"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="rebuild" target="errors"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" value="Có" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="errors" target="reject"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="Không" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="errors" target="transaction"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="transaction" target="result"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="result" target="next"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block" edge="1" parent="1" source="next" target="end"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="dashed=1;dashPattern=5 5;edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;strokeColor=#666666" edge="1" parent="1" source="env" target="rebuild"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" style="dashed=1;dashPattern=5 5;edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;strokeColor=#666666" edge="1" parent="1" source="env" target="transaction"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

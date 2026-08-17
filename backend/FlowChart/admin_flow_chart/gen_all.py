@@ -1,0 +1,112 @@
+from flowchart_builder import generate_drawio_xml
+
+# 6. deindex_version
+nodes2 = [
+    {"id": "n1", "label": "Start", "shape": "start_end"},
+    {"id": "n2", "label": "Admin selects indexed/published document version", "shape": "process"},
+    {"id": "n3", "label": "Admin selects Deindex", "shape": "process"},
+    {"id": "n4", "label": "Display confirmation notice:\nDeindex will delete all chunks and vectors", "shape": "process"},
+    {"id": "n5", "label": "Admin confirms?", "shape": "decision"},
+    {"id": "n6", "label": "Cancel operation", "shape": "process"},
+    {"id": "n7", "label": "End", "shape": "start_end"},
+    {"id": "n8", "label": "Backend finds document version", "shape": "process"},
+    {"id": "n9", "label": "Document version exists?", "shape": "decision"},
+    {"id": "n10", "label": "Notify not found", "shape": "process"},
+    {"id": "n11", "label": "Is indexing job running?", "shape": "decision"},
+    {"id": "n12", "label": "Block Deindex\nNotify job is in progress", "shape": "process"},
+    {"id": "n13", "label": "rag_status is\nchunked/embedded/indexed/published?", "shape": "decision"},
+    {"id": "n14", "label": "Notify document not indexed", "shape": "process"},
+    {"id": "n15", "label": "PostgreSQL Transaction — Record intent\n- Create deindex job\n- rag_status = deactivated", "shape": "env"},
+    {"id": "n16", "label": "Document excluded from retrieval\nDelete vectors from Qdrant", "shape": "process"},
+    {"id": "n17", "label": "Qdrant deletion successful?", "shape": "decision"},
+    {"id": "n18", "label": "Update job failed\nFrontend displays error\nRetry Deindex", "shape": "process"},
+    {"id": "n19", "label": "PostgreSQL Transaction — Cleanup", "shape": "env"},
+    {"id": "n20", "label": "Has status changed?", "shape": "decision"},
+    {"id": "n21", "label": "Halt cleanup\nMark as failed", "shape": "process"},
+    {"id": "n22", "label": "Delete chunks from PostgreSQL\nRevoke chunk approval status", "shape": "process"},
+    {"id": "n23", "label": "Completed", "shape": "start_end"}
+]
+edges2 = [
+    {"source": "n1", "target": "n2"},
+    {"source": "n2", "target": "n3"},
+    {"source": "n3", "target": "n4"},
+    {"source": "n4", "target": "n5"},
+    {"source": "n5", "target": "n6", "label": "No"},
+    {"source": "n6", "target": "n7"},
+    {"source": "n5", "target": "n8", "label": "Yes"},
+    {"source": "n8", "target": "n9"},
+    {"source": "n9", "target": "n10", "label": "No"},
+    {"source": "n10", "target": "n7"},
+    {"source": "n9", "target": "n11", "label": "Yes"},
+    {"source": "n11", "target": "n12", "label": "Yes"},
+    {"source": "n12", "target": "n7"},
+    {"source": "n11", "target": "n13", "label": "No"},
+    {"source": "n13", "target": "n14", "label": "No"},
+    {"source": "n14", "target": "n7"},
+    {"source": "n13", "target": "n15", "label": "Yes"},
+    {"source": "n15", "target": "n16"},
+    {"source": "n16", "target": "n17"},
+    {"source": "n17", "target": "n18", "label": "No"},
+    {"source": "n18", "target": "n16", "label": "Retry"},
+    {"source": "n17", "target": "n19", "label": "Yes"},
+    {"source": "n19", "target": "n20"},
+    {"source": "n20", "target": "n21", "label": "Yes"},
+    {"source": "n20", "target": "n22", "label": "No"},
+    {"source": "n22", "target": "n23"}
+]
+generate_drawio_xml(nodes2, edges2, "06_deindex_version.drawio")
+
+# 7. delete_version
+nodes3 = [
+    {"id": "n1", "label": "Start", "shape": "start_end"},
+    {"id": "n2", "label": "Admin selects document version", "shape": "process"},
+    {"id": "n3", "label": "Document version exists?", "shape": "decision"},
+    {"id": "n4", "label": "Notify not found", "shape": "process"},
+    {"id": "n5", "label": "rag_status = not_indexed or failed?", "shape": "decision"},
+    {"id": "n6", "label": "rag_status = deactivated & has Delete job?", "shape": "decision"},
+    {"id": "n7", "label": "Display “Retry Delete”", "shape": "process"},
+    {"id": "n8", "label": "Block Delete\nRequire Deindex first", "shape": "process"},
+    {"id": "n9", "label": "Display data deletion warning", "shape": "process"},
+    {"id": "n10", "label": "Admin confirms?", "shape": "decision"},
+    {"id": "n11", "label": "Cancel operation", "shape": "process"},
+    {"id": "n12", "label": "PostgreSQL Transaction — Record intent\nCreate Delete job", "shape": "env"},
+    {"id": "n13", "label": "Clean up external data (Qdrant, R2)", "shape": "process"},
+    {"id": "n14", "label": "External cleanup successful?", "shape": "decision"},
+    {"id": "n15", "label": "Update Delete job failed\nFrontend displays error\nRetry", "shape": "process"},
+    {"id": "n16", "label": "Lock document version\nrag_status = deactivated?", "shape": "decision"},
+    {"id": "n17", "label": "Halt Delete", "shape": "process"},
+    {"id": "n18", "label": "Delete document version", "shape": "process"},
+    {"id": "n19", "label": "Document has other versions?", "shape": "decision"},
+    {"id": "n20", "label": "Delete document", "shape": "process"},
+    {"id": "n21", "label": "Frontend updates list", "shape": "process"},
+    {"id": "n22", "label": "End", "shape": "start_end"}
+]
+edges3 = [
+    {"source": "n1", "target": "n2"},
+    {"source": "n2", "target": "n3"},
+    {"source": "n3", "target": "n4", "label": "No"},
+    {"source": "n3", "target": "n5", "label": "Yes"},
+    {"source": "n5", "target": "n6", "label": "No"},
+    {"source": "n6", "target": "n7", "label": "Yes"},
+    {"source": "n6", "target": "n8", "label": "No"},
+    {"source": "n5", "target": "n9", "label": "Yes"},
+    {"source": "n7", "target": "n9"},
+    {"source": "n9", "target": "n10"},
+    {"source": "n10", "target": "n11", "label": "No"},
+    {"source": "n10", "target": "n12", "label": "Yes"},
+    {"source": "n12", "target": "n13"},
+    {"source": "n13", "target": "n14"},
+    {"source": "n14", "target": "n15", "label": "No"},
+    {"source": "n15", "target": "n13", "label": "Retry"},
+    {"source": "n14", "target": "n16", "label": "Yes"},
+    {"source": "n16", "target": "n17", "label": "No"},
+    {"source": "n16", "target": "n18", "label": "Yes"},
+    {"source": "n18", "target": "n19"},
+    {"source": "n19", "target": "n20", "label": "No"},
+    {"source": "n19", "target": "n21", "label": "Yes"},
+    {"source": "n20", "target": "n21"},
+    {"source": "n21", "target": "n22"}
+]
+generate_drawio_xml(nodes3, edges3, "07_delete_version.drawio")
+
+print("Generated diagrams 06, 07 in English")

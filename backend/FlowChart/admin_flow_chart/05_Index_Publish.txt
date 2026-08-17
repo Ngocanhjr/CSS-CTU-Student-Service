@@ -1,0 +1,204 @@
+[Start]
+    ↓
+[Parent/Child chunks saved and approved in PostgreSQL]
+
+Initial conditions:
+ocr_status = done
+review_status = approved
+rag_status = not_indexed or failed
+ingestion_job.current_step = chunks_approved
+    ↓
+[Admin opens Index & publish page]
+    ↓
+[System checks]
+ ├── OCR completed
+ ├── Canonical Markdown approved
+ ├── Chunks approved
+ └── Document version not indexed
+    ↓
+{Eligible for Indexing?}
+
+ ├── No
+ │     ↓
+ │  [Disable “Start Indexing” button]
+ │     ↓
+ │  [Require returning to incomplete step]
+ │
+ └── Yes
+       ↓
+    [Admin clicks “Start Indexing”]
+       ↓
+    [POST /document-versions/{id}/index]
+       ↓
+    [Backend locks document version]
+       ↓
+    [Check status]
+     ├── ocr_status = done
+     ├── review_status = approved
+     ├── rag_status = not_indexed or failed
+     └── current_step = chunks_approved
+       ↓
+    [Read approved Parent/Child chunks from PostgreSQL]
+       ↓
+    {Chunks exist & quantity sufficient?}
+
+       ├── No
+       │     ↓
+       │  [Block Indexing]
+       │     ↓
+       │  [Require previewing & approving chunks again]
+       │
+       └── Yes
+             ↓
+          [Read canonical Markdown from R2]
+             ↓
+          [Reconstruct chunk structure for verification]
+             ↓
+          [Compare with approved chunks]
+           ├── Chunk key
+           ├── Parent relation
+           ├── Chunk index
+           ├── Content
+           ├── Heading path
+           ├── Page range
+           └── Token count
+             ↓
+          {Matches approved chunk set?}
+
+             ├── No
+             │     ↓
+             │  [Block Indexing]
+             │     ↓
+             │  [Require previewing & approving chunks again]
+             │
+             └── Yes
+                   ↓
+                [Create indexing job]
+                 ├── job_type = indexing
+                 ├── status = processing
+                 ├── current_step = embedding
+                 ├── total_chunks = Child chunk count
+                 ├── processed_chunks = 0
+                 └── started_at = current timestamp
+                   ↓
+                [Update rag_status = chunked]
+                   ↓
+                [Return HTTP 202 to frontend]
+                   ↓
+                [Run indexing in background]
+                   ↓
+                [Frontend polls job status every second]
+                   ↓
+                [Generate embeddings for Child chunks]
+                   ↓
+                [Update processed_chunks by batch]
+                   ↓
+                {Embedding successful?}
+
+                   ├── No
+                   │     ↓
+                   │  [job.status = failed]
+                   │  [job.current_step = failed]
+                   │  [rag_status = failed]
+                   │  [Save error_message]
+                   │     ↓
+                   │  [Admin can Retry Indexing]
+                   │
+                   └── Yes
+                         ↓
+                      [job.current_step = qdrant_upsert]
+                         ↓
+                      [Retrieve PostgreSQL chunk IDs]
+                       ├── postgres_chunk_id
+                       └── postgres_parent_chunk_id
+                         ↓
+                      [Upsert Child vectors into Qdrant]
+                       ├── Vector embedding
+                       ├── Structural payload
+                       ├── review_status = approved
+                       ├── rag_status = indexed
+                       └── Do not store content in Qdrant
+                         ↓
+                      {Upsert into Qdrant successful?}
+
+                         ├── No
+                         │     ↓
+                         │  [job.status = failed]
+                         │  [job.current_step = failed]
+                         │  [rag_status = failed]
+                         │  [Save error_message]
+                         │     ↓
+                         │  [Admin can Retry Indexing]
+                         │
+                         └── Yes
+                               ↓
+                            [PostgreSQL Transaction]
+                             ├── document_chunks.index_status = indexed
+                             ├── Save qdrant_point_id
+                             ├── document_version.rag_status = indexed
+                             ├── job.status = completed
+                             ├── job.current_step = completed
+                             ├── processed_chunks = total_chunks
+                             └── finished_at = current timestamp
+                               ↓
+                            [Frontend displays Indexing completed]
+                               ↓
+                            [Admin inspects indexing result]
+                               ↓
+                            [Admin clicks “Publish document”]
+                               ↓
+                            [POST /versions/{id}/publish]
+                               ↓
+                            {rag_status = indexed?}
+
+                               ├── No
+                               │     ↓
+                               │  [Block Publish]
+                               │  [Display status error]
+                               │
+                               └── Yes
+                                     ↓
+                                  [Update PostgreSQL]
+                                   ├── rag_status = published
+                                   └── published_at = current timestamp
+                                     ↓
+                                  [Update Qdrant payload]
+                                   └── rag_status = published
+                                     ↓
+                                  {Qdrant update successful?}
+
+                                     ├── No
+                                     │     ↓
+                                     │  [Rollback PostgreSQL]
+                                     │   ├── rag_status = indexed
+                                     │   └── Remove published_at
+                                     │     ↓
+                                     │  [Display error]
+                                     │  [Admin can Retry Publish]
+                                     │
+                                     └── Yes
+                                           ↓
+                                        [Document Published]
+                                           ↓
+                                        [Document eligible for Retrieval]
+                                         ├── review_status = approved
+                                         ├── rag_status = published
+                                         └── Matching Audience
+                                           ↓
+                                        [Chatbot can utilize document]
+                                           ↓
+                                        [Completed]
+
+
+-------------
+Approve chunks:
+- Save Parent/Child chunks into PostgreSQL
+
+Index:
+- Read approved chunks
+- Embed Child chunks
+- Save vectors and structural payload to Qdrant
+
+Publish:
+- Switch rag_status from indexed to published
+- Enable document participation in retrieval

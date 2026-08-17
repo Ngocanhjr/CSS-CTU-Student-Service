@@ -1,0 +1,160 @@
+[Start]
+    ↓
+[Admin selects indexed/published document version]
+    ↓
+[Admin selects Deindex]
+    ↓
+[Display confirmation notice:
+ Deindex will delete all chunks and vectors]
+    ↓
+{Admin confirms?}
+
+ ├── No
+ │     ↓
+ │  [Cancel operation]
+ │     ↓
+ │  [End]
+ │
+ └── Yes
+       ↓
+    [Backend finds document version]
+       ↓
+    {Document version exists?}
+
+       ├── No
+       │     ↓
+       │  [Notify document version not found]
+       │     ↓
+       │  [End]
+       │
+       └── Yes
+             ↓
+          {Is indexing job running?}
+
+             ├── Yes
+             │     ↓
+             │  [Block Deindex]
+             │     ↓
+             │  [Notify indexing is in progress]
+             │     ↓
+             │  [End]
+             │
+             └── No
+                   ↓
+                {rag_status is
+                 chunked/embedded/indexed/published?}
+
+                   ├── No
+                   │     ↓
+                   │  [Notify document is not indexed]
+                   │     ↓
+                   │  [End]
+                   │
+                   └── Yes
+                         ↓
+                      [PostgreSQL Transaction — Record intent]
+                       ├── Create deindex job
+                       ├── job.status = processing
+                       ├── job.current_step = qdrant_delete
+                       ├── job.processed_chunks = 0
+                       └── document_version.rag_status = deactivated
+                         ↓
+                      [Commit PostgreSQL]
+                         ↓
+                      [Document immediately excluded from retrieval]
+                         ↓
+                      [Delete version vectors from Qdrant]
+                         ↓
+                      {Deletion from Qdrant successful?}
+
+                         ├── No
+                         │     ↓
+                         │  [Update deindex job]
+                         │   ├── status = failed
+                         │   ├── current_step = failed
+                         │   └── error_message = Qdrant error
+                         │     ↓
+                         │  [Keep rag_status = deactivated]
+                         │     ↓
+                         │  [Frontend displays error]
+                         │     ↓
+                         │  [Admin selects Retry Deindex]
+                         │     ↓
+                         │  [Re-run Qdrant deletion step]
+                         │
+                         └── Yes
+                               ↓
+                            [PostgreSQL Transaction — Cleanup]
+                               ↓
+                            [Verify rag_status is still deactivated]
+                               ↓
+                            {Has status changed?}
+
+                               ├── Yes
+                               │     ↓
+                               │  [Halt cleanup]
+                               │  [Mark deindex job failed]
+                               │  [Display conflict error]
+                               │
+                               └── No
+                                     ↓
+                                  [deindex_job.current_step =
+                                   postgres_cleanup]
+                                     ↓
+                                  [Delete Parent/Child chunks
+                                   from document_chunks]
+                                     ↓
+                                  [Revoke chunk approval state]
+                                   ├── ingestion_job.status = pending
+                                   ├── ingestion_job.current_step = chunking
+                                   ├── ingestion_job.total_chunks = null
+                                   ├── ingestion_job.processed_chunks = 0
+                                   └── ingestion_job.error_message = null
+                                     ↓
+                                  [Update document version]
+                                   └── rag_status = not_indexed
+                                     ↓
+                                  [Complete deindex job]
+                                   ├── status = completed
+                                   ├── current_step = completed
+                                   └── error_message = null
+                                     ↓
+                                  [Commit PostgreSQL]
+                                     ↓
+                                  [Frontend reloads document version]
+                                     ↓
+                                  [Display result]
+                                   ├── Deleted chunk count
+                                   ├── Deleted vector count
+                                   └── rag_status = not_indexed
+                                     ↓
+                                  [Deindex Completed]
+
+
+---------
+PostgreSQL:
+- Retain document and document version
+- Retain metadata
+- Retain review_status = approved
+- Delete Parent/Child chunks
+- Revoke chunks_approved
+- rag_status = not_indexed
+
+Qdrant:
+- Delete all vectors of version
+
+R2:
+- Retain source file
+- Retain canonical Markdown
+
+Chatbot:
+- Cannot retrieve document
+---------
+To re-enable document for chatbot:
+Generate chunk preview
+    ↓
+Save and approve chunks
+    ↓
+Index
+    ↓
+Publish

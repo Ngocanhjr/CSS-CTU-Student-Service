@@ -1,0 +1,72 @@
+[Start]
+    ↓
+[Admin opens Document Processing page]
+    ↓
+{Markdown file available?}
+
+ ├── Yes
+ │     ↓
+ │  [Upload Markdown]
+ │     ↓
+ │  [Upload source file if any]
+ │     ↓
+ │  [Enter metadata]
+ │
+ └── No
+       ↓
+    {Select OCR?}
+       ├── No
+       │     ↓
+       │  [Stay on upload page]
+       │
+       └── Yes
+             ↓
+          [Open separate OCR page]
+          [Do not carry file from upload page]
+             ↓
+          [Upload new PDF/DOC/DOCX/PPT/PPTX/Image]
+             ↓
+          [Start OCR]
+             ↓
+          {OCR successful?}
+             ├── No
+             │     ↓
+             │  [Display error]
+             │     ↓
+             │  [Retry or select another file]
+             │
+             └── Yes
+                   ↓
+                [Display metadata form]
+                   ↓
+                [Display Markdown result]
+                   ↓
+                [Admin enters metadata]
+                   ↓
+                [Admin reviews/edits Markdown]
+
+Both branches merge
+       ↓
+[Admin clicks “Save and continue”]
+       ↓
+[Validate Markdown and metadata]
+       ↓
+{Data valid?}
+
+ ├── No
+ │     ↓
+ │  [Display error]
+ │     ↓
+ │  [Admin edits data]
+ │
+ └── Yes
+       ↓
+    [Save source file (if any) to R2]
+       ↓
+    [Save canonical Markdown to R2]
+       ↓
+    [Create document/version/job in PostgreSQL]
+       ↓
+    [Proceed to Review & approve]
+       ↓
+    [End UC Upload]

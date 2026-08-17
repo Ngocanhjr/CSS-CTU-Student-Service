@@ -1,0 +1,130 @@
+[Start]
+    ↓
+[Document saved after Upload/OCR step]
+
+Initial state:
+ocr_status = done
+review_status = reviewing
+rag_status = not_indexed
+ingestion_job.current_step = review
+    ↓
+[Admin opens Review & approve page]
+    ↓
+[System displays]
+ ├── OCR / Review / RAG status
+ ├── Metadata
+ ├── Stored source file
+ ├── Stored canonical Markdown
+ ├── Markdown content for editing
+ └── Attached assets
+    ↓
+[Admin reviews document]
+ ├── Open source file
+ ├── Open canonical Markdown
+ ├── Download canonical Markdown
+ ├── Edit metadata
+ ├── Edit Markdown content
+ └── Add/edit assets if needed
+    ↓
+[Admin clicks “Save & approve to Review chunks”]
+    ↓
+[Frontend validates]
+ ├── Markdown must not be empty
+ ├── Title is required
+ ├── Document type is required
+ ├── Department in charge is required
+ └── Assets must have title, URL, and type
+    ↓
+{Frontend data valid?}
+
+ ├── No
+ │     ↓
+ │  [Disable button or display error]
+ │     ↓
+ │  [Admin continues editing]
+ │
+ └── Yes
+       ↓
+    [Send Markdown, metadata, and assets to review API]
+       ↓
+    [Backend finds document version]
+       ↓
+    {Document version exists?}
+
+       ├── No
+       │     ↓
+       │  [Return not found error]
+       │
+       └── Yes
+             ↓
+          {rag_status = not_indexed?}
+
+             ├── No
+             │     ↓
+             │  [Block Review/Approve]
+             │     ↓
+             │  [Require Deindex before modifying content]
+             │
+             └── Yes
+                   ↓
+                [Backend validation]
+                 ├── Valid Markdown syntax
+                 ├── Metadata adheres to schema contract
+                 ├── Document type exists and is active
+                 ├── Valid department
+                 └── Document/version not modified concurrently
+                   ↓
+                {Backend data valid?}
+
+                   ├── No
+                   │     ↓
+                   │  [Return validation/conflict error]
+                   │     ↓
+                   │  [Admin continues editing]
+                   │
+                   └── Yes
+                         ↓
+                      [Create new canonical Markdown revision]
+                         ↓
+                      [Save new revision to R2]
+                         ↓
+                      {Save to R2 successful?}
+
+                         ├── No
+                         │     ↓
+                         │  [Retain old PostgreSQL data]
+                         │  [Display error]
+                         │
+                         └── Yes
+                               ↓
+                            [PostgreSQL Transaction]
+                             ├── Update metadata
+                             ├── Update canonical_markdown_path
+                             ├── Update assets
+                             ├── ocr_status = done
+                             ├── review_status = approved
+                             ├── rag_status = not_indexed
+                             ├── Delete old Parent/Child chunks if any
+                             ├── Revoke old chunks_approved state
+                             └── ingestion_job.current_step = chunking
+                               ↓
+                            {Transaction successful?}
+
+                               ├── No
+                               │     ↓
+                               │  [Delete newly created R2 revision]
+                               │  [Retain old canonical revision]
+                               │  [Display error]
+                               │
+                               └── Yes
+                                     ↓
+                                  [Delete old canonical revision from R2]
+                                     ↓
+                                  [Frontend updates status]
+                                   ├── review_status = approved
+                                   ├── rag_status = not_indexed
+                                   └── chunkApproved = false
+                                     ↓
+                                  [Proceed to Review chunks]
+                                     ↓
+                                  [End]

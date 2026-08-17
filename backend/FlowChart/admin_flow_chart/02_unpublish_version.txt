@@ -1,0 +1,61 @@
+[Admin selects indexed/published document version]
+    ↓
+[Admin selects Deindex]
+    ↓
+[Notice: all chunks and vectors will be deleted]
+    ↓
+{Admin confirms?}
+ ├── No → [Cancel operation]
+ └── Yes
+        ↓
+     {Is indexing job running?}
+        ├── Yes → [Block Deindex]
+        └── No
+              ↓
+           {rag_status is
+            chunked/embedded/indexed/published?}
+              ├── No → [Notify document is not indexed]
+              └── Yes
+                    ↓
+                 [Create deindex job]
+                    ├── status = processing
+                    ├── current_step = qdrant_delete
+                    └── rag_status = deactivated
+                    ↓
+                 [Delete vectors from Qdrant]
+                    ↓
+                 {Deletion from Qdrant successful?}
+                    ├── No
+                    │     ↓
+                    │  [job_status = failed]
+                    │  [Keep rag_status = deactivated]
+                    │  [Allow Retry Deindex]
+                    └── Yes
+                          ↓
+                       [Delete chunks from PostgreSQL]
+                          ↓
+                       [Update status]
+                          ├── rag_status = not_indexed
+                          ├── job_status = completed
+                          └── current_step = completed
+                          ↓
+                       [Deindex Completed]
+
+
+------------
+PostgreSQL:
+- rag_status = indexed
+- unpublished_at recorded
+- document/version retained
+- Parent/Child chunks retained
+
+Qdrant:
+- Vectors retained
+- Payload rag_status = indexed
+
+R2:
+- Source file retained
+- Canonical Markdown retained
+
+Chatbot:
+- No longer retrieves document

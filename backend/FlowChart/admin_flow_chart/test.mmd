@@ -1,0 +1,6 @@
+graph TD
+    A([Start]) --> B[/Input/]
+    B --> C[Process]
+    C --> D{Decision}
+    D -->|Yes| E([End])
+    D -->|No| B

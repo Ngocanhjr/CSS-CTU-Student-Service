@@ -158,10 +158,24 @@ def complete_or_clarify_query(
     if is_ambiguous and not is_continuation and context.recent_topic:
         resolved_query = f"{expanded_query} cho {context.recent_topic}"
 
+    # Chỉ khóa vào tài liệu/version trước đó khi câu hỏi thực sự cần ngữ cảnh
+    # hội thoại. Một câu hỏi mới, đầy đủ ý nghĩa phải tìm trên toàn bộ kho;
+    # nếu luôn mang document_key/version_key cũ sang thì chatbot không thể
+    # chuyển sang một chủ đề nằm ở tài liệu khác.
+    should_scope_to_context = is_continuation or is_ambiguous
+
     return QueryDecision(
         should_search=True, #→ gọi Qdrant + PostgreSQL retrieval
         query=resolved_query, #gọi retrieval engine để tìm kiếm câu trả lời
-        document_key=context.current_document_key,
-        version_key=context.current_version_key,
+        document_key=(
+            context.current_document_key
+            if should_scope_to_context
+            else None
+        ),
+        version_key=(
+            context.current_version_key
+            if should_scope_to_context
+            else None
+        ),
         is_follow_up=is_continuation,
     )

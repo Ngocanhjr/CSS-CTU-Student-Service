@@ -1,0 +1,169 @@
+<mxfile host="65bd71144e">
+    <diagram name="Page-1" id="0">
+        <mxGraphModel dx="2764" dy="2272" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="n1" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="50" width="100" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n2" value="Admin opens Document Processing page" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="200" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n3" value="Markdown file available?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="350" width="180" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="n4" value="Upload Markdown" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="500" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n5" value="Upload source file if any" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="650" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n6" value="Enter metadata" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="800" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n7" value="Select OCR?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="500" width="180" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="n8" value="Stay on upload page" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="650" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n9" value="Open separate OCR page&#10;Do not carry file from upload page" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="550" y="650" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n10" value="Upload new PDF/DOC/DOCX/PPT/PPTX/Image" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="550" y="800" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n11" value="Start OCR" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="950" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n12" value="OCR successful?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="1100" width="180" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="n13" value="Display error" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="550" y="1250" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n14" value="Retry or select another file" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="550" y="1400" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n15" value="Display metadata form&#10;Display Markdown result" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="800" y="1250" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n16" value="Admin enters metadata" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="800" y="1400" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n17" value="Admin reviews/edits Markdown" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="1550" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n18" value="Admin clicks “Save and continue”" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="800" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n19" value="Validate Markdown and metadata" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="950" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n20" value="Data valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="1100" width="180" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="n21" value="Display error" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="1250" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n22" value="Admin edits data" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="1400" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n23" value="Save source file (if any) to R2&#10;Save canonical Markdown to R2&#10;Create document/version/job in PostgreSQL" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="1250" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n24" value="Proceed to Review &amp;amp; approve" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="1400" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="n25" value="End UC Upload" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#0a0a0a;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="1550" width="100" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_0" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n1" target="n2" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n2" target="n3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_2" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n3" target="n4" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n4" target="n5" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n5" target="n6" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n6" target="n18" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_6" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n3" target="n7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_7" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n7" target="n8" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n8" target="n18" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_9" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n7" target="n9" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n9" target="n10" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n10" target="n11" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n11" target="n12" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_13" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n12" target="n13" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n13" target="n14" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n14" target="n10" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_16" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n12" target="n15" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n15" target="n16" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n16" target="n17" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n17" target="n18" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n18" target="n19" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n19" target="n20" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_22" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n20" target="n21" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n21" target="n22" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_24" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n22" target="n18" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_25" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n20" target="n23" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_26" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n23" target="n24" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_27" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#0a0a0a;" parent="1" source="n24" target="n25" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

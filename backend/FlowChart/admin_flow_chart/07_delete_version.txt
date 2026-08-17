@@ -1,0 +1,167 @@
+[Start]
+    ↓
+[Admin selects document version]
+    ↓
+{Document version exists?}
+
+ ├── No
+ │     ↓
+ │  [Notify document version not found]
+ │     ↓
+ │  [End]
+ │
+ └── Yes
+       ↓
+    {rag_status = not_indexed or failed?}
+
+       ├── No
+       │     ↓
+       │  {rag_status = deactivated
+       │   and has uncompleted Delete job?}
+       │
+       │   ├── Yes
+       │   │     ↓
+       │   │  [Display “Retry Delete”]
+       │   │
+       │   └── No
+       │         ↓
+       │      [Block Delete]
+       │         ↓
+       │      [Require Deindex first]
+       │         ↓
+       │      [End]
+       │
+       └── Yes
+             ↓
+          [Display Delete button]
+             ↓
+          [Admin selects Delete]
+             ↓
+          [Display warning:
+           action will permanently delete related data
+           and cannot be undone]
+             ↓
+          {Admin confirms?}
+
+             ├── No
+             │     ↓
+             │  [Cancel operation]
+             │     ↓
+             │  [End]
+             │
+             └── Yes
+                   ↓
+                [PostgreSQL Transaction — Record intent]
+                   ↓
+                [Create Delete job]
+                 ├── job_type = delete
+                 ├── status = processing
+                 ├── current_step = external_cleanup
+                 ├── processed_chunks = 0
+                 └── error_message = null
+                   ↓
+                [Update document version]
+                 └── rag_status = deactivated
+                   ↓
+                [Commit PostgreSQL]
+                   ↓
+                [Version immediately excluded from retrieval]
+                   ↓
+                [Clean up external data]
+                 ├── Delete remaining Qdrant vectors
+                 ├── Delete canonical Markdown from R2
+                 └── Delete source file from R2
+                   ↓
+                {External data cleanup successful?}
+
+                   ├── No
+                   │     ↓
+                   │  [Update Delete job]
+                   │   ├── status = failed
+                   │   ├── current_step = failed
+                   │   └── error_message = cleanup error
+                   │     ↓
+                   │  [Keep rag_status = deactivated]
+                   │     ↓
+                   │  [Frontend displays error]
+                   │     ↓
+                   │  [Display “Retry Delete”]
+                   │     ↓
+                   │  [Admin confirms retry]
+                   │     ↓
+                   │  [Repeat safe cleanup]
+                   │
+                   └── Yes
+                         ↓
+                      [PostgreSQL Transaction — Delete data]
+                         ↓
+                      [Lock document version]
+                         ↓
+                      {rag_status is still deactivated?}
+
+                         ├── No
+                         │     ↓
+                         │  [Halt Delete]
+                         │     ↓
+                         │  [Mark Delete job failed]
+                         │     ↓
+                         │  [Notify status has changed]
+                         │
+                         └── Yes
+                               ↓
+                            [Check if document has other versions]
+                               ↓
+                            [Delete document version]
+                             ├── Delete Parent/Child chunks via CASCADE
+                             ├── Delete ingestion jobs via CASCADE
+                             ├── Delete recipients via CASCADE
+                             └── Delete asset links via CASCADE
+                               ↓
+                            {Document has other versions?}
+
+                               ├── Yes
+                               │     ↓
+                               │  [Retain document]
+                               │
+                               └── No
+                                     ↓
+                                  [Delete document]
+                               ↓
+                            [Commit PostgreSQL]
+                               ↓
+                            [Frontend removes version from list]
+                               ↓
+                            [Display “Document deleted”]
+                               ↓
+                            [Completed]
+
+--------
+Delete Conditions:
+First-time Delete:
+rag_status = not_indexed or failed
+
+Retry Delete:
+rag_status = deactivated
+AND has Delete job in pending/processing/failed state
+
+Indexed/published version:
+Must Deindex first
+---------
+Final Result:
+PostgreSQL:
+- Document version deleted
+- Chunks, jobs, recipients, and asset links deleted
+- Document deleted only if no other versions remain
+
+R2:
+- Canonical Markdown deleted
+- Source file deleted
+
+Qdrant:
+- Remaining vectors of version deleted
+
+Chatbot:
+- Cannot retrieve version
+
+Recovery:
+- Cannot recover after Delete completion
