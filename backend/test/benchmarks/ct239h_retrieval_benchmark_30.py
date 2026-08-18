@@ -25,31 +25,269 @@ MEASURES = [P@5, R@5]
 
 
 def normalized(text: str) -> str:
-    return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", text).casefold()).strip()
+    """Normalize nội dung nhưng vẫn giữ nguyên Markdown syntax."""
+    return re.sub(
+        r"\s+",
+        " ",
+        unicodedata.normalize("NFKC", text).casefold(),
+    ).strip()
+
+
+def normalized_markdown(text: str) -> str:
+    """
+    Normalize chỉ phần trình bày Markdown để resolve gold span.
+
+    Không paraphrase, không fuzzy match và không thay đổi nội dung ngữ nghĩa.
+    """
+    text = unicodedata.normalize("NFKC", text).casefold()
+
+    # Heading:
+    # #### Điều 2. -> Điều 2.
+    # ## do có chứng chỉ... -> do có chứng chỉ...
+    text = re.sub(
+        r"(?m)^\s{0,3}#{1,6}[ \t]+",
+        "",
+        text,
+    )
+
+    # Markdown escapes:
+    # \* -> *
+    # \+ -> +
+    # \- -> -
+    text = re.sub(
+        r"\\([\\`*{}\[\]()#+\-.!_>])",
+        r"\1",
+        text,
+    )
+
+    # Strong emphasis:
+    # **text** -> text
+    # __text__ -> text
+    text = text.replace("**", "")
+    text = text.replace("__", "")
+
+    # Bỏ marker danh sách ở đầu dòng.
+    # Ví dụ:
+    # - + Số tín chỉ... -> Số tín chỉ...
+    # * Lưu ý...        -> Lưu ý...
+    #
+    # Chỉ bỏ marker trình bày đầu dòng, không xóa dấu +-* trong nội dung.
+    text = re.sub(
+        r"(?m)^\s*(?:[-+*]\s+)+",
+        "",
+        text,
+    )
+
+    return re.sub(r"\s+", " ", text).strip()
 
 
 async def gold_keys(session, case: dict) -> list[str]:
     expected = case.get("expected", case)
-    document_key = expected.get("document_key", expected.get("expected_document_key"))
-    version_key = expected.get("version_key", expected.get("expected_version_key"))
+
+    document_key = expected.get(
+        "document_key",
+        expected.get("expected_document_key"),
+    )
+    version_key = expected.get(
+        "version_key",
+        expected.get("expected_version_key"),
+    )
+
     if not document_key or not version_key:
-        raise RuntimeError(f"{case['id']}: thiếu expected document/version key.")
+        raise RuntimeError(
+            f"{case['id']}: thiếu expected document/version key."
+        )
+
     first, last = expected["page_hint"]
+
     spans = expected.get("gold_answer_spans")
-    if not isinstance(spans, list) or not spans or not all(isinstance(span, str) and span.strip() for span in spans):
-        raise RuntimeError(f"{case['id']}: gold_answer_spans phải là danh sách đoạn đáp án không rỗng.")
-    rows = (await session.execute(select(DocumentChunk).join(DocumentVersion).join(Document).where(Document.document_key == document_key, DocumentVersion.version_key == version_key, DocumentChunk.chunk_type == "child", or_(DocumentChunk.page_start.is_(None), DocumentChunk.page_start <= last), or_(DocumentChunk.page_end.is_(None), DocumentChunk.page_end >= first)))).scalars().all()
-    normalized_rows = [(row, normalized(row.content)) for row in rows]
+    if (
+        not isinstance(spans, list)
+        or not spans
+        or not all(
+            isinstance(span, str) and span.strip()
+            for span in spans
+        )
+    ):
+        raise RuntimeError(
+            f"{case['id']}: gold_answer_spans phải là "
+            "danh sách đoạn đáp án không rỗng."
+        )
+
+    rows = (
+        await session.execute(
+            select(DocumentChunk)
+            .join(DocumentVersion)
+            .join(Document)
+            .where(
+                Document.document_key == document_key,
+                DocumentVersion.version_key == version_key,
+                DocumentChunk.chunk_type == "child",
+                or_(
+                    DocumentChunk.page_start.is_(None),
+                    DocumentChunk.page_start <= last,
+                ),
+                or_(
+                    DocumentChunk.page_end.is_(None),
+                    DocumentChunk.page_end >= first,
+                ),
+            )
+        )
+    ).scalars().all()
+
+    # Chuẩn bị nhiều representation cho mỗi child chunk.
+    #
+    # content_exact:
+    #   Nội dung chunk nguyên bản, chỉ normalize Unicode/whitespace.
+    #
+    # content_markdown:
+    #   Nội dung chunk đã bỏ Markdown presentation.
+    #
+    # contextual_markdown:
+    #   heading_path + content.
+    #   Cần thiết khi heading nằm trong heading_path thay vì content.
+    normalized_rows = []
+
+    for row in rows:
+        content = row.content or ""
+
+        content_exact = normalized(content)
+        content_markdown = normalized_markdown(content)
+
+        heading_path = row.heading_path or []
+
+        contextual_text = "\n".join(
+            [
+                *heading_path,
+                content,
+            ]
+        )
+
+        contextual_markdown = normalized_markdown(
+            contextual_text
+        )
+
+        normalized_rows.append(
+            {
+                "row": row,
+                "content_exact": content_exact,
+                "content_markdown": content_markdown,
+                "contextual_markdown": contextual_markdown,
+            }
+        )
+
     resolved: list[str] = []
+
     for span in spans:
-        needle = normalized(span)
-        matches = [(row, content) for row, content in normalized_rows if needle in content]
-        if not matches:
-            raise RuntimeError(f"{case['id']}: không resolve được gold_answer_span {span!r} trong {document_key}/{version_key}, trang {first}-{last}.")
-        # Span exact match: chunk ngắn nhất chứa span là vị trí evidence cụ thể nhất.
-        best_row, _ = min(matches, key=lambda item: (len(item[1]), item[0].chunk_index))
+        # --------------------------------------------------
+        # Tier 1: exact normalized match
+        # --------------------------------------------------
+        #
+        # Ưu tiên tuyệt đối vì đây là trường hợp gold span
+        # thực sự xuất hiện trong child content.
+        exact_needle = normalized(span)
+
+        exact_matches = [
+            item
+            for item in normalized_rows
+            if exact_needle in item["content_exact"]
+        ]
+
+        if exact_matches:
+            best = min(
+                exact_matches,
+                key=lambda item: (
+                    len(item["content_exact"]),
+                    item["row"].chunk_index,
+                ),
+            )
+
+            best_row = best["row"]
+
+            if best_row.chunk_key not in resolved:
+                resolved.append(best_row.chunk_key)
+
+            continue
+
+        # --------------------------------------------------
+        # Tier 2: Markdown-presentation normalized match
+        # --------------------------------------------------
+        #
+        # Chỉ dùng khi exact match thất bại.
+        #
+        # Có thể match:
+        # - canonical span với #### nhưng chunk không có ####
+        # - **text** với text
+        # - \* / \+ với marker đã được chunker xử lý
+        # - heading nằm trong heading_path thay vì content
+        markdown_needle = normalized_markdown(span)
+
+        markdown_matches = [
+            item
+            for item in normalized_rows
+            if (
+                markdown_needle in item["content_markdown"]
+                or
+                markdown_needle
+                in item["contextual_markdown"]
+            )
+        ]
+
+        if not markdown_matches:
+            print("\n" + "=" * 100)
+            print(f"DEBUG GOLD RESOLUTION: {case['id']}")
+            print(f"SPAN RAW: {span!r}")
+            print(f"SPAN NORMALIZED: {normalized(span)!r}")
+            print(
+                "SPAN MARKDOWN NORMALIZED:",
+                repr(normalized_markdown(span)),
+            )
+
+            print(f"\nCANDIDATE CHILD CHUNKS ({len(rows)}):")
+
+            for item in normalized_rows:
+                row = item["row"]
+
+                print("\n---")
+                print("chunk_key:", row.chunk_key)
+                print("chunk_index:", row.chunk_index)
+                print("page:", row.page_start, "-", row.page_end)
+                print("heading_path:", row.heading_path)
+                print("content RAW:", repr(row.content))
+                print(
+                    "content_markdown:",
+                    repr(item["content_markdown"]),
+                )
+                print(
+                    "contextual_markdown:",
+                    repr(item["contextual_markdown"]),
+                )
+
+            print("=" * 100 + "\n")
+
+                
+            raise RuntimeError(
+                f"{case['id']}: không resolve được "
+                f"gold_answer_span {span!r} trong "
+                f"{document_key}/{version_key}, "
+                f"trang {first}-{last}."
+            )
+
+        # Chọn child chunk ngắn nhất chứa evidence.
+        # Không dùng fuzzy score.
+        best = min(
+            markdown_matches,
+            key=lambda item: (
+                len(item["content_exact"]),
+                item["row"].chunk_index,
+            ),
+        )
+
+        best_row = best["row"]
+
         if best_row.chunk_key not in resolved:
             resolved.append(best_row.chunk_key)
+
     return resolved
 
 
