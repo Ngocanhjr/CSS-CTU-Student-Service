@@ -297,3 +297,25 @@ VD:
 flutter build apk --release -- dart-define=API_BASE_URL=http://192.168.1.77:8000
 
 Cách 2: Thêm 1 màn hình cho nhập IP, không cần phải build lại apk khi chạy trên mỗi máy khác nhau
+
+-------------------------------------------------------------------------------------------------------------------
+BM25
+
+ĐỔI HÀM TÍNH SCORE CỦA POSTGRESQL - FTS (SPARSE) TỪ ts_rank_cd -> bm25
+PostgreSQL FTS
+      ↓
+lọc candidate
+      ↓
+BM25Okapi.get_scores()
+      ↓
+_score = BM25 score
+      ↓
+RRF
+
+
+số lần từ xuất hiện trong document,
+số document chứa từ đó,
+độ dài document,
+độ dài trung bình của corpus: số lượng từ trung bình của tất cả document/chunk trong tập dữ liệu.
+
+pip install rank-bm25
