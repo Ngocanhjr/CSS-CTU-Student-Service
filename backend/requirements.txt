@@ -24,3 +24,5 @@ llama-cloud>=2.1
 ir-measures==0.3.7
 ragas>=0.3,<0.4
 matplotlib==3.10.9
+
+rank-bm25==0.2.2
